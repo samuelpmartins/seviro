@@ -1,0 +1,72 @@
+/* Estilos globais */
+@import 'bootstrap';
+
+/* Fontes customizadas */
+@font-face {
+    font-family: 'Archivo Medium';
+    src: url('/fonts/archivo-expanded-medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Raleway Semibold';
+    src: url('/fonts/Raleway-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+}
+
+/* Aplicação das fontes */
+body {
+    font-family: 'Raleway Semibold', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: 'Archivo Medium', sans-serif;
+}
+
+/* Customizações */
+.navbar-brand img {
+    max-height: 40px;
+}
+
+.table img {
+    object-fit: cover;
+}
+
+/* Padrão - Fundo preto */
+body {
+    background-color: #000000;
+    color: #e8e8e9;
+}
+
+/* Dark mode - Nova paleta de cores (igual ao padrão) */
+[data-bs-theme="dark"] {
+    --bs-body-bg: #000000;
+    --bs-body-color: #e8e8e9;
+}
+
+/* Light mode - Nova paleta de cores (fundo cinza claro) */
+[data-bs-theme="light"] {
+    --bs-body-bg: #e8e8e9;
+    --bs-body-color: #000000;
+}
+
+/* Utilitários */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Animações */
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+

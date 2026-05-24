@@ -1,0 +1,44 @@
+// Fontes customizadas
+@font-face {
+    font-family: 'Archivo Medium';
+    src: url('/fonts/archivo-expanded-medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Raleway Semibold';
+    src: url('/fonts/Raleway-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+}
+
+// Cores principais
+$primary-black: #000000;
+$primary-light-gray: #e8e8e9;
+$primary-medium-gray: #9da1a1;
+
+// Body - Preto por padrão
+$body-bg: $primary-black;
+$body-color: $primary-light-gray;
+
+// Typography
+$font-family-titles: 'Archivo Medium', sans-serif;
+$font-family-sans-serif: 'Raleway Semibold', sans-serif;
+$font-size-base: 0.9rem;
+$line-height-base: 1.6;
+
+// Customização das cores do Bootstrap (mantendo cores originais para botões, badges e alertas)
+$gray-100: $primary-light-gray;
+$gray-500: $primary-medium-gray;
+$gray-900: $primary-black;
+
+// Navbar e componentes principais
+$navbar-light-color: $primary-black;
+$navbar-light-hover-color: $primary-medium-gray;
+$navbar-dark-color: $primary-light-gray;
+$navbar-dark-hover-color: $primary-medium-gray;
+
+// Cards e bordas
+$card-border-color: $primary-medium-gray;
+$border-color: $primary-medium-gray;

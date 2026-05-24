@@ -1,0 +1,176 @@
+// Fonts customizadas já definidas em _variables.scss
+
+// Variables
+@import 'variables';
+
+// Bootstrap
+@import 'bootstrap/scss/bootstrap';
+
+// Padrão do body (preto)
+body {
+    background-color: #000000;
+    color: #e8e8e9;
+}
+
+// Tema escuro (igual ao padrão)
+[data-bs-theme="dark"] {
+    --bs-body-bg: #000000;
+    --bs-body-color: #e8e8e9;
+    
+    .navbar {
+        background-color: #000000;
+        border-bottom: 1px solid #9da1a1;
+        
+        .navbar-brand, .nav-link {
+            color: #e8e8e9;
+            
+            &:hover {
+                color: #9da1a1;
+            }
+        }
+        
+        .navbar-toggler {
+            border-color: #9da1a1;
+            
+            .navbar-toggler-icon {
+                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(232, 232, 233, 0.75)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+            }
+        }
+    }
+
+    // Dashboard cards
+    .card {
+        background-color: #000000;
+        border-color: #9da1a1;
+
+        .card-header {
+            background-color: #000000;
+            border-bottom-color: #9da1a1;
+            color: #e8e8e9;
+        }
+
+        .text-muted {
+            color: #9da1a1 !important;
+        }
+    }
+
+    // Botões outline no tema escuro (mantém cores originais)
+    .btn-outline-primary,
+    .btn-outline-success,
+    .btn-outline-info,
+    .btn-outline-secondary {
+        &:hover {
+            color: #000000;
+        }
+    }
+    
+    // Textos e títulos
+    h1, h2, h3, h4, h5, h6 {
+        color: #e8e8e9;
+    }
+    
+    // Borders gerais
+    .border {
+        border-color: #9da1a1 !important;
+    }
+}
+
+// Tema claro
+[data-bs-theme="light"] {
+    --bs-body-bg: #e8e8e9;
+    --bs-body-color: #000000;
+    
+    .navbar {
+        background-color: #e8e8e9;
+        border-bottom: 1px solid #9da1a1;
+        
+        .navbar-brand, .nav-link {
+            color: #000000;
+            
+            &:hover {
+                color: #9da1a1;
+            }
+        }
+    }
+    
+    // Cards no tema light
+    .card {
+        background-color: #ffffff;
+        border-color: #9da1a1;
+        
+        .card-header {
+            background-color: #e8e8e9;
+            border-bottom-color: #9da1a1;
+            color: #000000;
+        }
+        
+        .text-muted {
+            color: #9da1a1 !important;
+        }
+    }
+    
+    // Textos e títulos no tema light
+    h1, h2, h3, h4, h5, h6 {
+        color: #000000;
+    }
+    
+    // Borders gerais no tema light
+    .border {
+        border-color: #9da1a1 !important;
+    }
+    
+    // Tabelas no tema light
+    .table {
+        --bs-table-bg: #ffffff;
+        --bs-table-color: #000000;
+    }
+}
+
+// Estilos gerais - Aplicação das fontes
+body {
+    font-family: 'Raleway Semibold', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: 'Archivo Medium', sans-serif;
+}
+
+.navbar {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dropdown-item {
+    cursor: pointer;
+    
+    &:active {
+        color: var(--bs-dropdown-link-active-color);
+        background-color: var(--bs-dropdown-link-active-bg);
+    }
+}
+
+// Dashboard cards
+.card {
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    
+    .card-body {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .fs-1 {
+        opacity: 0.8;
+        transition: opacity 0.3s ease;
+    }
+    
+    &:hover .fs-1 {
+        opacity: 1;
+    }
+}
+
+// Progress bar animation
+.progress {
+    .progress-bar {
+        transition: width 0.6s ease;
+    }
+}
