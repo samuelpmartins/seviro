@@ -1,0 +1,75 @@
+# Laravel default ignores
+/vendor/
+/node_modules/
+/public/hot
+/public/storage
+/storage/*.key
+/.idea/
+/.vscode/
+/.phpunit.result.cache
+/.env
+/.env.*
+Homestead.yaml
+Homestead.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+phpunit.xml
+/phpunit.xml
+/.phpunit.result.cache
+
+# Laravel Mix / Vite
+/npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.mix
+.vite
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Composer
+/composer.lock
+/vendor/
+
+# Logs
+/storage/logs/*.log
+/storage/framework/cache/data
+/storage/framework/sessions
+/storage/framework/views
+/storage/app/public
+
+# IDE files
+/.idea
+/.vscode
+
+# Build files
+/public/build
+/public/mix-manifest.json
+
+# Coverage reports
+/coverage/
+/phpunit.xml
+
+# Misc
+/secrets.php
+.env.backup
+.env.local
+.env.testing
+.env.production
+.env.staging
+.env.development
+
+# Ignore generated package files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Ignore lock files if using package manager alternative
+# Uncomment as needed
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
