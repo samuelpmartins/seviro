@@ -14,6 +14,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.env
+.htaccess
+
+/vendor
+/node_modules
+
+/storage/logs/*
+/bootstrap/cache/*
 
 # Laravel Mix / Vite
 /.vite
