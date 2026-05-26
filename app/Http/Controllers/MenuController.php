@@ -108,7 +108,7 @@ class MenuController extends Controller
     {
         $request->validate([
             'qr_code' => 'required|string',
-            'password' => 'string|size:4|regex:/^[0-9]{4}$/',
+            //'password' => 'string|size:4|regex:/^[0-9]{4}$/',
             'name' => 'required|string|max:255',
         ]);
 
