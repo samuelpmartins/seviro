@@ -15,12 +15,12 @@ class MenuController extends Controller
         // Inicializar variáveis
         $isCounter = false;
         $table = null;
-        
+
         // Se tiver um QR code, busca a mesa específica ou verifica se é QR code de balcão
         if ($qrCode) {
             // Tentar encontrar uma mesa com esse QR code
             $table = Table::where('qr_code', $qrCode)->first();
-            
+
             if ($table) {
                 // É uma mesa
                 $store = $table->store;
@@ -36,7 +36,7 @@ class MenuController extends Controller
                     $participantExists = \App\Models\TableParticipant::where('id', $participantId)
                         ->where('table_id', $table->id)
                         ->exists();
-                    
+
                     // Se o participante não existe mais, invalidar a sessão
                     if (!$participantExists) {
                         $request->session()->forget($sessionKey);
@@ -53,16 +53,16 @@ class MenuController extends Controller
             } else {
                 // Não é uma mesa, verificar se é QR code de balcão
                 $store = Store::where('counter_qr_code', $qrCode)->first();
-                
+
                 if (!$store) {
                     // QR code não encontrado
                     abort(404, 'QR Code não encontrado');
                 }
-                
+
                 // É um QR code de balcão, carregar cardápio sem mesa
                 $table = null;
                 $isCounter = true;
-                
+
                 // Marcar na sessão que é pedido de balcão
                 $request->session()->put('counter_order_store_' . $store->id, true);
                 $request->session()->put('counter_qr_code', $qrCode);
@@ -91,7 +91,7 @@ class MenuController extends Controller
         $store = auth()->user()->store;
         $table = null;
         $isCounter = false;
-        
+
         // Carrega as categorias com seus produtos
         $categories = $store->categories()
             ->with(['products' => function ($query) {
@@ -108,7 +108,7 @@ class MenuController extends Controller
     {
         $request->validate([
             'qr_code' => 'required|string',
-            'password' => 'required|string|size:4|regex:/^[0-9]{4}$/',
+            'password' => 'string|size:4|regex:/^[0-9]{4}$/',
             'name' => 'required|string|max:255',
         ]);
 
@@ -122,12 +122,15 @@ class MenuController extends Controller
             ], 400);
         }
 
-        // Define a senha
-        $table->update([
-            'password' => $request->password,
-            'occupied' => true,
-            'occupied_at' => now()
-        ]);
+
+        if (!empty($request->password)) {
+            // Define a senha
+            $table->update([
+                'password' => $request->password,
+                'occupied' => true,
+                'occupied_at' => now()
+            ]);
+        }
 
         // Cria o primeiro participante (owner)
         $participant = TableParticipant::create([
@@ -233,7 +236,7 @@ class MenuController extends Controller
     public function checkTableStatus(Request $request, string $qrCode)
     {
         $table = Table::where('qr_code', $qrCode)->firstOrFail();
-        
+
         $hasPassword = !empty($table->password);
         $sessionKey = 'table_' . $table->id . '_authenticated';
         $participantIdKey = 'table_' . $table->id . '_participant_id';
@@ -245,7 +248,7 @@ class MenuController extends Controller
             $participantExists = \App\Models\TableParticipant::where('id', $participantId)
                 ->where('table_id', $table->id)
                 ->exists();
-            
+
             // Se o participante não existe mais, invalidar a sessão
             if (!$participantExists) {
                 $request->session()->forget($sessionKey);
@@ -260,4 +263,4 @@ class MenuController extends Controller
             'is_authenticated' => $isAuthenticated,
         ]);
     }
-} 
+}
