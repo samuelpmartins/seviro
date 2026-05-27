@@ -101,7 +101,9 @@
                 <div id="category-{{ $category->id }}" class="menu-category" style="background: white;">
                     @foreach ($category->products as $product)
                         <div class="product-item" data-product-id="{{ $product->id }}"
-                            style="border-bottom: 1px solid #f0f0f0; padding: 1rem 1.25rem; cursor: pointer; transition: background 0.2s ease; position: relative;">
+                            data-product-name="{{ $product->name }}" data-product-price="{{ $product->price }}"
+                            data-product-image="{{ $product->image }}"
+                            style="border-bottom: 1px solid #f0f0f0; padding: 1rem 1.25rem; transition: background 0.2s ease; position: relative;">
                             <div class="d-flex gap-3">
                                 <!-- Imagem do Produto (Pequena à Esquerda) -->
                                 @if ($product->image)
@@ -137,9 +139,43 @@
                                         </p>
                                     @endif
 
-                                    <div class="product-price mt-2" style="font-size: 1rem; font-weight: 600; color: #333;">
-                                        R$ {{ number_format($product->price, 2, ',', '.') }}
+                                    <div class="product-card-actions">
+                                        <div>
+                                            <div class="product-price"
+                                                style="font-size: 1rem; font-weight: 600; color: #333;">
+                                                R$ {{ number_format($product->price, 2, ',', '.') }}
+                                            </div>
+                                            <div class="item-total-price text-muted"
+                                                style="font-size: 0.9rem; display: none;">
+                                                R$ 0,00
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn card-action card-decrease-btn"
+                                                data-product-id="{{ $product->id }}" disabled>
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                            <span class="card-quantity" data-product-id="{{ $product->id }}">0</span>
+                                            <button type="button" class="btn card-action card-increase-btn"
+                                                data-product-id="{{ $product->id }}">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                            <button type="button" class="btn card-remove-btn"
+                                                data-product-id="{{ $product->id }}" style="display: none;">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
                                     </div>
+
+                                    @if ($product->description)
+                                        <div class="text-end mt-2">
+                                            <button type="button" class="detail-button"
+                                                data-product-id="{{ $product->id }}">
+                                                Saiba mais
+                                            </button>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -303,10 +339,10 @@
                                 para proteger a mesa.</p>
                             <form id="createPasswordForm">
                                 <!-- <div class="mb-3">
-                                                            <label for="newPassword" class="form-label">Senha (4 dígitos)</label>
-                                                            <input type="text" class="form-control text-center" id="newPassword" maxlength="4" pattern="[0-9]{4}" placeholder="0000" style="font-size: 1.5rem; letter-spacing: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px;" required>
-                                                            <small class="text-muted">Digite uma senha numérica de 4 dígitos</small>
-                                                        </div> -->
+                                                                    <label for="newPassword" class="form-label">Senha (4 dígitos)</label>
+                                                                    <input type="text" class="form-control text-center" id="newPassword" maxlength="4" pattern="[0-9]{4}" placeholder="0000" style="font-size: 1.5rem; letter-spacing: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px;" required>
+                                                                    <small class="text-muted">Digite uma senha numérica de 4 dígitos</small>
+                                                                </div> -->
                                 <div class="mb-3">
                                     <label for="ownerName" class="form-label">Seu Nome</label>
                                     <input type="text" class="form-control" id="ownerName"
@@ -549,6 +585,61 @@
         input[type="number"] {
             -moz-appearance: textfield;
         }
+
+        .product-item {
+            cursor: default;
+        }
+
+        .product-card-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .product-card-actions .card-quantity {
+            min-width: 34px;
+            text-align: center;
+            font-weight: 700;
+            color: #000;
+            font-size: 0.95rem;
+        }
+
+        .product-card-actions .btn.card-action {
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            background: #f0f0f0;
+            color: #333;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .product-card-actions .btn.card-remove-btn {
+            width: 34px;
+            height: 34px;
+            background: transparent;
+            color: #ef4444;
+        }
+
+        .product-item .detail-button {
+            color: #111;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 999px;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .product-item .detail-button:hover {
+            background: #e5e7eb;
+        }
     </style>
 
     <script>
@@ -762,7 +853,7 @@
             });
 
             // Elementos do DOM
-            const productItems = document.querySelectorAll('.product-item');
+            const menuContent = document.getElementById('menu-content');
             const detailPanel = document.getElementById('product-detail-panel');
             const panelOverlay = document.getElementById('panel-overlay');
             const closePanel = document.getElementById('close-panel');
@@ -771,12 +862,46 @@
             const floatingCartContent = document.getElementById('floating-cart-content');
             const floatingCartIcon = document.getElementById('floating-cart-icon');
 
-            // Event Listeners para abrir detalhes do produto
-            productItems.forEach(item => {
-                item.addEventListener('click', function() {
-                    const productId = this.dataset.productId;
+            // Event delegation para ações nos cards de produto
+            menuContent.addEventListener('click', function(event) {
+                const increaseBtn = event.target.closest('.card-increase-btn');
+                const decreaseBtn = event.target.closest('.card-decrease-btn');
+                const removeBtn = event.target.closest('.card-remove-btn');
+                const detailBtn = event.target.closest('.detail-button');
+
+                if (increaseBtn) {
+                    const productId = increaseBtn.dataset.productId;
+                    const product = getProductFromCard(productId);
+                    if (product) {
+                        addToCart({
+                            ...product,
+                            quantity: 1,
+                            notes: ''
+                        });
+                    }
+                    return;
+                }
+
+                if (decreaseBtn) {
+                    const productId = decreaseBtn.dataset.productId;
+                    const cartItem = cart.find(item => item.id === parseInt(productId));
+                    if (cartItem) {
+                        updateCartItemQuantityByProductId(productId, cartItem.quantity - 1);
+                    }
+                    return;
+                }
+
+                if (removeBtn) {
+                    const productId = removeBtn.dataset.productId;
+                    removeFromCartByProductId(productId);
+                    return;
+                }
+
+                if (detailBtn) {
+                    const productId = detailBtn.dataset.productId;
                     openProductDetail(productId);
-                });
+                    return;
+                }
             });
 
             // Fechar painel
@@ -978,7 +1103,54 @@
                     `- R$ ${total.toFixed(2).replace('.', ',')}`;
             }
 
-            // Adicionar item ao carrinho
+            function getProductCardById(productId) {
+                return document.querySelector(`.product-item[data-product-id="${productId}"]`);
+            }
+
+            function getProductFromCard(productId) {
+                const card = getProductCardById(productId);
+                if (!card) return null;
+                return {
+                    id: parseInt(productId),
+                    name: card.dataset.productName,
+                    price: parseFloat(card.dataset.productPrice),
+                    image: card.dataset.productImage || null
+                };
+            }
+
+            function updateProductCard(productId) {
+                const card = getProductCardById(productId);
+                if (!card) return;
+
+                const cartItem = cart.find(item => item.id === parseInt(productId));
+                const quantityEl = card.querySelector('.card-quantity');
+                const decreaseBtn = card.querySelector('.card-decrease-btn');
+                const removeBtn = card.querySelector('.card-remove-btn');
+                const totalPriceEl = card.querySelector('.item-total-price');
+                const basePrice = parseFloat(card.dataset.productPrice);
+
+                if (cartItem) {
+                    quantityEl.textContent = cartItem.quantity;
+                    decreaseBtn.disabled = cartItem.quantity <= 1;
+                    removeBtn.style.display = 'inline-flex';
+                    totalPriceEl.style.display = 'block';
+                    totalPriceEl.textContent =
+                        `R$ ${(cartItem.price * cartItem.quantity).toFixed(2).replace('.', ',')}`;
+                } else {
+                    quantityEl.textContent = '0';
+                    decreaseBtn.disabled = true;
+                    removeBtn.style.display = 'none';
+                    totalPriceEl.style.display = 'none';
+                    totalPriceEl.textContent = `R$ ${basePrice.toFixed(2).replace('.', ',')}`;
+                }
+            }
+
+            function updateProductCards() {
+                document.querySelectorAll('.product-item').forEach(card => {
+                    updateProductCard(card.dataset.productId);
+                });
+            }
+
             function addToCart(item) {
                 // Verificar se o item já existe no carrinho
                 const existingItemIndex = cart.findIndex(cartItem =>
@@ -997,6 +1169,24 @@
 
                 // Feedback visual
                 showToast('Item adicionado ao carrinho!');
+            }
+
+            function updateCartItemQuantityByProductId(productId, quantity) {
+                const index = cart.findIndex(item => item.id === parseInt(productId));
+                if (index === -1) return;
+
+                if (quantity < 1) {
+                    removeFromCart(index);
+                } else {
+                    cart[index].quantity = quantity;
+                    updateCart();
+                }
+            }
+
+            function removeFromCartByProductId(productId) {
+                const index = cart.findIndex(item => item.id === parseInt(productId));
+                if (index === -1) return;
+                removeFromCart(index);
             }
 
             // Remover item do carrinho
@@ -1031,6 +1221,11 @@
                 cartCount.textContent = `${totalItems} ${totalItems === 1 ? 'item' : 'itens'}`;
                 cartTotal.textContent = `R$ ${totalPrice.toFixed(2).replace('.', ',')}`;
                 cartTotalFooter.textContent = `R$ ${totalPrice.toFixed(2).replace('.', ',')}`;
+                checkoutBtn.innerHTML =
+                    `<i class="fas fa-check me-2"></i> Finalizar Pedido - R$ ${totalPrice.toFixed(2).replace('.', ',')}`;
+
+                // Atualizar os cards dos produtos
+                updateProductCards();
 
                 // Habilitar/desabilitar botão de checkout
                 checkoutBtn.disabled = cart.length === 0;
@@ -1051,12 +1246,12 @@
                     cartItemsContainer.innerHTML = cart.map((item, index) => `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                        <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                                    ` : `
-                                                        <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                            <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                                        </div>
-                                                    `}
+                                                                <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                                                            ` : `
+                                                                <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                                    <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
+                                                                </div>
+                                                            `}
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
@@ -1234,22 +1429,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                            <small class="text-muted">
-                                                                                <i class="fas fa-user me-1"></i>
-                                                                                <strong>${order.participant_name}</strong>
-                                                                            </small>
-                                                                        ` : ''}
+                                                                                    <small class="text-muted">
+                                                                                        <i class="fas fa-user me-1"></i>
+                                                                                        <strong>${order.participant_name}</strong>
+                                                                                    </small>
+                                                                                ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                            <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                <i class="fas fa-check-circle me-1"></i>Pago
-                                                                            </span>
-                                                                        ` : `
-                                                                            <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                <i class="fas fa-clock me-1"></i>Pendente
-                                                                            </span>
-                                                                        `}
+                                                                                    <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                        <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                    </span>
+                                                                                ` : `
+                                                                                    <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                        <i class="fas fa-clock me-1"></i>Pendente
+                                                                                    </span>
+                                                                                `}
                                         <span class="badge" style="background: ${
                                             order.status === 'Finalizado' ? '#10b981' : 
                                             order.status === 'Em produção' ? '#f59e0b' : 
@@ -1262,11 +1457,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                        <div class="d-flex justify-content-between py-1">
-                                                                            <span>${item.quantity}x ${item.product_name}</span>
-                                                                            <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                        </div>
-                                                                    `).join('')}
+                                                                                <div class="d-flex justify-content-between py-1">
+                                                                                    <span>${item.quantity}x ${item.product_name}</span>
+                                                                                    <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                </div>
+                                                                            `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">
