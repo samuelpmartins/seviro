@@ -335,16 +335,15 @@
                     <div class="modal-body" style="padding: 2rem;">
                         <!-- Etapa 1: Criar senha (primeiro usuário) -->
                         <div id="createPasswordStep" style="display: none;">
-                            <p class="text-center mb-4">Você é o primeiro a acessar esta mesa!
-                                para proteger a mesa.</p>
+                            <p class="text-center mb-4">Olá, Seja Bem-vindo!</p>
                             <form id="createPasswordForm">
                                 <!-- <div class="mb-3">
-                                                                    <label for="newPassword" class="form-label">Senha (4 dígitos)</label>
-                                                                    <input type="text" class="form-control text-center" id="newPassword" maxlength="4" pattern="[0-9]{4}" placeholder="0000" style="font-size: 1.5rem; letter-spacing: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px;" required>
-                                                                    <small class="text-muted">Digite uma senha numérica de 4 dígitos</small>
-                                                                </div> -->
+                                                                        <label for="newPassword" class="form-label">Senha (4 dígitos)</label>
+                                                                        <input type="text" class="form-control text-center" id="newPassword" maxlength="4" pattern="[0-9]{4}" placeholder="0000" style="font-size: 1.5rem; letter-spacing: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px;" required>
+                                                                        <small class="text-muted">Digite uma senha numérica de 4 dígitos</small>
+                                                                    </div> -->
                                 <div class="mb-3">
-                                    <label for="ownerName" class="form-label">Seu Nome</label>
+                                    <label for="ownerName" class="form-label">Digite seu nome para continuarmos</label>
                                     <input type="text" class="form-control" id="ownerName"
                                         placeholder="Digite seu nome"
                                         style="border: 2px solid #e0e0e0; border-radius: 8px;" required>
@@ -1246,12 +1245,12 @@
                     cartItemsContainer.innerHTML = cart.map((item, index) => `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                                <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                                            ` : `
-                                                                <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                    <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                                                </div>
-                                                            `}
+                                                                    <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                                                                ` : `
+                                                                    <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                                        <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
+                                                                    </div>
+                                                                `}
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
@@ -1429,22 +1428,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                                    <small class="text-muted">
-                                                                                        <i class="fas fa-user me-1"></i>
-                                                                                        <strong>${order.participant_name}</strong>
-                                                                                    </small>
-                                                                                ` : ''}
+                                                                                        <small class="text-muted">
+                                                                                            <i class="fas fa-user me-1"></i>
+                                                                                            <strong>${order.participant_name}</strong>
+                                                                                        </small>
+                                                                                    ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                                    <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                        <i class="fas fa-check-circle me-1"></i>Pago
-                                                                                    </span>
-                                                                                ` : `
-                                                                                    <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                        <i class="fas fa-clock me-1"></i>Pendente
-                                                                                    </span>
-                                                                                `}
+                                                                                        <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                            <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                        </span>
+                                                                                    ` : `
+                                                                                        <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                            <i class="fas fa-clock me-1"></i>Pendente
+                                                                                        </span>
+                                                                                    `}
                                         <span class="badge" style="background: ${
                                             order.status === 'Finalizado' ? '#10b981' : 
                                             order.status === 'Em produção' ? '#f59e0b' : 
@@ -1457,11 +1456,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                                <div class="d-flex justify-content-between py-1">
-                                                                                    <span>${item.quantity}x ${item.product_name}</span>
-                                                                                    <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                                </div>
-                                                                            `).join('')}
+                                                                                    <div class="d-flex justify-content-between py-1">
+                                                                                        <span>${item.quantity}x ${item.product_name}</span>
+                                                                                        <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                    </div>
+                                                                                `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">
