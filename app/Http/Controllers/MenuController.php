@@ -78,6 +78,7 @@ class MenuController extends Controller
         $categories = $store->categories()
             ->with(['products' => function ($query) {
                 $query->where('active', true)
+                    ->with('additionalIngredients')
                     ->orderBy('order');
             }])
             ->orderBy('order')
@@ -96,6 +97,7 @@ class MenuController extends Controller
         $categories = $store->categories()
             ->with(['products' => function ($query) {
                 $query->where('active', true)
+                    ->with('additionalIngredients')
                     ->orderBy('order');
             }])
             ->orderBy('order')
@@ -113,6 +115,7 @@ class MenuController extends Controller
         ]);
 
         $table = Table::where('qr_code', $request->qr_code)->firstOrFail();
+        $table_participants_count = TableParticipant::where('table_id', $table->id);
 
         // Verifica se a mesa já tem senha
         if ($table->password) {
@@ -122,6 +125,12 @@ class MenuController extends Controller
             ], 400);
         }
 
+        if ($table_participants_count->count() > 0) {
+            return response()->json([ 
+                'success' => false,
+                'message' => 'Esta mesa ja esta ocupada, encerre o pedido para novos clientes.'
+            ], 400);
+        }
 
         if (!empty($request->password)) {
             // Define a senha
@@ -137,6 +146,11 @@ class MenuController extends Controller
             'table_id' => $table->id,
             'name' => $request->name,
             'is_owner' => true,
+        ]);
+
+        $table->update([
+            'occupied' => true,
+            'occupied_at' => now()
         ]);
 
         // Autentica na sessão

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
@@ -18,6 +19,7 @@ class Product extends Model
         'price',
         'active',
         'is_quick_item',
+        'customizable',
         'category_id',
         'store_id',
         'order'
@@ -27,6 +29,7 @@ class Product extends Model
         'price' => 'decimal:2',
         'active' => 'boolean',
         'is_quick_item' => 'boolean',
+        'customizable' => 'boolean',
     ];
 
     public function category(): BelongsTo
@@ -38,4 +41,9 @@ class Product extends Model
     {
         return $this->belongsTo(Store::class);
     }
-} 
+
+    public function additionalIngredients(): HasMany
+    {
+        return $this->hasMany(ProductIngredient::class);
+    }
+}
