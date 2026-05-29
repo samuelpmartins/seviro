@@ -101,9 +101,14 @@
                 <div id="category-{{ $category->id }}" class="menu-category" style="background: white;">
                     @foreach ($category->products as $product)
                         <div class="product-item" data-product-id="{{ $product->id }}"
-                            style="border-bottom: 1px solid #f0f0f0; padding: 1rem 1.25rem; cursor: pointer; transition: background 0.2s ease; position: relative;">
-                            <div class="d-flex gap-3">
-                                <!-- Imagem do Produto (Pequena à Esquerda) -->
+                            data-product-name="{{ $product->name }}" data-product-price="{{ $product->price }}"
+                            data-product-image="{{ $product->image ? asset('storage/' . $product->image) : '' }}"
+                            style="border-bottom: 1px solid #f0f0f0; padding: 1rem 1.25rem; transition: background 0.2s ease; position: relative; display: flex; align-items: stretch; gap: 1rem;">
+
+                            <!-- Esquerda: Imagem + Info (Clicável) -->
+                            <div class="product-left"
+                                style="flex: 1; display: flex; gap: 1rem; cursor: pointer; min-width: 0;">
+                                <!-- Imagem do Produto -->
                                 @if ($product->image)
                                     <div class="product-image" style="flex-shrink: 0;">
                                         <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}"
@@ -117,7 +122,8 @@
                                 @endif
 
                                 <!-- Informações do Produto -->
-                                <div class="product-info" style="flex: 1; min-width: 0;">
+                                <div class="product-info"
+                                    style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                                     <h3 class="product-name mb-1"
                                         style="font-size: 1rem; font-weight: 600; color: #333; margin: 0;">
                                         {{ $product->name }}
@@ -130,17 +136,62 @@
                                         </p>
                                     @endif
 
-                                    @if ($product->ingredients)
+                                    @php
+                                        $ingredientText = '';
+                                        if (!empty($product->additionalIngredients)) {
+                                            $ingredientText = collect($product->additionalIngredients)
+                                                ->pluck('name')
+                                                ->filter()
+                                                ->implode(', ');
+                                        }
+                                        if (!$ingredientText) {
+                                            $ingredientText = $product->ingredients;
+                                            $decodedIngredients = json_decode($product->ingredients, true);
+                                            if (is_array($decodedIngredients)) {
+                                                $ingredientText = collect($decodedIngredients)
+                                                    ->pluck('name')
+                                                    ->filter()
+                                                    ->implode(', ');
+                                            }
+                                        }
+                                    @endphp
+
+                                    @if ($ingredientText)
                                         <p class="product-ingredients mb-1"
                                             style="font-size: 0.8rem; color: #bbb; margin: 0;">
-                                            {{ Str::limit($product->ingredients, 60) }}
+                                            {{ Str::limit($ingredientText, 60) }}
                                         </p>
                                     @endif
 
                                     <div class="product-price mt-2" style="font-size: 1rem; font-weight: 600; color: #333;">
                                         R$ {{ number_format($product->price, 2, ',', '.') }}
                                     </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary product-detail-btn mt-2"
+                                        data-product-id="{{ $product->id }}"
+                                        style="font-weight: 600; padding: 0.35rem 0.75rem; border-radius: 12px; width: auto; min-width: 120px;">
+                                        Saiba mais
+                                    </button>
                                 </div>
+                            </div>
+
+                            <!-- Direita: Controles de Quantidade + Lixeira -->
+                            <div class="product-controls"
+                                style="display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0;">
+                                <!-- Controles de Quantidade -->
+                                <div class="product-quick-add" data-product-id="{{ $product->id }}"
+                                    style="display: flex; align-items: center; gap: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px; padding: 0.35rem; background: #f9f9f9;">
+                                    <button type="button" class="btn btn-sm quick-decr"
+                                        style="width: 32px; height: 32px; padding: 0; border: none; background: transparent; color: #666; font-size: 1rem;">−</button>
+                                    <span class="quick-qty"
+                                        style="width: 50px; text-align: center; font-weight: 600; color: #333;">0</span>
+                                    <button type="button" class="btn btn-sm quick-incr"
+                                        style="width: 32px; height: 32px; padding: 0; border: none; background: transparent; color: #666; font-size: 1rem;">+</button>
+                                </div>
+
+                                <!-- Botão Lixeira (Aparece quando quantidade > 0) -->
+                                <button type="button" class="btn btn-sm quick-remove"
+                                    style="width: 40px; height: 40px; padding: 0; border: 2px solid #fee2e2; background: #fef2f2; border-radius: 8px; color: #ef4444; font-size: 1.2rem; cursor: pointer; display: none;"
+                                    title="Remover do carrinho"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                     @endforeach
@@ -183,7 +234,8 @@
                 <div id="panel-product-description" class="mb-3"
                     style="font-size: 0.95rem; color: #666; line-height: 1.6;"></div>
 
-                <div id="panel-product-ingredients" class="mb-3" style="font-size: 0.85rem; color: #999;"></div>
+                <div id="panel-product-ingredient-customization" class="mb-3" style="font-size: 0.9rem; color: #444;">
+                </div>
 
                 <div class="price-section mb-4" style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
                     <div class="d-flex justify-content-between align-items-center">
@@ -211,13 +263,13 @@
                     </div>
                 </div>
 
-                <!-- Observações -->
+                <!-- Observações Automáticas -->
                 <div class="notes-section mb-4">
                     <label for="product-notes" class="form-label"
-                        style="font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 0.75rem;">Observações
-                        (opcional)</label>
-                    <textarea id="product-notes" class="form-control" rows="3" placeholder="Ex: Sem cebola, ponto da carne..."
-                        style="border: 2px solid #f0f0f0; border-radius: 8px; font-size: 0.9rem;"></textarea>
+                        style="font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 0.75rem;">Observações</label>
+                    <textarea id="product-notes" class="form-control" rows="3"
+                        placeholder="As observações serão preenchidas automaticamente..."
+                        style="border: 2px solid #f0f0f0; border-radius: 8px; font-size: 0.9rem;" readonly></textarea>
                 </div>
             </div>
 
@@ -235,13 +287,72 @@
     </div>
 
     <!-- Overlay Escuro -->
+    <!-- Modal de Detalhes do Produto -->
+    <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog"
+            style="position: fixed; top: 0; right: 0; margin: 0; width: 420px; max-width: 100%; height: 100vh; transform: none;">
+            <div class="modal-content"
+                style="height: 100%; border-radius: 0; border: none; overflow: hidden; box-shadow: -10px 0 30px rgba(0,0,0,0.12);">
+                <div class="modal-header"
+                    style="padding: 1rem 1.25rem; border-bottom: 1px solid #e6e6e6; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;">
+                    <div style="flex: 1; min-width: 0;">
+                        <h5 id="modal-product-name" class="modal-title"
+                            style="margin: 0; font-weight: 700; word-break: break-word;"></h5>
+                        <div id="modal-product-description" class="small text-muted mt-2"
+                            style="max-height: 4rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-break: break-word;">
+                        </div>
+                        <div class="small text-muted mt-2">Preço unitário: <span id="modal-unit-price"
+                                style="font-weight:700; color:#000;">R$ 0,00</span></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body p-0 d-flex flex-column" style="height: calc(100% - 68px);">
+                    <div class="overflow-auto" style="padding: 1.25rem; flex: 1;">
+                        <div id="modal-product-image"
+                            style="width: 100%; height: 180px; border-radius: 12px; overflow: hidden; background: #f0f0f0; margin-bottom: 1rem;">
+                        </div>
+                        <div id="modal-product-ingredients" class="mb-3"></div>
+                        <div id="modal-ingredient-customization" class="mb-3"></div>
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div style="font-weight: 600;">Quantidade</div>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" id="modal-decrease-quantity"
+                                    class="btn btn-outline-secondary btn-sm">-</button>
+                                <input type="number" id="modal-product-quantity" value="1" min="1"
+                                    style="width: 70px; text-align: center; border: 2px solid #f0f0f0; border-radius: 8px; background: #fff;" />
+                                <button type="button" id="modal-increase-quantity"
+                                    class="btn btn-outline-secondary btn-sm">+</button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" style="font-weight:600;">Observações</label>
+                            <textarea id="modal-product-notes" class="form-control" rows="3"
+                                style="border:1px solid #e6e6e6; border-radius:8px; resize: vertical;"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer d-flex align-items-center justify-content-between"
+                        style="padding: 1rem 1.25rem; border-top: 1px solid #e6e6e6; gap: 1rem; align-items: center;">
+                        <div style="min-width: 0;">
+                            <div class="small text-muted" style="font-size: 0.85rem; color: #666;">Total</div>
+                            <div id="modal-total-price" style="font-weight:700; font-size:1.4rem; color:#000;">R$ 0,00
+                            </div>
+                        </div>
+                        <button type="button" id="modal-add-to-cart-btn" class="btn btn-primary"
+                            style="padding: 1rem 1.25rem; min-height: 48px; font-size: 1rem; white-space: nowrap; flex-shrink: 0;">Adicionar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
     <div id="panel-overlay"
         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1999; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;">
     </div>
 
     <!-- Resumo Flutuante do Carrinho (Mobile) -->
     <div id="floating-cart-summary" class="floating-cart-summary"
-        style="display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 1050; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); transition: all 0.3s ease;">
+        style="position: fixed; bottom: 0; left: 0; right: 0; z-index: 1050; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); transition: all 0.3s ease;">
         <div class="floating-cart-header" id="floating-cart-toggle"
             style="padding: 1rem 1.25rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #000; color: white;">
             <div class="d-flex align-items-center gap-2">
@@ -299,16 +410,10 @@
                     <div class="modal-body" style="padding: 2rem;">
                         <!-- Etapa 1: Criar senha (primeiro usuário) -->
                         <div id="createPasswordStep" style="display: none;">
-                            <p class="text-center mb-4">Você é o primeiro a acessar esta mesa!
-                                para proteger a mesa.</p>
+                            <p class="text-center mb-4">Olá, Seja Bem-vindo!</p>
                             <form id="createPasswordForm">
-                                <!-- <div class="mb-3">
-                                                            <label for="newPassword" class="form-label">Senha (4 dígitos)</label>
-                                                            <input type="text" class="form-control text-center" id="newPassword" maxlength="4" pattern="[0-9]{4}" placeholder="0000" style="font-size: 1.5rem; letter-spacing: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px;" required>
-                                                            <small class="text-muted">Digite uma senha numérica de 4 dígitos</small>
-                                                        </div> -->
                                 <div class="mb-3">
-                                    <label for="ownerName" class="form-label">Seu Nome</label>
+                                    <label for="ownerName" class="form-label">Digite seu nome para continuarmos</label>
                                     <input type="text" class="form-control" id="ownerName"
                                         placeholder="Digite seu nome"
                                         style="border: 2px solid #e0e0e0; border-radius: 8px;" required>
@@ -407,6 +512,11 @@
 
         .product-item:active {
             background: #f0f0f0 !important;
+        }
+
+        /* Hover effect na parte esquerda do produto */
+        .product-left:hover {
+            opacity: 0.85;
         }
 
         /* Scrollbar personalizada */
@@ -549,6 +659,61 @@
         input[type="number"] {
             -moz-appearance: textfield;
         }
+
+        .product-item {
+            cursor: default;
+        }
+
+        .product-card-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .product-card-actions .card-quantity {
+            min-width: 34px;
+            text-align: center;
+            font-weight: 700;
+            color: #000;
+            font-size: 0.95rem;
+        }
+
+        .product-card-actions .btn.card-action {
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            background: #f0f0f0;
+            color: #333;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .product-card-actions .btn.card-remove-btn {
+            width: 34px;
+            height: 34px;
+            background: transparent;
+            color: #ef4444;
+        }
+
+        .product-item .detail-button {
+            color: #111;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 999px;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .product-item .detail-button:hover {
+            background: #e5e7eb;
+        }
     </style>
 
     <script>
@@ -582,8 +747,31 @@
 
             // Verificar autenticação da mesa
             @if (isset($table))
-                checkTableAuthentication();
+                setTimeout(checkTableAuthentication, 120);
             @endif
+
+            function showAuthModal() {
+                const authModalEl = document.getElementById('authModal');
+                if (!authModalEl) return;
+
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const authModal = bootstrap.Modal.getOrCreateInstance(authModalEl, {
+                        backdrop: 'static',
+                        keyboard: false
+                    });
+                    authModal.show();
+                } else {
+                    authModalEl.classList.add('show');
+                    authModalEl.style.display = 'block';
+                    document.body.classList.add('modal-open');
+
+                    if (!document.querySelector('.modal-backdrop')) {
+                        const backdrop = document.createElement('div');
+                        backdrop.className = 'modal-backdrop fade show';
+                        document.body.appendChild(backdrop);
+                    }
+                }
+            }
 
             function checkTableAuthentication() {
                 fetch(`/api/table/${qrCode}/status`)
@@ -591,8 +779,15 @@
                     .then(data => {
                         if (!data.is_authenticated) {
                             // Mostrar modal de autenticação
-                            const authModal = new bootstrap.Modal(document.getElementById('authModal'));
-                            authModal.show();
+                            const authModalEl = document.getElementById('authModal');
+                            if (authModalEl) {
+                                showAuthModal();
+                                setTimeout(() => {
+                                    if (!authModalEl.classList.contains('show')) {
+                                        showAuthModal();
+                                    }
+                                }, 150);
+                            }
 
                             // Verificar se precisa criar senha ou validar
                             if (!data.has_password) {
@@ -617,15 +812,8 @@
             document.getElementById('createPasswordForm')?.addEventListener('submit', function(e) {
                 e.preventDefault();
 
-                const password = document.getElementById('newPassword');
                 const name = document.getElementById('ownerName').value;
                 const submitBtn = this.querySelector('button[type="submit"]');
-
-                // Validar senha
-                /*if (!/^[0-9]{4}$/.test(password)) {
-                    showToast('A senha deve conter exatamente 4 dígitos', 'error');
-                    return;
-                }*/
 
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Criando...';
@@ -638,14 +826,13 @@
                         },
                         body: JSON.stringify({
                             qr_code: qrCode,
-                            password: password,
                             name: name
                         })
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            showToast('Senha criada com sucesso!', 'success');
+                            showToast('Bem-vindo à mesa!', 'success');
                             // Fechar modal e recarregar página
                             bootstrap.Modal.getInstance(document.getElementById('authModal')).hide();
                             setTimeout(() => location.reload(), 500);
@@ -658,9 +845,9 @@
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        showToast('Erro ao criar senha', 'error');
+                        showToast('Erro ao entrar na mesa', 'error');
                         submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>Criar Senha e Entrar';
+                        submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>Entrar';
                     });
             });
 
@@ -752,17 +939,12 @@
                     });
             });
 
-            // Permitir apenas números nos campos de senha
-            document.getElementById('newPassword')?.addEventListener('input', function(e) {
-                this.value = this.value.replace(/[^0-9]/g, '');
-            });
-
             document.getElementById('tablePassword')?.addEventListener('input', function(e) {
                 this.value = this.value.replace(/[^0-9]/g, '');
             });
 
             // Elementos do DOM
-            const productItems = document.querySelectorAll('.product-item');
+            const menuContent = document.getElementById('menu-content');
             const detailPanel = document.getElementById('product-detail-panel');
             const panelOverlay = document.getElementById('panel-overlay');
             const closePanel = document.getElementById('close-panel');
@@ -771,23 +953,107 @@
             const floatingCartContent = document.getElementById('floating-cart-content');
             const floatingCartIcon = document.getElementById('floating-cart-icon');
 
-            // Event Listeners para abrir detalhes do produto
-            productItems.forEach(item => {
-                item.addEventListener('click', function() {
-                    const productId = this.dataset.productId;
+            // Event Listeners para abrir detalhes do produto (apenas clicando na esquerda)
+            const productLefts = document.querySelectorAll('.product-left');
+            productLefts.forEach(left => {
+                left.addEventListener('click', function() {
+                    const productItem = this.closest('.product-item');
+                    const productId = productItem.dataset.productId;
                     openProductDetail(productId);
                 });
             });
 
+            // Botões de detalhe "Saiba mais"
+            const productDetailButtons = document.querySelectorAll('.product-detail-btn');
+            productDetailButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    openProductDetail(this.dataset.productId);
+                });
+            });
+
             // Fechar painel
-            closePanel.addEventListener('click', closeProductDetail);
-            panelOverlay.addEventListener('click', closeProductDetail);
+            closePanel?.addEventListener('click', closeProductDetail);
+            panelOverlay?.addEventListener('click', closeProductDetail);
 
             // Toggle do carrinho flutuante
-            floatingCartToggle.addEventListener('click', function() {
+            floatingCartToggle?.addEventListener('click', function() {
                 const isOpen = floatingCartContent.style.display !== 'none';
                 floatingCartContent.style.display = isOpen ? 'none' : 'block';
                 floatingCartIcon.className = isOpen ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+            });
+
+            // Quick add controls
+            const quickAddPanels = document.querySelectorAll('.product-quick-add');
+            quickAddPanels.forEach(panel => {
+                const productId = panel.dataset.productId;
+                const qtyDisplay = panel.querySelector('.quick-qty');
+                const decrBtn = panel.querySelector('.quick-decr');
+                const incrBtn = panel.querySelector('.quick-incr');
+                const removeBtn = panel.closest('.product-controls').querySelector('.quick-remove');
+
+                function getPanelQuantity() {
+                    return parseInt(panel.dataset.quantity || qtyDisplay.textContent) || 0;
+                }
+
+                function setPanelQuantity(value) {
+                    panel.dataset.quantity = value;
+                    qtyDisplay.textContent = value;
+                    if (removeBtn) {
+                        removeBtn.style.display = value > 0 ? 'block' : 'none';
+                    }
+                }
+
+                setPanelQuantity(0);
+
+                decrBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    let quantity = getPanelQuantity();
+                    if (quantity > 0) {
+                        quantity--;
+                        setPanelQuantity(quantity);
+
+                        // Remover 1 item do carrinho
+                        const existingItemIndex = cart.findIndex(item => String(item.id) === String(
+                            productId));
+                        if (existingItemIndex > -1) {
+                            if (cart[existingItemIndex].quantity > 1) {
+                                cart[existingItemIndex].quantity--;
+                            } else {
+                                cart.splice(existingItemIndex, 1);
+                            }
+                            updateCart();
+                        }
+                    }
+                });
+
+                incrBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    let quantity = getPanelQuantity() + 1;
+                    setPanelQuantity(quantity);
+
+                    const productElement = panel.closest('.product-item');
+                    const name = productElement.dataset.productName || '';
+                    const price = parseFloat(productElement.dataset.productPrice) || 0;
+                    const image = productElement.dataset.productImage || null;
+
+                    addToCartQuick({
+                        id: productId,
+                        name: name,
+                        price: price,
+                        image: image,
+                        quantity: 1
+                    });
+                });
+
+                removeBtn?.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // Remover todos os itens desse produto do carrinho
+                    cart = cart.filter(item => String(item.id) !== String(productId));
+                    updateCart();
+                    setPanelQuantity(0);
+                    showToast('Item removido do carrinho');
+                });
             });
 
             // Navegação das categorias
@@ -851,112 +1117,329 @@
                 observer.observe(category);
             });
 
-            // Controles de quantidade
-            const quantityInput = document.getElementById('product-quantity');
-            const decreaseBtn = document.getElementById('decrease-quantity');
-            const increaseBtn = document.getElementById('increase-quantity');
-
-            decreaseBtn.addEventListener('click', function() {
-                const currentValue = parseInt(quantityInput.value);
-                if (currentValue > 1) {
-                    quantityInput.value = currentValue - 1;
-                    updateAddToCartButton();
-                }
+            // Botão de checkout
+            document.getElementById('floating-checkout-btn')?.addEventListener('click', function() {
+                if (cart.length === 0) return;
+                checkout();
             });
 
-            increaseBtn.addEventListener('click', function() {
-                const currentValue = parseInt(quantityInput.value);
-                quantityInput.value = currentValue + 1;
-                updateAddToCartButton();
-            });
-
-            quantityInput.addEventListener('change', function() {
-                if (this.value < 1) this.value = 1;
-                updateAddToCartButton();
-            });
-
-            // Adicionar ao carrinho
-            document.getElementById('add-to-cart-btn').addEventListener('click', function() {
+            // Botão de adicionar ao carrinho no painel lateral
+            document.getElementById('add-to-cart-btn')?.addEventListener('click', function() {
                 if (!currentProduct) return;
+                const quantity = parseInt(quantityInput.value) || 1;
+                const notes = document.getElementById('product-notes').value || '';
 
-                const quantity = parseInt(quantityInput.value);
-                const notes = document.getElementById('product-notes').value;
+                const selectedIngredients = currentProduct.selectedIngredients || [];
+                const ingredientChanges = selectedIngredients.map(ingredient => {
+                    const baseAmount = parseInt(ingredient.amount_item) || 0;
+                    const selectedAmount = parseInt(ingredient.selectedAmount) || 0;
+                    return {
+                        id: ingredient.id,
+                        name: ingredient.name,
+                        baseAmount: baseAmount,
+                        selectedAmount: selectedAmount,
+                        diff: selectedAmount - baseAmount,
+                        additional_price: parseFloat(ingredient.additional_price) || 0
+                    };
+                });
+                const addedIngredients = ingredientChanges.filter(i => i.diff > 0);
+                const removedIngredients = ingredientChanges.filter(i => i.diff < 0);
+                const unitPrice = calculateProductUnitPrice();
+                const summary = generateObservationText(addedIngredients, removedIngredients);
+                const finalNotes = summary ? (notes ? notes + ' | ' + summary : summary) : notes;
 
                 addToCart({
                     id: currentProduct.id,
                     name: currentProduct.name,
-                    price: currentProduct.price,
+                    price: unitPrice,
                     image: currentProduct.image,
                     quantity: quantity,
-                    notes: notes
+                    notes: finalNotes,
+                    selectedIngredients: selectedIngredients,
+                    addedIngredients: addedIngredients,
+                    removedIngredients: removedIngredients
                 });
 
                 closeProductDetail();
             });
 
-            // Botão de checkout
-            document.getElementById('floating-checkout-btn').addEventListener('click', function() {
-                if (cart.length === 0) return;
-                checkout();
-            });
+            function normalizeProductIngredients(product) {
+                let ingredients = product.additional_ingredients ?? product.additionalIngredients;
+                const hasAdditional = Array.isArray(ingredients) ? ingredients.length > 0 : !!ingredients;
+                if (!hasAdditional) {
+                    ingredients = product.ingredients;
+                }
 
-            // Função para abrir detalhes do produto
+                if (typeof ingredients === 'string') {
+                    try {
+                        const parsed = JSON.parse(ingredients);
+                        ingredients = Array.isArray(parsed) ? parsed : [parsed];
+                    } catch (error) {
+                        const names = ingredients.split(',').map(name => name.trim()).filter(Boolean);
+                        ingredients = names.map(name => ({
+                            name,
+                            amount_item: 0,
+                            additional_price: 0
+                        }));
+                    }
+                }
+
+                if (!Array.isArray(ingredients)) {
+                    if (ingredients && typeof ingredients === 'object') {
+                        ingredients = [ingredients];
+                    } else {
+                        ingredients = [];
+                    }
+                }
+
+                product.selectedIngredients = ingredients.map((ing, index) => ({
+                    id: ing.id ?? ing.name ?? index,
+                    name: typeof ing === 'string' ? ing : (ing.name ?? String(ing)),
+                    amount_item: parseInt(ing.amount_item) || 0,
+                    selectedAmount: parseInt(ing.selectedAmount ?? ing.amount_item) || parseInt(ing
+                        .amount_item) || 0,
+                    additional_price: parseFloat(ing.additional_price || 0) || 0
+                }));
+            }
+
+            function showProductDetailPanel() {
+                detailPanel.classList.add('active');
+                panelOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
             function openProductDetail(productId) {
-                // Buscar dados do produto
                 fetch(`/api/products/${productId}`)
                     .then(response => response.json())
                     .then(product => {
                         currentProduct = product;
+                        normalizeProductIngredients(currentProduct);
 
-                        // Preencher informações do painel
                         document.getElementById('panel-product-name').textContent = product.name;
+                        document.getElementById('panel-product-description').textContent = product
+                            .description ||
+                            'Não há descrição para este produto.';
                         document.getElementById('panel-product-price').textContent =
                             `R$ ${parseFloat(product.price).toFixed(2).replace('.', ',')}`;
 
-                        // Descrição
-                        const descriptionEl = document.getElementById('panel-product-description');
-                        if (product.description) {
-                            descriptionEl.textContent = product.description;
-                            descriptionEl.style.display = 'block';
-                        } else {
-                            descriptionEl.style.display = 'none';
-                        }
+                        const panelImage = document.getElementById('panel-image-container');
+                        panelImage.innerHTML = product.image ?
+                            `<img src="/storage/${product.image}" alt="${product.name}" style="width:100%; height:100%; object-fit:cover;">` :
+                            `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#f0f0f0;"><i class="fas fa-utensils" style="font-size:2.5rem; color:#ccc;"></i></div>`;
 
-                        // Ingredientes
-                        const ingredientsEl = document.getElementById('panel-product-ingredients');
-                        if (product.ingredients) {
-                            ingredientsEl.innerHTML =
-                                `<i class="fas fa-utensils me-2"></i>${product.ingredients}`;
-                            ingredientsEl.style.display = 'block';
-                        } else {
-                            ingredientsEl.style.display = 'none';
-                        }
+                        renderIngredientCustomization('panel-product-ingredient-customization');
 
-                        // Imagem
-                        const imageContainer = document.getElementById('panel-image-container');
-                        if (product.image) {
-                            imageContainer.innerHTML =
-                                `<img src="/storage/${product.image}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover;">`;
-                        } else {
-                            imageContainer.innerHTML =
-                                `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #f0f0f0;"><i class="fas fa-utensils" style="font-size: 4rem; color: #ccc;"></i></div>`;
-                        }
-
-                        // Reset quantidade e observações
-                        quantityInput.value = 1;
+                        document.getElementById('product-quantity').value = 1;
                         document.getElementById('product-notes').value = '';
-
                         updateAddToCartButton();
+                        updatePanelPriceDisplay();
 
-                        // Abrir painel
-                        detailPanel.classList.add('active');
-                        panelOverlay.classList.add('active');
-                        document.body.style.overflow = 'hidden';
+                        showProductDetailPanel();
                     })
                     .catch(error => {
                         console.error('Erro ao carregar produto:', error);
-                        alert('Erro ao carregar detalhes do produto');
+                        showToast('Erro ao carregar detalhes do produto', 'error');
                     });
+            }
+
+            // Renderiza lista simples de ingredientes no modal ou no painel lateral
+            function renderIngredientSummary(containerId = 'modal-product-ingredients') {
+                const el = document.getElementById(containerId);
+                if (!el) return;
+                if (!currentProduct) {
+                    el.innerHTML = '';
+                    return;
+                }
+                const ings = currentProduct.selectedIngredients || [];
+                if (!ings.length) {
+                    el.innerHTML = '<div class="small text-muted">Sem ingredientes.</div>';
+                    return;
+                }
+
+                const html = ings.map(ing => {
+                    const qty = parseInt(ing.selectedAmount) || 0;
+                    const baseQty = parseInt(ing.amount_item) || 0;
+                    const price = parseFloat(ing.additional_price || 0).toFixed(2).replace('.', ',');
+                    return `
+                        <div class="d-flex align-items-center justify-content-between mb-2" style="padding: 0.85rem 0; border-bottom: 1px solid #f0f0f0;">
+                            <div style="min-width: 0;">
+                                <div style="font-weight: 600;">${ing.name}</div>
+                                <div class="small text-muted">Padrão: ${baseQty} • +R$ ${price} cada</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div class="small text-muted">Qtd</div>
+                                <div style="font-weight: 700;">${qty}</div>
+                            </div>
+                        </div>`;
+                }).join('');
+
+                el.innerHTML = html || '';
+            }
+
+            function renderIngredientCustomization(containerId = 'modal-ingredient-customization') {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                if (!currentProduct || !currentProduct.selectedIngredients || !currentProduct.selectedIngredients
+                    .length) {
+                    container.innerHTML = '<p class="small text-muted">Sem ingredientes configuráveis.</p>';
+                    return;
+                }
+
+                const rows = currentProduct.selectedIngredients.map(ing => {
+                    const selected = parseInt(ing.selectedAmount) || 0;
+                    const base = parseInt(ing.amount_item) || 0;
+                    return `
+                        <div class="d-flex align-items-center justify-content-between mb-2" data-ing-id="${ing.id}">
+                            <div style="min-width:0">
+                                <div style="font-weight:600">${ing.name}</div>
+                                <div class="small text-muted">Padrão: ${base} • +R$ ${parseFloat(ing.additional_price || 0).toFixed(2).replace('.', ',')} cada</div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:0.5rem; border:2px solid #f0f0f0; border-radius:12px; padding:0.35rem; background:#ffffff;">
+                                <button type="button" class="btn btn-sm ingredient-decr" data-id="${ing.id}" style="width:28px; height:28px; padding:0; border:none; background:transparent; color:#666; font-size:1.2rem; cursor:pointer;">−</button>
+                                <input type="number" min="0" value="${selected}" class="form-control form-control-sm ingredient-qty-input" data-id="${ing.id}" style="width:50px; text-align:center; border:2px solid #f0f0f0; border-radius:8px; background:#fff; padding:0.25rem 0.2rem; font-weight:700;">
+                                <button type="button" class="btn btn-sm ingredient-incr" data-id="${ing.id}" style="width:28px; height:28px; padding:0; border:none; background:transparent; color:#666; font-size:1.2rem; cursor:pointer;">+</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = rows;
+                attachIngredientControlListeners();
+            }
+
+            function attachIngredientControlListeners() {
+                document.querySelectorAll('.ingredient-decr').forEach(btn => {
+                    btn.onclick = function() {
+                        const id = this.dataset.id;
+                        const input = document.querySelector('.ingredient-qty-input[data-id="' + id +
+                            '"]');
+                        let val = parseInt(input.value) || 0;
+                        if (val > 0) input.value = val - 1;
+                        updateIngredientFromInput(id);
+                    };
+                });
+                document.querySelectorAll('.ingredient-incr').forEach(btn => {
+                    btn.onclick = function() {
+                        const id = this.dataset.id;
+                        const input = document.querySelector('.ingredient-qty-input[data-id="' + id +
+                            '"]');
+                        input.value = (parseInt(input.value) || 0) + 1;
+                        updateIngredientFromInput(id);
+                    };
+                });
+                document.querySelectorAll('.ingredient-qty-input').forEach(inp => {
+                    inp.onchange = function() {
+                        updateIngredientFromInput(this.dataset.id);
+                    };
+                });
+            }
+
+            function updateIngredientFromInput(id) {
+                const input = document.querySelector('.ingredient-qty-input[data-id="' + id + '"]');
+                const val = parseInt(input.value) || 0;
+                const ing = (currentProduct.selectedIngredients || []).find(i => String(i.id) === String(id));
+                if (ing) {
+                    ing.selectedAmount = val;
+                }
+
+                // update observation summary and totals
+                const added = (currentProduct.selectedIngredients || []).filter(i => (parseInt(i.selectedAmount) ||
+                    0) > (parseInt(i.amount_item) || 0)).map(i => ({
+                    name: i.name,
+                    diff: (parseInt(i.selectedAmount) || 0) - (parseInt(i.amount_item) || 0)
+                }));
+                const removed = (currentProduct.selectedIngredients || []).filter(i => (parseInt(i
+                    .selectedAmount) || 0) < (parseInt(i.amount_item) || 0)).map(i => ({
+                    name: i.name,
+                    diff: (parseInt(i.amount_item) || 0) - (parseInt(i.selectedAmount) || 0)
+                }));
+                document.getElementById('product-notes').value = generateObservationText(added, removed);
+                updatePanelPriceDisplay();
+                updateModalTotals();
+            }
+
+            function calculateProductUnitPrice() {
+                if (!currentProduct) return 0;
+                const basePrice = parseFloat(currentProduct.price) || 0;
+                let extra = 0;
+                (currentProduct.selectedIngredients || []).forEach(ing => {
+                    const base = parseInt(ing.amount_item) || 0;
+                    const selected = parseInt(ing.selectedAmount) || 0;
+                    const diff = selected - base;
+                    if (diff > 0) {
+                        extra += diff * (parseFloat(ing.additional_price) || 0);
+                    }
+                });
+                return +(basePrice + extra).toFixed(2);
+            }
+
+            function updateModalTotals() {
+                const qty = parseInt(document.getElementById('modal-product-quantity').value) || 1;
+                const unit = calculateProductUnitPrice();
+                document.getElementById('modal-unit-price').textContent = `R$ ${unit.toFixed(2).replace('.', ',')}`;
+                document.getElementById('modal-total-price').textContent =
+                    `R$ ${(unit * qty).toFixed(2).replace('.', ',')}`;
+            }
+
+            function generateObservationText(addedArr, removedArr) {
+                const parts = [];
+                if (addedArr && addedArr.length) parts.push('Adicionados: ' + addedArr.map(a =>
+                    `${a.name} x${a.diff}`).join('; '));
+                if (removedArr && removedArr.length) parts.push('Removidos: ' + removedArr.map(r =>
+                    `${r.name} x${r.diff}`).join('; '));
+                return parts.join(' | ');
+            }
+
+            // modal quantity buttons
+            const modalDecreaseBtn = document.getElementById('modal-decrease-quantity');
+            const modalIncreaseBtn = document.getElementById('modal-increase-quantity');
+            const modalQuantityInput = document.getElementById('modal-product-quantity');
+
+            if (modalDecreaseBtn) {
+                modalDecreaseBtn.onclick = function() {
+                    if (!modalQuantityInput) return;
+                    let v = parseInt(modalQuantityInput.value) || 1;
+                    if (v > 1) modalQuantityInput.value = v - 1;
+                    updateModalTotals();
+                };
+            }
+
+            if (modalIncreaseBtn) {
+                modalIncreaseBtn.onclick = function() {
+                    if (!modalQuantityInput) return;
+                    modalQuantityInput.value = (parseInt(modalQuantityInput.value) || 1) + 1;
+                    updateModalTotals();
+                };
+            }
+
+            if (modalQuantityInput) {
+                modalQuantityInput.onchange = updateModalTotals;
+            }
+
+            // panel quantity buttons
+            const quantityInput = document.getElementById('product-quantity');
+            const decreaseBtn = document.getElementById('decrease-quantity');
+            const increaseBtn = document.getElementById('increase-quantity');
+
+            if (decreaseBtn) {
+                decreaseBtn.onclick = function() {
+                    if (!quantityInput) return;
+                    let v = parseInt(quantityInput.value) || 1;
+                    if (v > 1) quantityInput.value = v - 1;
+                    updatePanelPriceDisplay();
+                };
+            }
+
+            if (increaseBtn) {
+                increaseBtn.onclick = function() {
+                    if (!quantityInput) return;
+                    quantityInput.value = (parseInt(quantityInput.value) || 1) + 1;
+                    updatePanelPriceDisplay();
+                };
+            }
+
+            if (quantityInput) {
+                quantityInput.onchange = updatePanelPriceDisplay;
             }
 
             // Função para fechar detalhes do produto
@@ -972,25 +1455,63 @@
                 if (!currentProduct) return;
 
                 const quantity = parseInt(quantityInput.value);
-                const total = currentProduct.price * quantity;
+                const unitPrice = calculateProductUnitPrice();
+                const total = unitPrice * quantity;
 
                 document.getElementById('add-to-cart-total').textContent =
                     `- R$ ${total.toFixed(2).replace('.', ',')}`;
             }
 
+            // Atualizar display de preço no painel lateral
+            function updatePanelPriceDisplay() {
+                if (!currentProduct) return;
+                const unitPrice = calculateProductUnitPrice();
+                const quantity = parseInt(quantityInput.value) || 1;
+                const total = unitPrice * quantity;
+
+                const priceEl = document.getElementById('panel-product-price');
+                if (priceEl) {
+                    priceEl.textContent = `R$ ${unitPrice.toFixed(2).replace('.', ',')}`;
+                }
+
+                const totalEl = document.getElementById('add-to-cart-total');
+                if (totalEl) {
+                    totalEl.textContent = `- R$ ${total.toFixed(2).replace('.', ',')}`;
+                }
+            }
+
+            function addToCartQuick(item) {
+                addToCart({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    image: item.image,
+                    quantity: item.quantity,
+                    notes: '',
+                    selectedIngredients: [],
+                    addedIngredients: [],
+                    removedIngredients: []
+                });
+            }
+
             // Adicionar item ao carrinho
             function addToCart(item) {
+                const quantityToAdd = parseInt(item.quantity) || 1;
+
                 // Verificar se o item já existe no carrinho
                 const existingItemIndex = cart.findIndex(cartItem =>
                     cartItem.id === item.id && cartItem.notes === item.notes
                 );
 
                 if (existingItemIndex > -1) {
-                    // Atualizar quantidade
-                    cart[existingItemIndex].quantity += item.quantity;
+                    // Atualizar quantidade existente em vez de somar apenas 1
+                    cart[existingItemIndex].quantity += quantityToAdd;
                 } else {
-                    // Adicionar novo item
-                    cart.push(item);
+                    const newItem = {
+                        ...item,
+                        quantity: quantityToAdd
+                    };
+                    cart.push(newItem);
                 }
 
                 updateCart();
@@ -999,10 +1520,49 @@
                 showToast('Item adicionado ao carrinho!');
             }
 
+            function updateCartItemQuantityByProductId(productId, quantity) {
+                const index = cart.findIndex(item => item.id === parseInt(productId));
+                if (index === -1) return;
+
+                if (quantity < 1) {
+                    removeFromCart(index);
+                } else {
+                    cart[index].quantity = quantity;
+                    updateCart();
+                }
+            }
+
+            function removeFromCartByProductId(productId) {
+                const index = cart.findIndex(item => item.id === parseInt(productId));
+                if (index === -1) return;
+                removeFromCart(index);
+            }
+
             // Remover item do carrinho
             function removeFromCart(index) {
                 cart.splice(index, 1);
                 updateCart();
+            }
+
+            function updateProductCards() {
+                const quickAddPanels = document.querySelectorAll('.product-quick-add');
+                quickAddPanels.forEach(panel => {
+                    const productId = panel.dataset.productId;
+                    const qtyDisplay = panel.querySelector('.quick-qty');
+                    const removeBtn = panel.closest('.product-controls').querySelector('.quick-remove');
+                    const totalQuantity = cart.reduce((sum, item) =>
+                        String(item.id) === String(productId) ? sum + item.quantity : sum,
+                        0
+                    );
+
+                    panel.dataset.quantity = totalQuantity;
+                    if (qtyDisplay) {
+                        qtyDisplay.textContent = totalQuantity;
+                    }
+                    if (removeBtn) {
+                        removeBtn.style.display = totalQuantity > 0 ? 'block' : 'none';
+                    }
+                });
             }
 
             // Atualizar quantidade no carrinho
@@ -1031,35 +1591,49 @@
                 cartCount.textContent = `${totalItems} ${totalItems === 1 ? 'item' : 'itens'}`;
                 cartTotal.textContent = `R$ ${totalPrice.toFixed(2).replace('.', ',')}`;
                 cartTotalFooter.textContent = `R$ ${totalPrice.toFixed(2).replace('.', ',')}`;
+                checkoutBtn.innerHTML =
+                    `<i class="fas fa-check me-2"></i> Finalizar Pedido - R$ ${totalPrice.toFixed(2).replace('.', ',')}`;
+
+                // Atualizar os cards dos produtos
+                updateProductCards();
 
                 // Habilitar/desabilitar botão de checkout
                 checkoutBtn.disabled = cart.length === 0;
 
                 // Mostrar/ocultar carrinho flutuante
-                if (cart.length > 0) {
-                    floatingCart.style.display = 'block';
-                } else {
-                    floatingCart.style.display = 'none';
+                floatingCart.style.display = 'flex';
+                floatingCart.style.flexDirection = 'column';
+                if (cart.length === 0) {
                     floatingCartContent.style.display = 'none';
                     floatingCartIcon.className = 'fas fa-chevron-up';
                 }
 
                 // Renderizar itens do carrinho
+                cartItemsContainer.innerHTML = '';
                 if (cart.length === 0) {
                     cartItemsContainer.innerHTML = '<p class="text-muted text-center mb-0">Carrinho vazio</p>';
                 } else {
-                    cartItemsContainer.innerHTML = cart.map((item, index) => `
+                    cartItemsContainer.innerHTML = cart.map((item, index) => {
+                        const addedHtml = (item.addedIngredients || []).length ?
+                            `<div class="small text-success">Adicionados: ${item.addedIngredients.map(a => `${a.name} x${a.diff || 1}`).join('; ')}</div>` :
+                            '';
+                        const removedHtml = (item.removedIngredients || []).length ?
+                            `<div class="small text-danger">Removidos: ${item.removedIngredients.map(r => `${r.name} x${r.diff || 1}`).join('; ')}</div>` :
+                            '';
+                        return `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                        <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                                    ` : `
-                                                        <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                            <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                                        </div>
-                                                    `}
+                                                                                                                                                                                                                                                                <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                                                                                                                                                                                                                                                            ` : `
+                                                                                                                                                                                                                                                                <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                                                                                                                                                                                                                                    <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
+                                                                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                                                            `}
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
+                        ${addedHtml}
+                        ${removedHtml}
                         <div class="d-flex align-items-center justify-content-between mt-2">
                             <div class="d-flex align-items-center gap-2">
                                 <button class="btn btn-sm" onclick="updateCartItemQuantity(${index}, ${item.quantity - 1})" style="width: 28px; height: 28px; padding: 0; background: #f0f0f0; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
@@ -1071,7 +1645,10 @@
                                 </button>
                             </div>
                             <div class="d-flex align-items-center gap-2">
-                                <span style="font-weight: 600; color: #000;">R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                <div style="text-align:right; font-size:0.85rem;">
+                                    <div class="small text-muted">R$ ${(item.price).toFixed(2).replace('.', ',')} (unitário)</div>
+                                    <div style="font-weight: 600;">R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}</div>
+                                </div>
                                 <button class="btn btn-sm" onclick="removeFromCart(${index})" style="width: 28px; height: 28px; padding: 0; background: transparent; border: none; color: #ef4444;">
                                     <i class="fas fa-trash" style="font-size: 0.8rem;"></i>
                                 </button>
@@ -1079,7 +1656,8 @@
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `;
+                    }).join('');
                 }
             }
 
@@ -1094,14 +1672,20 @@
                 checkoutBtn.disabled = true;
                 checkoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Processando...';
 
-                // Preparar dados do pedido
+                // Preparar dados do pedido (inclui ingredientes selecionados e preço unitário calculado no cliente, mas o servidor deve recalcular)
                 const orderData = {
                     store_id: storeId,
                     table_id: tableId,
                     items: cart.map(item => ({
                         product_id: item.id,
                         quantity: item.quantity,
-                        notes: item.notes
+                        notes: item.notes,
+                        unit_price: item.price,
+                        selected_ingredients: item.selectedIngredients ? item.selectedIngredients
+                            .map(i => ({
+                                id: i.id,
+                                selected_amount: i.selectedAmount || 0
+                            })) : []
                     })),
                     notes: notes
                 };
@@ -1234,22 +1818,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                            <small class="text-muted">
-                                                                                <i class="fas fa-user me-1"></i>
-                                                                                <strong>${order.participant_name}</strong>
-                                                                            </small>
-                                                                        ` : ''}
+                                                                                                                                                                                                                                                                                                                                <small class="text-muted">
+                                                                                                                                                                                                                                                                                                                                    <i class="fas fa-user me-1"></i>
+                                                                                                                                                                                                                                                                                                                                    <strong>${order.participant_name}</strong>
+                                                                                                                                                                                                                                                                                                                                </small>
+                                                                                                                                                                                                                                                                                                                            ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                            <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                <i class="fas fa-check-circle me-1"></i>Pago
-                                                                            </span>
-                                                                        ` : `
-                                                                            <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                <i class="fas fa-clock me-1"></i>Pendente
-                                                                            </span>
-                                                                        `}
+                                                                                                                                                                                                                                                                                                                                <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                                                                                                                    <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                                                                                                                                                                                                                                                                </span>
+                                                                                                                                                                                                                                                                                                                            ` : `
+                                                                                                                                                                                                                                                                                                                                <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                                                                                                                    <i class="fas fa-clock me-1"></i>Pendente
+                                                                                                                                                                                                                                                                                                                                </span>
+                                                                                                                                                                                                                                                                                                                            `}
                                         <span class="badge" style="background: ${
                                             order.status === 'Finalizado' ? '#10b981' : 
                                             order.status === 'Em produção' ? '#f59e0b' : 
@@ -1262,11 +1846,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                        <div class="d-flex justify-content-between py-1">
-                                                                            <span>${item.quantity}x ${item.product_name}</span>
-                                                                            <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                        </div>
-                                                                    `).join('')}
+                                                                                                                                                                                                                                                                                                                            <div class="d-flex justify-content-between py-1">
+                                                                                                                                                                                                                                                                                                                                <span>${item.quantity}x ${item.product_name}</span>
+                                                                                                                                                                                                                                                                                                                                <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                                                                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                                                                                                                                        `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">

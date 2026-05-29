@@ -34,9 +34,11 @@ Route::get('/tables/qrcode/{qr_code}', function ($qrCode) {
 
 // Rota para buscar detalhes do produto
 Route::get('/products/{id}', function ($id) {
-    $product = \App\Models\Product::find($id);
+    $product = \App\Models\Product::with(['additionalIngredients'])->find($id);
     if ($product) {
-        return response()->json($product);
+        $payload = $product->toArray();
+        $payload['additional_ingredients'] = $product->additionalIngredients->toArray();
+        return response()->json($payload);
     }
     return response()->json(['message' => 'Produto não encontrado'], 404);
 });
@@ -45,34 +47,34 @@ Route::get('/products/{id}', function ($id) {
 // Rota para buscar participantes de uma mesa
 Route::get('/tables/{id}/participants', function ($id, Request $request) {
     $table = Table::findOrFail($id);
-    
+
     $participants = $table->participants()->get();
-    
+
     return response()->json(['participants' => $participants]);
 });
 
 // Rota para buscar pedidos de uma mesa pelo QR code
 Route::get('/table-orders/{qr_code}', function ($qrCode) {
     $table = Table::where('qr_code', $qrCode)->first();
-    
+
     if (!$table) {
         return response()->json(['message' => 'Mesa não encontrada'], 404);
     }
-    
+
     // Buscar apenas pedidos dos participantes ativos (sessão atual)
     $activeParticipantIds = $table->participants()->pluck('id')->toArray();
-    
+
     // Se não há participantes ativos, retornar array vazio
     if (empty($activeParticipantIds)) {
         return response()->json(['orders' => []]);
     }
-    
+
     $orders = Order::where('table_id', $table->id)
         ->whereIn('participant_id', $activeParticipantIds)
         ->with(['items'])
         ->orderBy('created_at', 'desc')
         ->get();
-    
+
     return response()->json(['orders' => $orders]);
 });
 
@@ -80,7 +82,7 @@ Route::get('/table-orders/{qr_code}', function ($qrCode) {
 Route::get('/orders/{id}', function ($id) {
     $order = Order::with(['items.product'])
         ->findOrFail($id);
-    
+
     return response()->json(['order' => $order]);
 });
 
@@ -91,7 +93,7 @@ Route::middleware(['web'])->group(function () {
     Route::post('/table/add-participant', [MenuController::class, 'addParticipant']);
     Route::get('/table/{qrCode}/participants', [MenuController::class, 'getParticipants']);
     Route::get('/table/{qrCode}/status', [MenuController::class, 'checkTableStatus']);
-    
+
     // Rota para criar pedido (precisa de sessão para capturar participant_id)
     Route::post('/orders', function (Request $request) {
         try {
@@ -102,6 +104,10 @@ Route::middleware(['web'])->group(function () {
                 'items.*.product_id' => 'required|exists:products,id',
                 'items.*.quantity' => 'required|integer|min:1',
                 'items.*.notes' => 'nullable|string',
+                'items.*.unit_price' => 'nullable|numeric',
+                'items.*.selected_ingredients' => 'nullable|array',
+                'items.*.selected_ingredients.*.id' => 'required_with:items.*.selected_ingredients|exists:product_ingredient,id',
+                'items.*.selected_ingredients.*.selected_amount' => 'required_with:items.*.selected_ingredients|integer|min:0',
                 'notes' => 'nullable|string',
             ]);
 
@@ -113,7 +119,7 @@ Route::middleware(['web'])->group(function () {
 
             // Obter a store para verificar se tem garçons
             $store = \App\Models\Store::findOrFail($validated['store_id']);
-            
+
             // Verificar se o pedido contém APENAS itens rápidos
             $onlyQuickItems = true;
             $allProducts = [];
@@ -124,7 +130,7 @@ Route::middleware(['web'])->group(function () {
                     $onlyQuickItems = false;
                 }
             }
-            
+
             // Definir status inicial
             if ($onlyQuickItems) {
                 // Pedido com apenas itens rápidos vai direto para "Finalizado"
@@ -142,26 +148,56 @@ Route::middleware(['web'])->group(function () {
             $order->status = $initialStatus;
             $order->payment_status = Order::PAYMENT_STATUS_PENDING;
             $order->notes = $validated['notes'] ?? null;
-            
-            // Calcular o total
+
+            // Calcular o total usando ingredientes selecionados (segurança: servidor recalcula preço)
             $total = 0;
             foreach ($allProducts as $data) {
-                $total += $data['product']->price * $data['item']['quantity'];
+                $item = $data['item'];
+                $product = $data['product'];
+
+                $unitPrice = floatval($product->price);
+
+                // aplicar ingredientes selecionados (se houver)
+                if (!empty($item['selected_ingredients']) && is_array($item['selected_ingredients'])) {
+                    foreach ($item['selected_ingredients'] as $sel) {
+                        $ing = \App\Models\ProductIngredient::find($sel['id']);
+                        if ($ing && $ing->product_id == $product->id) {
+                            $base = intval($ing->amount_item);
+                            $selected = intval($sel['selected_amount']);
+                            $diff = $selected - $base;
+                            if ($diff > 0) {
+                                $unitPrice += $diff * floatval($ing->additional_price);
+                            }
+                        }
+                    }
+                }
+
+                $total += $unitPrice * intval($item['quantity']);
+                // store computed unit price for later item creation
+                $data['computed_unit_price'] = $unitPrice;
             }
             $order->total = $total;
-            
+
             $order->save();
 
-            // Adicionar os itens do pedido
+            // Adicionar os itens do pedido (salvando preço calculado e ingredientes selecionados no campo notes como JSON)
             foreach ($allProducts as $data) {
+                $item = $data['item'];
+                $unitPrice = isset($data['computed_unit_price']) ? $data['computed_unit_price'] : floatval($data['product']->price);
+
+                $notesPayload = [
+                    'notes' => $item['notes'] ?? null,
+                    'selected_ingredients' => $item['selected_ingredients'] ?? []
+                ];
+
                 $order->items()->create([
                     'product_id' => $data['product']->id,
-                    'quantity' => $data['item']['quantity'],
-                    'price' => $data['product']->price,
-                    'notes' => $data['item']['notes'] ?? null,
+                    'quantity' => $item['quantity'],
+                    'price' => $unitPrice,
+                    'notes' => json_encode($notesPayload),
                 ]);
             }
-            
+
             // Armazenar ID do pedido na sessão para rastreamento de notificações
             $sessionOrderIds = $request->session()->get('client_order_ids', []);
             $sessionOrderIds[] = $order->id;
@@ -175,22 +211,22 @@ Route::middleware(['web'])->group(function () {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     });
-    
+
     // Rotas de pedidos (com suporte a sessão)
     Route::get('/tables/{id}/orders', function ($id, Request $request) {
         $table = Table::findOrFail($id);
-        
+
         // Obter o participant_id do usuário atual da sessão
         $currentParticipantId = $request->session()->get('table_' . $id . '_participant_id');
-        
+
         // Buscar todos os participant_ids ativos (participantes que ainda existem na mesa)
         $activeParticipantIds = $table->participants()->pluck('id')->toArray();
-        
+
         // Se não há participantes ativos, retornar array vazio
         if (empty($activeParticipantIds)) {
             return response()->json(['orders' => []]);
         }
-        
+
         // Filtrar apenas pedidos de participantes ativos (sessão atual)
         $orders = Order::where('table_id', $id)
             ->whereIn('participant_id', $activeParticipantIds)
@@ -216,26 +252,26 @@ Route::middleware(['web'])->group(function () {
                     }),
                 ];
             });
-        
+
         return response()->json(['orders' => $orders]);
     });
-    
+
     // Rota para buscar pedidos do balcão (por sessão)
     Route::get('/counter/{qrCode}/orders', function ($qrCode, Request $request) {
         // Verificar se é um QR code de balcão válido
         $store = \App\Models\Store::where('counter_qr_code', $qrCode)->first();
-        
+
         if (!$store) {
             return response()->json(['message' => 'QR Code de balcão não encontrado'], 404);
         }
-        
+
         // Buscar pedidos da sessão atual (baseado em IDs armazenados na sessão)
         $sessionOrderIds = $request->session()->get('client_order_ids', []);
-        
+
         if (empty($sessionOrderIds)) {
             return response()->json(['orders' => []]);
         }
-        
+
         // Buscar pedidos do balcão (sem table_id) desta loja que pertencem à sessão
         $orders = Order::whereNull('table_id')
             ->where('store_id', $store->id)
@@ -262,21 +298,21 @@ Route::middleware(['web'])->group(function () {
                     }),
                 ];
             });
-        
+
         return response()->json(['orders' => $orders]);
     });
-    
+
     Route::get('/tables/{table}/unpaid-orders', function ($tableId, Request $request) {
         $table = Table::findOrFail($tableId);
-        
+
         // Buscar todos os participant_ids ativos (participantes que ainda existem na mesa)
         $activeParticipantIds = $table->participants()->pluck('id')->toArray();
-        
+
         // Se não há participantes ativos, retornar array vazio
         if (empty($activeParticipantIds)) {
             return response()->json(['orders' => []]);
         }
-        
+
         // Filtrar apenas pedidos de participantes ativos (sessão atual)
         $orders = Order::where('table_id', $table->id)
             ->whereIn('participant_id', $activeParticipantIds)
@@ -284,10 +320,10 @@ Route::middleware(['web'])->group(function () {
             ->with(['participant'])
             ->orderBy('created_at', 'desc')
             ->get();
-        
+
         return response()->json(['orders' => $orders]);
     });
-    
+
     // Rotas de pagamento (com suporte a sessão)
     Route::get('/payment/{qrCode}/orders', [PaymentController::class, 'getOrdersForPayment']);
     Route::post('/payment/create-intent', [PaymentController::class, 'createPaymentIntent']);
@@ -307,7 +343,7 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/notifications/all', [NotificationController::class, 'all']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
-    
+
     // Rota para buscar detalhes de um pedido
     Route::get('/orders/{order}', function (Order $order) {
         // Verificar se o usuário tem permissão para ver este pedido
@@ -315,9 +351,9 @@ Route::middleware(['web', 'auth'])->group(function () {
         if ($user->store_id !== $order->store_id) {
             return response()->json(['success' => false, 'message' => 'Não autorizado'], 403);
         }
-        
+
         $orderData = $order->load(['items.product', 'table', 'participant', 'user']);
-        
+
         return response()->json([
             'success' => true,
             'order' => $orderData

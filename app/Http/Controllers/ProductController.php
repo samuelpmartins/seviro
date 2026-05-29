@@ -14,10 +14,48 @@ class ProductController extends Controller
     private function formatPrice($price)
     {
         if (!$price) return null;
-        
+
         // Remove R$, espaços e pontos, e substitui vírgula por ponto
         $price = str_replace(['R$', ' ', '.'], '', $price);
         return str_replace(',', '.', $price);
+    }
+
+    private function parseIngredientPrice($price)
+    {
+        if (!$price) {
+            return 0;
+        }
+
+        $formatted = $this->formatPrice($price);
+        return $formatted === null ? 0 : $formatted;
+    }
+
+    private function syncProductIngredients(Product $product, $ingredients)
+    {
+        $product->additionalIngredients()->delete();
+
+        if (!is_array($ingredients)) {
+            return;
+        }
+
+        $rows = array_values(array_filter($ingredients, function ($item) {
+            if (!is_array($item)) {
+                return false;
+            }
+
+            $name = trim($item['name'] ?? '');
+            $price = trim($item['additional_price'] ?? '');
+
+            return $name !== '' || $price !== '';
+        }));
+
+        foreach ($rows as $ingredient) {
+            $product->additionalIngredients()->create([
+                'name' => trim($ingredient['name'] ?? ''),
+                'additional_price' => $this->parseIngredientPrice($ingredient['additional_price'] ?? ''),
+                'amount_item' => $this->parseIngredientPrice($ingredient['amount_item'] ?? 0)
+            ]);
+        }
     }
 
     public function index()
@@ -25,7 +63,7 @@ class ProductController extends Controller
         $store = auth()->user()->store;
         $categories = $store->categories()->orderBy('order')->get();
         $products = $store->products()->with('category')->orderBy('order')->paginate(10);
-        
+
         return view('store.products.index', compact('categories', 'products'));
     }
 
@@ -46,17 +84,21 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'ingredients' => 'nullable|string',
+            'customizable' => 'required|boolean',
+            'ingredients' => 'nullable|array',
+            'ingredients.*.name' => 'nullable|string|max:255',
+            'ingredients.*.additional_price' => 'nullable|string|max:255',
+            'ingredients.*.amount_item' => 'nullable|integer|min:0',
             'price' => 'required|numeric|min:0',
             'category_id' => 'required|exists:categories,id',
             'image' => 'nullable|image|max:2048',
         ]);
 
         $store = auth()->user()->store;
-        
+
         // Verificar se a categoria pertence à loja
         $category = $store->categories()->findOrFail($request->category_id);
-        
+
         $lastOrder = $store->products()
             ->where('category_id', $category->id)
             ->max('order') ?? 0;
@@ -66,16 +108,23 @@ class ProductController extends Controller
             $imagePath = $request->file('image')->store('products', 'public');
         }
 
-        $store->products()->create([
+        $product = $store->products()->create([
             'name' => $request->name,
             'description' => $request->description,
-            'ingredients' => $request->ingredients,
+            'ingredients' => null,
+            'customizable' => $request->boolean('customizable'),
             'price' => $request->price,
             'category_id' => $category->id,
             'image' => $imagePath,
             'order' => $lastOrder + 1,
             'is_quick_item' => $request->boolean('is_quick_item')
         ]);
+
+        if ($request->boolean('customizable')) {
+            $this->syncProductIngredients($product, $request->ingredients);
+        } else {
+            $product->additionalIngredients()->delete();
+        }
 
         // Verificar de onde veio a requisição para redirecionar corretamente
         $referer = $request->headers->get('referer');
@@ -84,7 +133,7 @@ class ProductController extends Controller
         } elseif (str_contains($referer, '/store/dashboard')) {
             return redirect()->route('store.dashboard')->with('success', 'Produto criado com sucesso!');
         }
-        
+
         return redirect()->route('store.products.index')
             ->with('success', 'Produto criado com sucesso!');
     }
@@ -92,10 +141,10 @@ class ProductController extends Controller
     public function edit(Product $product)
     {
         $this->authorize('update', $product);
-        
+
         $store = auth()->user()->store;
         $categories = $store->categories()->orderBy('order')->get();
-        
+
         return view('store.products.edit', compact('product', 'categories'));
     }
 
@@ -111,7 +160,11 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'ingredients' => 'nullable|string',
+            'customizable' => 'required|boolean',
+            'ingredients' => 'nullable|array',
+            'ingredients.*.name' => 'nullable|string|max:255',
+            'ingredients.*.additional_price' => 'nullable|string|max:255',
+            'ingredients.*.amount_item' => 'nullable|integer|min:0',
             'price' => 'required|numeric|min:0',
             'category_id' => 'required|exists:categories,id',
             'image' => 'nullable|image|max:2048',
@@ -119,7 +172,7 @@ class ProductController extends Controller
         ]);
 
         $store = auth()->user()->store;
-        
+
         // Verificar se a categoria pertence à loja
         $category = $store->categories()->findOrFail($request->category_id);
 
@@ -133,12 +186,19 @@ class ProductController extends Controller
         $product->update([
             'name' => $request->name,
             'description' => $request->description,
-            'ingredients' => $request->ingredients,
+            'ingredients' => null,
+            'customizable' => $request->boolean('customizable'),
             'price' => $request->price,
             'category_id' => $category->id,
             'active' => $request->boolean('active'),
             'is_quick_item' => $request->boolean('is_quick_item')
         ]);
+
+        if ($request->boolean('customizable')) {
+            $this->syncProductIngredients($product, $request->ingredients);
+        } else {
+            $product->additionalIngredients()->delete();
+        }
 
         // Verificar de onde veio a requisição para redirecionar corretamente
         $referer = $request->headers->get('referer');
@@ -147,7 +207,7 @@ class ProductController extends Controller
         } elseif (str_contains($referer, '/store/dashboard')) {
             return redirect()->route('store.dashboard')->with('success', 'Produto atualizado com sucesso!');
         }
-        
+
         return redirect()->route('store.products.index')
             ->with('success', 'Produto atualizado com sucesso!');
     }
@@ -182,4 +242,4 @@ class ProductController extends Controller
 
         return response()->json(['message' => 'Ordem atualizada com sucesso!']);
     }
-} 
+}
