@@ -992,20 +992,26 @@
                 const incrBtn = panel.querySelector('.quick-incr');
                 const removeBtn = panel.closest('.product-controls').querySelector('.quick-remove');
 
-                let quantity = 0;
+                function getPanelQuantity() {
+                    return parseInt(panel.dataset.quantity || qtyDisplay.textContent) || 0;
+                }
 
-                function updateRemoveButtonVisibility() {
+                function setPanelQuantity(value) {
+                    panel.dataset.quantity = value;
+                    qtyDisplay.textContent = value;
                     if (removeBtn) {
-                        removeBtn.style.display = quantity > 0 ? 'block' : 'none';
+                        removeBtn.style.display = value > 0 ? 'block' : 'none';
                     }
                 }
 
+                setPanelQuantity(0);
+
                 decrBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
+                    let quantity = getPanelQuantity();
                     if (quantity > 0) {
                         quantity--;
-                        qtyDisplay.textContent = quantity;
-                        updateRemoveButtonVisibility();
+                        setPanelQuantity(quantity);
 
                         // Remover 1 item do carrinho
                         const existingItemIndex = cart.findIndex(item => String(item.id) === String(
@@ -1023,9 +1029,8 @@
 
                 incrBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
-                    quantity++;
-                    qtyDisplay.textContent = quantity;
-                    updateRemoveButtonVisibility();
+                    let quantity = getPanelQuantity() + 1;
+                    setPanelQuantity(quantity);
 
                     const productElement = panel.closest('.product-item');
                     const name = productElement.dataset.productName || '';
@@ -1044,11 +1049,9 @@
                 removeBtn?.addEventListener('click', function(e) {
                     e.stopPropagation();
                     // Remover todos os itens desse produto do carrinho
-                    cart = cart.filter(item => item.id !== productId);
+                    cart = cart.filter(item => String(item.id) !== String(productId));
                     updateCart();
-                    quantity = 0;
-                    qtyDisplay.textContent = quantity;
-                    updateRemoveButtonVisibility();
+                    setPanelQuantity(0);
                     showToast('Item removido do carrinho');
                 });
             });
@@ -1112,30 +1115,6 @@
 
             categories.forEach(category => {
                 observer.observe(category);
-            });
-
-            // Controles de quantidade
-            const quantityInput = document.getElementById('product-quantity');
-            const decreaseBtn = document.getElementById('decrease-quantity');
-            const increaseBtn = document.getElementById('increase-quantity');
-
-            decreaseBtn.addEventListener('click', function() {
-                const currentValue = parseInt(quantityInput.value);
-                if (currentValue > 1) {
-                    quantityInput.value = currentValue - 1;
-                    updateAddToCartButton();
-                }
-            });
-
-            increaseBtn.addEventListener('click', function() {
-                const currentValue = parseInt(quantityInput.value);
-                quantityInput.value = currentValue + 1;
-                updateAddToCartButton();
-            });
-
-            quantityInput.addEventListener('change', function() {
-                if (this.value < 1) this.value = 1;
-                updateAddToCartButton();
             });
 
             // Botão de checkout
@@ -1412,36 +1391,56 @@
             }
 
             // modal quantity buttons
-            document.getElementById('modal-decrease-quantity')?.addEventListener('click', function() {
-                const el = document.getElementById('modal-product-quantity');
-                if (!el) return;
-                let v = parseInt(el.value) || 1;
-                if (v > 1) el.value = v - 1;
-                updateModalTotals();
-            });
-            document.getElementById('modal-increase-quantity')?.addEventListener('click', function() {
-                const el = document.getElementById('modal-product-quantity');
-                if (!el) return;
-                el.value = (parseInt(el.value) || 1) + 1;
-                updateModalTotals();
-            });
-            document.getElementById('modal-product-quantity')?.addEventListener('change', updateModalTotals);
+            const modalDecreaseBtn = document.getElementById('modal-decrease-quantity');
+            const modalIncreaseBtn = document.getElementById('modal-increase-quantity');
+            const modalQuantityInput = document.getElementById('modal-product-quantity');
+
+            if (modalDecreaseBtn) {
+                modalDecreaseBtn.onclick = function() {
+                    if (!modalQuantityInput) return;
+                    let v = parseInt(modalQuantityInput.value) || 1;
+                    if (v > 1) modalQuantityInput.value = v - 1;
+                    updateModalTotals();
+                };
+            }
+
+            if (modalIncreaseBtn) {
+                modalIncreaseBtn.onclick = function() {
+                    if (!modalQuantityInput) return;
+                    modalQuantityInput.value = (parseInt(modalQuantityInput.value) || 1) + 1;
+                    updateModalTotals();
+                };
+            }
+
+            if (modalQuantityInput) {
+                modalQuantityInput.onchange = updateModalTotals;
+            }
 
             // panel quantity buttons
-            document.getElementById('decrease-quantity')?.addEventListener('click', function() {
-                const el = document.getElementById('product-quantity');
-                if (!el) return;
-                let v = parseInt(el.value) || 1;
-                if (v > 1) el.value = v - 1;
-                updatePanelPriceDisplay();
-            });
-            document.getElementById('increase-quantity')?.addEventListener('click', function() {
-                const el = document.getElementById('product-quantity');
-                if (!el) return;
-                el.value = (parseInt(el.value) || 1) + 1;
-                updatePanelPriceDisplay();
-            });
-            document.getElementById('product-quantity')?.addEventListener('change', updatePanelPriceDisplay);
+            const quantityInput = document.getElementById('product-quantity');
+            const decreaseBtn = document.getElementById('decrease-quantity');
+            const increaseBtn = document.getElementById('increase-quantity');
+
+            if (decreaseBtn) {
+                decreaseBtn.onclick = function() {
+                    if (!quantityInput) return;
+                    let v = parseInt(quantityInput.value) || 1;
+                    if (v > 1) quantityInput.value = v - 1;
+                    updatePanelPriceDisplay();
+                };
+            }
+
+            if (increaseBtn) {
+                increaseBtn.onclick = function() {
+                    if (!quantityInput) return;
+                    quantityInput.value = (parseInt(quantityInput.value) || 1) + 1;
+                    updatePanelPriceDisplay();
+                };
+            }
+
+            if (quantityInput) {
+                quantityInput.onchange = updatePanelPriceDisplay;
+            }
 
             // Função para fechar detalhes do produto
             function closeProductDetail() {
@@ -1497,17 +1496,22 @@
 
             // Adicionar item ao carrinho
             function addToCart(item) {
+                const quantityToAdd = parseInt(item.quantity) || 1;
+
                 // Verificar se o item já existe no carrinho
                 const existingItemIndex = cart.findIndex(cartItem =>
                     cartItem.id === item.id && cartItem.notes === item.notes
                 );
 
                 if (existingItemIndex > -1) {
-                    // Atualizar quantidade
-                    cart[existingItemIndex].quantity += item.quantity;
+                    // Atualizar quantidade existente em vez de somar apenas 1
+                    cart[existingItemIndex].quantity += quantityToAdd;
                 } else {
-                    // Adicionar novo item
-                    cart.push(item);
+                    const newItem = {
+                        ...item,
+                        quantity: quantityToAdd
+                    };
+                    cart.push(newItem);
                 }
 
                 updateCart();
@@ -1538,6 +1542,27 @@
             function removeFromCart(index) {
                 cart.splice(index, 1);
                 updateCart();
+            }
+
+            function updateProductCards() {
+                const quickAddPanels = document.querySelectorAll('.product-quick-add');
+                quickAddPanels.forEach(panel => {
+                    const productId = panel.dataset.productId;
+                    const qtyDisplay = panel.querySelector('.quick-qty');
+                    const removeBtn = panel.closest('.product-controls').querySelector('.quick-remove');
+                    const totalQuantity = cart.reduce((sum, item) =>
+                        String(item.id) === String(productId) ? sum + item.quantity : sum,
+                        0
+                    );
+
+                    panel.dataset.quantity = totalQuantity;
+                    if (qtyDisplay) {
+                        qtyDisplay.textContent = totalQuantity;
+                    }
+                    if (removeBtn) {
+                        removeBtn.style.display = totalQuantity > 0 ? 'block' : 'none';
+                    }
+                });
             }
 
             // Atualizar quantidade no carrinho
@@ -1598,12 +1623,12 @@
                         return `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                                                                                                                                                                                    <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                                                                                                                                                                                                ` : `
-                                                                                                                                                                                                                    <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                                                                                                                                                                        <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                                `}
+                                                                                                                                                                                                                                                                <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                                                                                                                                                                                                                                                            ` : `
+                                                                                                                                                                                                                                                                <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                                                                                                                                                                                                                                    <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
+                                                                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                                                            `}
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
@@ -1793,22 +1818,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                                                                                                                                                                                                                                    <small class="text-muted">
-                                                                                                                                                                                                                                                                                        <i class="fas fa-user me-1"></i>
-                                                                                                                                                                                                                                                                                        <strong>${order.participant_name}</strong>
-                                                                                                                                                                                                                                                                                    </small>
-                                                                                                                                                                                                                                                                                ` : ''}
+                                                                                                                                                                                                                                                                                                                                <small class="text-muted">
+                                                                                                                                                                                                                                                                                                                                    <i class="fas fa-user me-1"></i>
+                                                                                                                                                                                                                                                                                                                                    <strong>${order.participant_name}</strong>
+                                                                                                                                                                                                                                                                                                                                </small>
+                                                                                                                                                                                                                                                                                                                            ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                                                                                                                                                                                                                                    <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                                                                                                                        <i class="fas fa-check-circle me-1"></i>Pago
-                                                                                                                                                                                                                                                                                    </span>
-                                                                                                                                                                                                                                                                                ` : `
-                                                                                                                                                                                                                                                                                    <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                                                                                                                        <i class="fas fa-clock me-1"></i>Pendente
-                                                                                                                                                                                                                                                                                    </span>
-                                                                                                                                                                                                                                                                                `}
+                                                                                                                                                                                                                                                                                                                                <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                                                                                                                    <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                                                                                                                                                                                                                                                                </span>
+                                                                                                                                                                                                                                                                                                                            ` : `
+                                                                                                                                                                                                                                                                                                                                <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                                                                                                                    <i class="fas fa-clock me-1"></i>Pendente
+                                                                                                                                                                                                                                                                                                                                </span>
+                                                                                                                                                                                                                                                                                                                            `}
                                         <span class="badge" style="background: ${
                                             order.status === 'Finalizado' ? '#10b981' : 
                                             order.status === 'Em produção' ? '#f59e0b' : 
@@ -1821,11 +1846,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                                                                                                                                                                                                                                <div class="d-flex justify-content-between py-1">
-                                                                                                                                                                                                                                                                                    <span>${item.quantity}x ${item.product_name}</span>
-                                                                                                                                                                                                                                                                                    <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                                                                            `).join('')}
+                                                                                                                                                                                                                                                                                                                            <div class="d-flex justify-content-between py-1">
+                                                                                                                                                                                                                                                                                                                                <span>${item.quantity}x ${item.product_name}</span>
+                                                                                                                                                                                                                                                                                                                                <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                                                                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                                                                                                                                        `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">
