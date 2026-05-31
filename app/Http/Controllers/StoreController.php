@@ -77,19 +77,19 @@ class StoreController extends Controller
         if (!$store) {
             $store = auth()->user()->store;
         }
-        
+
         return view('store.edit', compact('store'));
     }
-    
+
     public function dashboard()
     {
         $store = auth()->user()->store;
-        
+
         $totalProducts = $store->products()->count();
         $totalCategories = $store->categories()->count();
         $totalTables = $store->tables()->count();
         $occupiedTables = $store->tables()->where('occupied', true)->count();
-        
+
         $pendingOrders = $store->orders()
             ->whereNotIn('status', ['Pago'])
             ->with(['table', 'items.product'])
@@ -99,48 +99,48 @@ class StoreController extends Controller
         // Dados financeiros
         $today = now()->startOfDay();
         $thisMonth = now()->startOfMonth();
-        
+
         // Vendas de hoje
         $todaySales = $store->orders()
             ->where('payment_status', 'paid')
             ->whereDate('created_at', $today)
             ->sum('total');
-        
+
         // Vendas do mês
         $monthSales = $store->orders()
             ->where('payment_status', 'paid')
             ->whereDate('created_at', '>=', $thisMonth)
             ->sum('total');
-        
+
         // Total de vendas (todos os tempos)
         $totalSales = $store->orders()
             ->where('payment_status', 'paid')
             ->sum('total');
-        
+
         // Pedidos pagos hoje
         $todayOrders = $store->orders()
             ->where('payment_status', 'paid')
             ->whereDate('created_at', $today)
             ->count();
-        
+
         // Pedidos pagos no mês
         $monthOrders = $store->orders()
             ->where('payment_status', 'paid')
             ->whereDate('created_at', '>=', $thisMonth)
             ->count();
-        
+
         // Ticket médio
         $averageTicket = $monthOrders > 0 ? $monthSales / $monthOrders : 0;
-        
+
         // Pedidos pendentes de pagamento
         $unpaidOrders = $store->orders()
             ->where('payment_status', 'pending')
             ->count();
-        
+
         $unpaidTotal = $store->orders()
             ->where('payment_status', 'pending')
             ->sum('total');
-        
+
         // Métodos de pagamento (últimos 30 dias)
         $paymentMethods = $store->orders()
             ->where('payment_status', 'paid')
@@ -229,22 +229,22 @@ class StoreController extends Controller
     public function manage()
     {
         $store = auth()->user()->store;
-        
+
         // Carregar dados para a tela de gerenciamento completa
         $categories = $store->categories()
-            ->with(['products' => function($query) {
-                $query->orderBy('order');
+            ->with(['products' => function ($query) {
+                $query->orderBy('order')->with('additionalIngredients');
             }])
             ->orderBy('order')
             ->get();
-        
+
         $tables = $store->tables()->get();
-        
+
         $orders = $store->orders()
             ->with(['table', 'items.product'])
             ->orderBy('created_at', 'desc')
             ->paginate(20);
-        
+
         return view('store.edit-restaurant', compact('store', 'categories', 'tables', 'orders'));
     }
 
@@ -286,4 +286,4 @@ class StoreController extends Controller
         return redirect()->route('store.dashboard')
             ->with('success', 'Loja atualizada com sucesso!');
     }
-} 
+}
