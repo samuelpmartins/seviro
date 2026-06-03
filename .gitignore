@@ -24,8 +24,6 @@ pnpm-debug.log*
 
 # Laravel Mix / Vite
 /.vite
-/public/build
-/public/mix-manifest.json
 
 # OS files
 .DS_Store
