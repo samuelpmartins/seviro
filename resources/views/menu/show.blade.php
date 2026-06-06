@@ -69,14 +69,14 @@
         <!-- Navegação das Categorias (Sticky Tabs) -->
         @if ($categories && $categories->count() > 0)
             <div class="category-nav sticky-top"
-                style="background: white; border-bottom: 1px solid #e0e0e0; top: 0; z-index: 1020; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                style="background: white; border-bottom: 2px solid #e0e0e0; top: 0; z-index: 1020; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
                 <div class="container-fluid px-3">
                     <div class="nav-scroller" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                        <nav class="nav py-2 flex-nowrap" style="gap: 0.5rem;">
+                        <nav class="nav py-3 flex-nowrap" style="gap: 0.75rem;">
                             @foreach ($categories as $category)
                                 <a class="nav-link category-tab {{ $loop->first ? 'active' : '' }}"
                                     data-category="category-{{ $category->id }}"
-                                    style="color: #666; white-space: nowrap; transition: all 0.3s ease; cursor: pointer; padding: 0.4rem 0.875rem; border-radius: 20px; font-weight: 500; font-size: 0.85rem; background: transparent; border: none;">
+                                    style="color: {{ $loop->first ? '#333' : '#999' }}; white-space: nowrap; transition: all 0.3s ease; cursor: pointer; padding: 0.5rem 1rem; border-radius: 20px; font-weight: {{ $loop->first ? '700' : '600' }}; font-size: 0.9rem; background: {{ $loop->first ? '#f0f0f0' : 'transparent' }}; border: none;">
                                     {{ $category->name }}
                                 </a>
                             @endforeach
@@ -91,8 +91,8 @@
             @foreach ($categories as $category)
                 <!-- Divisor de Categoria com Cor -->
                 <div class="category-divider"
-                    style="background: {{ $loop->iteration % 5 == 1 ? '#8b5cf6' : ($loop->iteration % 5 == 2 ? '#3b82f6' : ($loop->iteration % 5 == 3 ? '#10b981' : ($loop->iteration % 5 == 4 ? '#f59e0b' : '#ef4444'))) }}; padding: 0.5rem 1.25rem; margin-top: {{ $loop->first ? '0' : '0' }};">
-                    <h2 class="mb-0" style="color: white; font-size: 0.95rem; font-weight: 600;">
+                    style="background: {{ $loop->iteration % 5 == 1 ? '#8b5cf6' : ($loop->iteration % 5 == 2 ? '#3b82f6' : ($loop->iteration % 5 == 3 ? '#10b981' : ($loop->iteration % 5 == 4 ? '#f59e0b' : '#ef4444'))) }}; padding: 0.75rem 1.25rem;">
+                    <h2 class="mb-0" style="color: white; font-size: 1rem; font-weight: 700;">
                         {{ $category->name }}
                     </h2>
                 </div>
@@ -103,95 +103,89 @@
                         <div class="product-item" data-product-id="{{ $product->id }}"
                             data-product-name="{{ $product->name }}" data-product-price="{{ $product->price }}"
                             data-product-image="{{ $product->image ? asset('storage/' . $product->image) : '' }}"
-                            style="border-bottom: 1px solid #f0f0f0; padding: 1rem 1.25rem; transition: background 0.2s ease; position: relative; display: flex; align-items: stretch; gap: 1rem;">
+                            style="border-bottom: 1px solid #f0f0f0; padding: 1.25rem; transition: background 0.2s ease; position: relative; display: grid; grid-template-columns: 80px 1fr auto; gap: 1.25rem; align-items: flex-start;">
 
-                            <!-- Esquerda: Imagem + Info (Clicável) -->
-                            <div class="product-left"
-                                style="flex: 1; display: flex; gap: 1rem; cursor: pointer; min-width: 0;">
-                                <!-- Imagem do Produto -->
+                            <!-- Coluna 1: Imagem (Esquerda) -->
+                            <div class="product-image" style="flex-shrink: 0;">
                                 @if ($product->image)
-                                    <div class="product-image" style="flex-shrink: 0;">
-                                        <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}"
-                                            style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">
-                                    </div>
+                                    <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}"
+                                        style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">
                                 @else
-                                    <div class="product-image"
-                                        style="flex-shrink: 0; width: 80px; height: 80px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                    <div
+                                        style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                                         <i class="fas fa-utensils" style="color: #ccc; font-size: 2rem;"></i>
                                     </div>
                                 @endif
+                            </div>
 
-                                <!-- Informações do Produto -->
-                                <div class="product-info"
-                                    style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-                                    <h3 class="product-name mb-1"
-                                        style="font-size: 1rem; font-weight: 600; color: #333; margin: 0;">
-                                        {{ $product->name }}
-                                    </h3>
+                            <!-- Coluna 2: Informações do Produto (Centro) -->
+                            <div class="product-info" style="min-width: 0;">
+                                <h3 class="product-name"
+                                    style="font-size: 1rem; font-weight: 700; color: #333; margin: 0 0 0.5rem 0; line-height: 1.2;">
+                                    {{ $product->name }}
+                                </h3>
 
-                                    @if ($product->description)
-                                        <p class="product-description mb-1"
-                                            style="font-size: 0.85rem; color: #999; margin: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-                                            {{ $product->description }}
-                                        </p>
-                                    @endif
+                                @if ($product->description)
+                                    <p class="product-description"
+                                        style="font-size: 0.85rem; color: #999; margin: 0 0 0.5rem 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                                        {{ $product->description }}
+                                    </p>
+                                @endif
 
-                                    @php
-                                        $ingredientText = '';
-                                        if (!empty($product->additionalIngredients)) {
-                                            $ingredientText = collect($product->additionalIngredients)
+                                @php
+                                    $ingredientText = '';
+                                    if (!empty($product->additionalIngredients)) {
+                                        $ingredientText = collect($product->additionalIngredients)
+                                            ->pluck('name')
+                                            ->filter()
+                                            ->implode(', ');
+                                    }
+                                    if (!$ingredientText) {
+                                        $ingredientText = $product->ingredients;
+                                        $decodedIngredients = json_decode($product->ingredients, true);
+                                        if (is_array($decodedIngredients)) {
+                                            $ingredientText = collect($decodedIngredients)
                                                 ->pluck('name')
                                                 ->filter()
                                                 ->implode(', ');
                                         }
-                                        if (!$ingredientText) {
-                                            $ingredientText = $product->ingredients;
-                                            $decodedIngredients = json_decode($product->ingredients, true);
-                                            if (is_array($decodedIngredients)) {
-                                                $ingredientText = collect($decodedIngredients)
-                                                    ->pluck('name')
-                                                    ->filter()
-                                                    ->implode(', ');
-                                            }
-                                        }
-                                    @endphp
+                                    }
+                                @endphp
 
-                                    @if ($ingredientText)
-                                        <p class="product-ingredients mb-1"
-                                            style="font-size: 0.8rem; color: #bbb; margin: 0;">
-                                            {{ Str::limit($ingredientText, 60) }}
-                                        </p>
-                                    @endif
+                                @if ($ingredientText)
+                                    <p class="product-ingredients"
+                                        style="font-size: 0.8rem; color: #bbb; margin: 0 0 0.75rem 0;">
+                                        {{ Str::limit($ingredientText, 60) }}
+                                    </p>
+                                @endif
 
-                                    <div class="product-price mt-2" style="font-size: 1rem; font-weight: 600; color: #333;">
-                                        R$ {{ number_format($product->price, 2, ',', '.') }}
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary product-detail-btn mt-2"
-                                        data-product-id="{{ $product->id }}"
-                                        style="font-weight: 600; padding: 0.35rem 0.75rem; border-radius: 12px; width: auto; min-width: 120px;">
-                                        Saiba mais
-                                    </button>
+                                <div class="product-price" style="font-size: 1rem; font-weight: 700; color: #333;">
+                                    R$ {{ number_format($product->price, 2, ',', '.') }}
                                 </div>
                             </div>
 
-                            <!-- Direita: Controles de Quantidade + Lixeira -->
+                            <!-- Coluna 3: Controles e Botão (Direita) -->
                             <div class="product-controls"
-                                style="display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0;">
-                                <!-- Controles de Quantidade -->
+                                style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.45rem; flex-shrink: 0; white-space: nowrap;">
+                                <!-- Controles de Quantidade (Compacto) -->
                                 <div class="product-quick-add" data-product-id="{{ $product->id }}"
-                                    style="display: flex; align-items: center; gap: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px; padding: 0.35rem; background: #f9f9f9;">
+                                    style="display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid #e6e6e6; border-radius: 999px; padding: 0.35rem 0.45rem; background: #f7f7f7; min-width: 110px; justify-content: space-between;">
                                     <button type="button" class="btn btn-sm quick-decr"
-                                        style="width: 32px; height: 32px; padding: 0; border: none; background: transparent; color: #666; font-size: 1rem;">−</button>
+                                        style="width: 28px; height: 28px; padding: 0; border: none; background: transparent; color: #666; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%;">−</button>
                                     <span class="quick-qty"
-                                        style="width: 50px; text-align: center; font-weight: 600; color: #333;">0</span>
+                                        style="width: 34px; text-align: center; font-weight: 700; color: #333; font-size: 0.95rem;">0</span>
                                     <button type="button" class="btn btn-sm quick-incr"
-                                        style="width: 32px; height: 32px; padding: 0; border: none; background: transparent; color: #666; font-size: 1rem;">+</button>
+                                        style="width: 28px; height: 28px; padding: 0; border: none; background: transparent; color: #666; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%;">+</button>
                                 </div>
 
-                                <!-- Botão Lixeira (Aparece quando quantidade > 0) -->
-                                <button type="button" class="btn btn-sm quick-remove"
-                                    style="width: 40px; height: 40px; padding: 0; border: 2px solid #fee2e2; background: #fef2f2; border-radius: 8px; color: #ef4444; font-size: 1.2rem; cursor: pointer; display: none;"
-                                    title="Remover do carrinho"><i class="fas fa-trash"></i></button>
+                                <!-- Botão "Personalização" (Se customizável) -->
+                                @if ($product->customizable)
+                                    <button type="button" class="btn btn-sm product-detail-btn"
+                                        data-product-id="{{ $product->id }}"
+                                        style="font-weight: 600; padding: 0.35rem 0.9rem; border-radius: 999px; background: #f4f4f4; border: 1px solid #e6e6e6; color: #333; font-size: 0.85rem; width: 100%; max-width: 130px; transition: all 0.2s ease; white-space: nowrap;">
+                                        Personalização
+                                    </button>
+                                @endif
                             </div>
                         </div>
                     @endforeach
@@ -199,7 +193,7 @@
             @endforeach
 
             <!-- Espaçamento no final para não ficar atrás do carrinho flutuante -->
-            <div style="height: 100px;"></div>
+            <div style="height: 120px;"></div>
         </div>
     </div>
 
@@ -714,6 +708,188 @@
         .product-item .detail-button:hover {
             background: #e5e7eb;
         }
+
+        /* Estilos para Lista do Menu */
+        .product-item {
+            position: relative;
+            transition: background 0.2s ease;
+        }
+
+        .product-item:hover {
+            background: #f8f9fa !important;
+        }
+
+        .product-item:active {
+            background: #f0f0f0 !important;
+        }
+
+        /* Hover effect na parte esquerda do produto */
+        .product-left:hover {
+            opacity: 0.85;
+        }
+
+        /* Estilos dos botões */
+        .product-quick-add button {
+            transition: all 0.2s ease;
+        }
+
+        .product-quick-add button:hover {
+            background-color: #d0d0d0 !important;
+        }
+
+        .product-quick-add button:active {
+            transform: scale(0.95);
+        }
+
+        .product-detail-btn {
+            transition: all 0.2s ease !important;
+        }
+
+        .product-detail-btn:hover {
+            background-color: #e0e0e0 !important;
+            border-color: #d0d0d0 !important;
+            transform: translateY(-1px);
+        }
+
+        /* Scrollbar personalizada */
+        .nav-scroller::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .nav-scroller::-webkit-scrollbar-track {
+            background: #f0f0f0;
+        }
+
+        .nav-scroller::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+
+        /* Responsividade para Mobile */
+        @media (max-width: 576px) {
+            .product-item {
+                padding: 1rem !important;
+                grid-template-columns: 70px 1fr auto !important;
+                gap: 0.75rem !important;
+            }
+
+            .product-image img {
+                width: 70px !important;
+                height: 70px !important;
+            }
+
+            .product-image div {
+                width: 70px !important;
+                height: 70px !important;
+            }
+
+            .product-name {
+                font-size: 0.95rem !important;
+            }
+
+            .product-description {
+                font-size: 0.8rem !important;
+            }
+
+            .product-price {
+                font-size: 0.95rem !important;
+            }
+
+            .product-controls {
+                gap: 0.5rem !important;
+            }
+
+            .product-quick-add {
+                gap: 0.2rem !important;
+                padding: 0.2rem !important;
+            }
+
+            .product-quick-add button {
+                width: 26px !important;
+                height: 26px !important;
+                font-size: 0.85rem !important;
+            }
+
+            .quick-qty {
+                width: 35px !important;
+                font-size: 0.85rem !important;
+            }
+
+            .product-detail-btn {
+                padding: 0.35rem 0.6rem !important;
+                font-size: 0.8rem !important;
+            }
+
+            .category-divider {
+                padding: 0.6rem 1rem !important;
+            }
+
+            .category-divider h2 {
+                font-size: 0.95rem !important;
+            }
+        }
+
+        /* Responsividade para Tablet */
+        @media (min-width: 577px) and (max-width: 768px) {
+            .product-item {
+                padding: 1.1rem !important;
+                grid-template-columns: 75px 1fr auto !important;
+                gap: 1rem !important;
+            }
+
+            .product-image img {
+                width: 75px !important;
+                height: 75px !important;
+            }
+
+            .product-image div {
+                width: 75px !important;
+                height: 75px !important;
+            }
+
+            .product-quick-add button {
+                width: 27px !important;
+                height: 27px !important;
+            }
+
+            .quick-qty {
+                width: 38px !important;
+            }
+        }
+
+        /* Responsividade para Desktop */
+        @media (min-width: 769px) {
+            .product-item {
+                padding: 1.25rem !important;
+                grid-template-columns: 80px 1fr auto !important;
+                gap: 1.25rem !important;
+            }
+        }
+
+        /* Ajustes gerais de responsividade */
+        @media (max-width: 992px) {
+            .menu-wrapper {
+                min-height: 100vh;
+            }
+
+            .product-controls {
+                min-width: auto;
+            }
+        }
+
+        /* Ensure grid layout works on all devices */
+        .product-item {
+            display: grid !important;
+        }
+
+        .product-info {
+            overflow: hidden;
+            word-break: break-word;
+        }
+
+        .product-quick-add button:active {
+            transform: scale(0.95);
+        }
     </style>
 
     <script>
@@ -837,10 +1013,10 @@
                             bootstrap.Modal.getInstance(document.getElementById('authModal')).hide();
                             setTimeout(() => location.reload(), 500);
                         } else {
-                            showToast(data.message || 'Erro ao criar senha', 'error');
+                            showToast(data.message || 'Erro ao entrar', 'error');
                             submitBtn.disabled = false;
                             submitBtn.innerHTML =
-                                '<i class="fas fa-check me-2"></i>Criar Senha e Entrar';
+                                '<i class="fas fa-check me-2"></i>Entrar';
                         }
                     })
                     .catch(error => {
@@ -889,7 +1065,7 @@
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        errorDiv.textContent = 'Erro ao validar senha';
+                        errorDiv.textContent = error;
                         errorDiv.style.display = 'block';
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = '<i class="fas fa-unlock me-2"></i>Validar Senha';
