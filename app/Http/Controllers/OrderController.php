@@ -9,6 +9,7 @@ use App\Events\OrderCreated;
 use App\Events\OrderStatusChanged;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
@@ -17,7 +18,7 @@ class OrderController extends Controller
         $request->validate([
             'table_qr_code' => 'required|string',
             'items' => 'required|array',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_id' => ['required', Rule::exists('products', 'id')->whereNull('DeletionDate')],
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.notes' => 'nullable|string',
             'notes' => 'nullable|string'
@@ -25,10 +26,10 @@ class OrderController extends Controller
 
         // Obter usuário
         $user = auth()->user();
-        
+
         // Tentar encontrar uma mesa com o QR code
         $table = \App\Models\Table::where('qr_code', $request->table_qr_code)->first();
-        
+
         if ($table) {
             // É uma mesa
             $store = $table->store;
@@ -36,13 +37,13 @@ class OrderController extends Controller
         } else {
             // Não é uma mesa, verificar se é QR code de balcão
             $store = \App\Models\Store::where('counter_qr_code', $request->table_qr_code)->first();
-            
+
             if (!$store) {
                 return response()->json([
                     'message' => 'QR Code não encontrado'
                 ], 404);
             }
-            
+
             // É um pedido de balcão
             $table = null;
             $tableId = null;
@@ -75,7 +76,7 @@ class OrderController extends Controller
 
             // Gerar número do pedido
             $orderNumber = \App\Models\Order::generateOrderNumber($tableId ?? 0);
-            
+
             // Validar que o número foi gerado corretamente
             if (empty($orderNumber)) {
                 throw new \Exception('Não foi possível gerar o número do pedido');
@@ -83,7 +84,7 @@ class OrderController extends Controller
 
             // Definir status inicial baseado em ter garçons ou não
             $initialStatus = $store->hasWaiters() ? 'Em produção' : 'Aguardando pagamento';
-            
+
             // Criar o pedido
             $order = new \App\Models\Order([
                 'order_number' => $orderNumber,
@@ -96,7 +97,7 @@ class OrderController extends Controller
                 'total' => $total,
                 'notes' => $request->notes
             ]);
-            
+
             $order->save();
 
             foreach ($items as $item) {
@@ -104,12 +105,12 @@ class OrderController extends Controller
             }
 
             \Illuminate\Support\Facades\DB::commit();
-            
+
             // Armazenar ID do pedido na sessão para rastreamento de notificações
             $sessionOrderIds = $request->session()->get('client_order_ids', []);
             $sessionOrderIds[] = $order->id;
             $request->session()->put('client_order_ids', array_unique($sessionOrderIds));
-            
+
             // Disparar evento de pedido criado
             event(new OrderCreated($order));
 
@@ -135,7 +136,7 @@ class OrderController extends Controller
 
         $oldStatus = $order->status;
         $order->update(['status' => $request->status]);
-        
+
         // Disparar evento de mudança de status
         event(new OrderStatusChanged($order, $oldStatus, $request->status));
 
@@ -146,7 +147,7 @@ class OrderController extends Controller
                 'order' => $order
             ]);
         }
-        
+
         // Se for um formulário normal, redireciona com mensagem
         return redirect()->back()
             ->with('success', 'Status do pedido atualizado com sucesso!');
@@ -164,28 +165,28 @@ class OrderController extends Controller
                 'message' => 'Pedido cancelado com sucesso!'
             ]);
         }
-        
+
         // Se for um formulário normal, redireciona com mensagem
         return redirect()->route('store.dashboard')
             ->with('success', 'Pedido cancelado com sucesso!');
     }
-    
+
     /**
      * Exibir pedidos em produção
      */
     public function production()
     {
         $store = auth()->user()->store;
-        
+
         $orders = $store->orders()
             ->where('status', 'Em produção')
             ->with(['table', 'items.product'])
             ->orderBy('created_at', 'asc')
             ->get();
-            
+
         return view('store.orders_production', compact('orders'));
     }
-    
+
     /**
      * Exibir histórico de pedidos
      */
@@ -193,30 +194,30 @@ class OrderController extends Controller
     {
         $store = auth()->user()->store;
         $tables = $store->tables;
-        
+
         $ordersQuery = $store->orders()
             ->with(['table', 'items.product']);
-            
+
         // Filtros
         if ($request->filled('status')) {
             $ordersQuery->where('status', $request->status);
         }
-        
+
         if ($request->filled('table_id')) {
             $ordersQuery->where('table_id', $request->table_id);
         }
-        
+
         if ($request->filled('start_date')) {
             $ordersQuery->whereDate('created_at', '>=', $request->start_date);
         }
-        
+
         if ($request->filled('end_date')) {
             $ordersQuery->whereDate('created_at', '<=', $request->end_date);
         }
-        
+
         $orders = $ordersQuery->orderBy('created_at', 'desc')
             ->paginate(15);
-            
+
         return view('store.orders_history', compact('orders', 'tables'));
     }
 
@@ -226,26 +227,26 @@ class OrderController extends Controller
     public function userHistory(Request $request)
     {
         $user = auth()->user();
-        
+
         $ordersQuery = Order::where('user_id', $user->id)
             ->with(['store', 'table', 'items.product']);
-            
+
         // Filtros
         if ($request->filled('status')) {
             $ordersQuery->where('status', $request->status);
         }
-        
+
         if ($request->filled('start_date')) {
             $ordersQuery->whereDate('created_at', '>=', $request->start_date);
         }
-        
+
         if ($request->filled('end_date')) {
             $ordersQuery->whereDate('created_at', '<=', $request->end_date);
         }
-        
+
         $orders = $ordersQuery->orderBy('created_at', 'desc')
             ->paginate(15);
-            
+
         return view('orders.history', compact('orders'));
     }
 
@@ -274,9 +275,9 @@ class OrderController extends Controller
                 'order' => $order
             ]);
         }
-        
+
         // Se for um formulário normal, redireciona com mensagem
         return redirect()->back()
             ->with('success', 'Pedido marcado como pago em dinheiro!');
     }
-} 
+}

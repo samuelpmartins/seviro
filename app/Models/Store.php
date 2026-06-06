@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Store extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    const DELETED_AT = 'DeletionDate';
 
     protected $fillable = [
         'name',
@@ -63,9 +66,9 @@ class Store extends Model
     public function hasWaiters(): bool
     {
         return User::where('store_id', $this->id)
-            ->whereHas('roles', function($query) {
+            ->whereHas('roles', function ($query) {
                 $query->where('name', 'waiter');
             })
             ->exists();
     }
-} 
+}

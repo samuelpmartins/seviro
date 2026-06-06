@@ -98,15 +98,15 @@ Route::middleware(['web'])->group(function () {
     Route::post('/orders', function (Request $request) {
         try {
             $validated = $request->validate([
-                'store_id' => 'required|exists:stores,id',
-                'table_id' => 'nullable|exists:tables,id',
+                'store_id' => ['required', \Illuminate\Validation\Rule::exists('stores', 'id')->whereNull('DeletionDate')],
+                'table_id' => ['nullable', \Illuminate\Validation\Rule::exists('tables', 'id')->whereNull('DeletionDate')],
                 'items' => 'required|array',
-                'items.*.product_id' => 'required|exists:products,id',
+                'items.*.product_id' => ['required', \Illuminate\Validation\Rule::exists('products', 'id')->whereNull('DeletionDate')],
                 'items.*.quantity' => 'required|integer|min:1',
                 'items.*.notes' => 'nullable|string',
                 'items.*.unit_price' => 'nullable|numeric',
                 'items.*.selected_ingredients' => 'nullable|array',
-                'items.*.selected_ingredients.*.id' => 'required_with:items.*.selected_ingredients|exists:product_ingredient,id',
+                'items.*.selected_ingredients.*.id' => ['required_with:items.*.selected_ingredients', \Illuminate\Validation\Rule::exists('product_ingredients', 'id')->whereNull('DeletionDate')],
                 'items.*.selected_ingredients.*.selected_amount' => 'required_with:items.*.selected_ingredients|integer|min:0',
                 'notes' => 'nullable|string',
             ]);

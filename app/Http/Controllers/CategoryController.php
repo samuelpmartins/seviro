@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
@@ -28,7 +29,7 @@ class CategoryController extends Controller
         ]);
 
         $store = auth()->user()->store;
-        
+
         $lastOrder = $store->categories()->max('order') ?? 0;
 
         $store->categories()->create([
@@ -45,7 +46,7 @@ class CategoryController extends Controller
         } elseif (str_contains($referer, '/store/dashboard')) {
             return redirect()->route('store.dashboard')->with('success', 'Categoria criada com sucesso!');
         }
-        
+
         return redirect()->route('store.categories.index')
             ->with('success', 'Categoria criada com sucesso!');
     }
@@ -79,7 +80,7 @@ class CategoryController extends Controller
         } elseif (str_contains($referer, '/store/dashboard')) {
             return redirect()->route('store.dashboard')->with('success', 'Categoria atualizada com sucesso!');
         }
-        
+
         return redirect()->route('store.categories.index')
             ->with('success', 'Categoria atualizada com sucesso!');
     }
@@ -87,7 +88,7 @@ class CategoryController extends Controller
     public function destroy(Category $category)
     {
         $this->authorize('delete', $category);
-        
+
         $category->delete();
 
         return redirect()->route('store.categories.index')
@@ -98,7 +99,7 @@ class CategoryController extends Controller
     {
         $request->validate([
             'categories' => 'required|array',
-            'categories.*.id' => 'required|exists:categories,id',
+            'categories.*.id' => ['required', Rule::exists('categories', 'id')->whereNull('DeletionDate')],
             'categories.*.order' => 'required|integer|min:0',
         ]);
 
@@ -110,4 +111,4 @@ class CategoryController extends Controller
 
         return response()->json(['message' => 'Ordem atualizada com sucesso!']);
     }
-} 
+}

@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    const DELETED_AT = 'DeletionDate';
 
     protected $fillable = [
         'order_number',
@@ -40,7 +43,7 @@ class Order extends Model
             if (empty($order->order_number)) {
                 $order->order_number = self::generateOrderNumber($order->table_id ?? 0);
             }
-            
+
             // Validação final: order_number não pode ser vazio
             if (empty($order->order_number)) {
                 throw new \Exception('order_number não pode ser vazio');
@@ -135,10 +138,10 @@ class Order extends Model
         if ($this->isCounterOrder()) {
             return 'Balcão';
         }
-        
+
         // Acessar relacionamento de forma explícita
         $tableRelation = $this->table()->first();
-        
+
         return 'Mesa ' . ($tableRelation ? $tableRelation->number : 'N/A');
     }
 
@@ -154,66 +157,66 @@ class Order extends Model
             // Tenta gerar um número único até conseguir
             $maxAttempts = 100;
             $attempt = 0;
-            
+
             do {
                 // Conta quantos pedidos de balcão já existem
                 $orderCount = self::whereNull('table_id')->count() + 1 + $attempt;
-                
+
                 // Formata a ordem do pedido com 2 dígitos (ou mais se necessário)
                 $orderSequence = str_pad($orderCount, 2, '0', STR_PAD_LEFT);
-                
+
                 // Gera no formato: BALA01
                 $orderNumber = 'BAL' . 'A' . $orderSequence;
-                
+
                 // Verifica se já existe
                 $exists = self::where('order_number', $orderNumber)->exists();
-                
+
                 if (!$exists) {
                     return $orderNumber;
                 }
-                
+
                 $attempt++;
             } while ($attempt < $maxAttempts);
-            
+
             // Se não conseguiu gerar um número único, usa timestamp
             return 'BAL' . 'A' . time();
         }
-        
+
         // Pedido de mesa normal
         $table = Table::find($tableId);
-        
+
         if (!$table) {
             throw new \Exception('Mesa não encontrada');
         }
-        
+
         // Formata o número da mesa com 2 dígitos (ou mais se necessário)
         $tableNumber = str_pad($table->number, 2, '0', STR_PAD_LEFT);
-        
+
         // Tenta gerar um número único até conseguir
         $maxAttempts = 100;
         $attempt = 0;
-        
+
         do {
             // Conta quantos pedidos já existem para essa mesa
             $orderCount = self::where('table_id', $tableId)->count() + 1 + $attempt;
-            
+
             // Formata a ordem do pedido com 2 dígitos (ou mais se necessário)
             $orderSequence = str_pad($orderCount, 2, '0', STR_PAD_LEFT);
-            
+
             // Gera no formato: 06A02
             $orderNumber = $tableNumber . 'A' . $orderSequence;
-            
+
             // Verifica se já existe
             $exists = self::where('order_number', $orderNumber)->exists();
-            
+
             if (!$exists) {
                 return $orderNumber;
             }
-            
+
             $attempt++;
         } while ($attempt < $maxAttempts);
-        
+
         // Se não conseguiu gerar um número único, usa timestamp
         return $tableNumber . 'A' . time();
     }
-} 
+}

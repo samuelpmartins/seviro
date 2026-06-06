@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 
 class Withdrawal extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    const DELETED_AT = 'DeletionDate';
 
     protected $fillable = [
         'store_id',
@@ -141,8 +144,8 @@ class Withdrawal extends Model
             ];
 
             if ($notes) {
-                $updates['admin_notes'] = $this->admin_notes 
-                    ? $this->admin_notes . "\n\n" . $notes 
+                $updates['admin_notes'] = $this->admin_notes
+                    ? $this->admin_notes . "\n\n" . $notes
                     : $notes;
             }
 
@@ -195,7 +198,7 @@ class Withdrawal extends Model
      */
     public function getStatusNameAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             self::STATUS_PENDING => 'Pendente',
             self::STATUS_APPROVED => 'Aprovado',
             self::STATUS_REJECTED => 'Rejeitado',
@@ -210,7 +213,7 @@ class Withdrawal extends Model
      */
     public function getStatusBadgeClassAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             self::STATUS_PENDING => 'bg-warning text-dark',
             self::STATUS_APPROVED => 'bg-info text-white',
             self::STATUS_REJECTED => 'bg-danger',

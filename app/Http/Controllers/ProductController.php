@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -32,7 +33,7 @@ class ProductController extends Controller
 
     private function syncProductIngredients(Product $product, $ingredients)
     {
-        $product->additionalIngredients()->delete();
+        $product->additionalIngredients()->get()->each->delete();
 
         if (!is_array($ingredients)) {
             return;
@@ -90,7 +91,7 @@ class ProductController extends Controller
             'ingredients.*.additional_price' => 'nullable|string|max:255',
             'ingredients.*.amount_item' => 'nullable|integer|min:0',
             'price' => 'required|numeric|min:0',
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => ['required', Rule::exists('categories', 'id')->whereNull('DeletionDate')],
             'image' => 'nullable|image|max:2048',
         ]);
 
@@ -123,7 +124,7 @@ class ProductController extends Controller
         if ($request->boolean('customizable')) {
             $this->syncProductIngredients($product, $request->ingredients);
         } else {
-            $product->additionalIngredients()->delete();
+            $product->additionalIngredients()->get()->each->delete();
         }
 
         // Verificar de onde veio a requisição para redirecionar corretamente
@@ -166,7 +167,7 @@ class ProductController extends Controller
             'ingredients.*.additional_price' => 'nullable|string|max:255',
             'ingredients.*.amount_item' => 'nullable|integer|min:0',
             'price' => 'required|numeric|min:0',
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => ['required', Rule::exists('categories', 'id')->whereNull('DeletionDate')],
             'image' => 'nullable|image|max:2048',
             'active' => 'boolean'
         ]);
@@ -197,7 +198,7 @@ class ProductController extends Controller
         if ($request->boolean('customizable')) {
             $this->syncProductIngredients($product, $request->ingredients);
         } else {
-            $product->additionalIngredients()->delete();
+            $product->additionalIngredients()->get()->each->delete();
         }
 
         // Verificar de onde veio a requisição para redirecionar corretamente
@@ -230,7 +231,7 @@ class ProductController extends Controller
     {
         $request->validate([
             'products' => 'required|array',
-            'products.*.id' => 'required|exists:products,id',
+            'products.*.id' => ['required', Rule::exists('products', 'id')->whereNull('DeletionDate')],
             'products.*.order' => 'required|integer|min:0',
         ]);
 

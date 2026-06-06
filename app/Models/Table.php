@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Table extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    const DELETED_AT = 'DeletionDate';
 
     protected $fillable = [
         'number',
@@ -59,51 +62,51 @@ class Table extends Model
     {
         // Buscar todos os participantes ativos da mesa
         $activeParticipants = $this->participants()->get();
-        
+
         // Se não há participantes ativos, verificar se há pedidos pendentes na mesa
         if ($activeParticipants->isEmpty()) {
             // Verificar se há algum pedido pendente na mesa (sem participante ou de participantes removidos)
             $hasPendingOrders = $this->orders()
                 ->where('payment_status', Order::PAYMENT_STATUS_PENDING)
                 ->exists();
-            
+
             // Se não há pedidos pendentes e a mesa está ocupada, desocupar
             if (!$hasPendingOrders && $this->occupied) {
                 $this->clearTable();
                 return true;
             }
-            
+
             return false;
         }
-        
+
         // Buscar os IDs dos participantes ativos
         $activeParticipantIds = $activeParticipants->pluck('id')->toArray();
-        
+
         // Verificar se há algum pedido pendente de pagamento dos participantes ativos
         $pendingOrdersFromParticipants = $this->orders()
             ->whereIn('participant_id', $activeParticipantIds)
             ->where('payment_status', Order::PAYMENT_STATUS_PENDING)
             ->exists();
-        
+
         // Se ainda há pedidos pendentes dos participantes ativos, não desocupa
         if ($pendingOrdersFromParticipants) {
             return false;
         }
-        
+
         // Verificar se há pedidos sem participant_id (pedidos antigos ou do sistema antigo)
         $pendingOrdersWithoutParticipant = $this->orders()
             ->whereNull('participant_id')
             ->where('payment_status', Order::PAYMENT_STATUS_PENDING)
             ->exists();
-        
+
         // Se há pedidos sem participante pendentes, não desocupa
         if ($pendingOrdersWithoutParticipant) {
             return false;
         }
-        
+
         // Todos os pedidos foram pagos - desocupar a mesa
         $this->clearTable();
-        
+
         return true;
     }
 
@@ -113,8 +116,8 @@ class Table extends Model
     public function clearTable(): void
     {
         // Remover todos os participantes
-        $this->participants()->delete();
-        
+        $this->participants()->get()->each->delete();
+
         // Marcar mesa como desocupada e remover senha
         $this->update([
             'occupied' => false,
@@ -124,4 +127,4 @@ class Table extends Model
             'password' => null, // Remover senha ao desocupar
         ]);
     }
-} 
+}

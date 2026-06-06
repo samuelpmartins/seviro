@@ -17,12 +17,12 @@ class EmployeeController extends Controller
     public function index()
     {
         $store = auth()->user()->store;
-        
+
         $employees = User::where('store_id', $store->id)
             ->with('roles')
             ->orderBy('name')
             ->get();
-            
+
         return view('store.employees.index', compact('employees'));
     }
 
@@ -79,7 +79,7 @@ class EmployeeController extends Controller
     public function update(Request $request, User $employee)
     {
         $store = auth()->user()->store;
-        
+
         // Verificar se o funcionário pertence à loja
         if ($employee->store_id !== $store->id) {
             abort(403);
@@ -123,7 +123,7 @@ class EmployeeController extends Controller
     public function destroy(User $employee)
     {
         $store = auth()->user()->store;
-        
+
         // Verificar se o funcionário pertence à loja
         if ($employee->store_id !== $store->id) {
             abort(403);
@@ -177,7 +177,7 @@ class EmployeeController extends Controller
 
         $oldStatus = $order->status;
         $order->update(['status' => $request->status]);
-        
+
         // Disparar evento de mudança de status
         event(new \App\Events\OrderStatusChanged($order, $oldStatus, $request->status));
 
@@ -211,7 +211,7 @@ class EmployeeController extends Controller
         foreach ($tables as $table) {
             // Buscar IDs dos participantes ativos da mesa
             $activeParticipantIds = $table->participants->pluck('id')->toArray();
-            
+
             // Se a mesa está ocupada e tem participantes, mostrar apenas pedidos da sessão atual
             // Se a mesa está desocupada (sem participantes), não mostrar pedidos
             if (!empty($activeParticipantIds)) {
@@ -225,7 +225,7 @@ class EmployeeController extends Controller
                 // Mesa desocupada - sem pedidos a mostrar
                 $table->orders = collect();
             }
-                
+
             $table->unpaid_total = $table->orders->where('payment_status', 'pending')->sum('total');
         }
 
@@ -286,10 +286,10 @@ class EmployeeController extends Controller
         }
 
         $participants = $table->participants;
-        
+
         // Buscar IDs dos participantes ativos da mesa
         $activeParticipantIds = $participants->pluck('id')->toArray();
-        
+
         // Se a mesa tem participantes ativos, mostrar apenas pedidos da sessão atual
         // Se não tem participantes, não mostrar pedidos
         if (!empty($activeParticipantIds)) {
@@ -320,7 +320,7 @@ class EmployeeController extends Controller
         }
 
         // Remover todos os participantes da mesa
-        $table->participants()->delete();
+        $table->participants()->get()->each->delete();
 
         // Resetar a mesa (incluindo a senha)
         $table->update([
@@ -335,12 +335,3 @@ class EmployeeController extends Controller
             ->with('success', 'Mesa ' . $table->number . ' desocupada com sucesso!');
     }
 }
-
-
-
-
-
-
-
-
-

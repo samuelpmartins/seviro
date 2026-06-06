@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BankAccount extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    const DELETED_AT = 'DeletionDate';
 
     protected $fillable = [
         'store_id',
@@ -74,8 +77,8 @@ class BankAccount extends Model
      */
     public function hasBankData(): bool
     {
-        return !empty($this->bank_code) 
-            && !empty($this->agency) 
+        return !empty($this->bank_code)
+            && !empty($this->agency)
             && !empty($this->account_number)
             && !empty($this->account_holder_name);
     }
@@ -112,7 +115,7 @@ class BankAccount extends Model
      */
     public function getAccountTypeNameAttribute(): string
     {
-        return match($this->account_type) {
+        return match ($this->account_type) {
             self::ACCOUNT_TYPE_CHECKING => 'Conta Corrente',
             self::ACCOUNT_TYPE_SAVINGS => 'Conta Poupança',
             default => '-',
@@ -124,7 +127,7 @@ class BankAccount extends Model
      */
     public function getPixKeyTypeNameAttribute(): string
     {
-        return match($this->pix_key_type) {
+        return match ($this->pix_key_type) {
             self::PIX_TYPE_CPF => 'CPF',
             self::PIX_TYPE_CNPJ => 'CNPJ',
             self::PIX_TYPE_EMAIL => 'E-mail',

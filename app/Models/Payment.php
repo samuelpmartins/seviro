@@ -4,12 +4,15 @@ namespace App\Models;
 
 use App\Events\OrderPaid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payment extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    const DELETED_AT = 'DeletionDate';
 
     protected $fillable = [
         'store_id',
@@ -82,7 +85,7 @@ class Payment extends Model
         if (empty($this->order_ids)) {
             return collect();
         }
-        
+
         return Order::whereIn('id', $this->order_ids)->get();
     }
 
@@ -110,7 +113,7 @@ class Payment extends Model
         if ($this->payment_method !== self::METHOD_PIX || !$this->expires_at) {
             return false;
         }
-        
+
         return $this->expires_at->isPast();
     }
 
@@ -121,24 +124,24 @@ class Payment extends Model
     public function markOrdersAsPaid(): void
     {
         $orders = Order::with('store', 'items.product')->whereIn('id', $this->order_ids)->get();
-        
+
         foreach ($orders as $order) {
             $updateData = [
                 'payment_status' => Order::PAYMENT_STATUS_PAID,
                 'payment_method' => $this->payment_method,
             ];
-            
+
             // Se o status for "Aguardando pagamento", muda para "Em produção"
             if ($order->status === 'Aguardando pagamento') {
                 $updateData['status'] = 'Em produção';
             }
-            
+
             $order->update($updateData);
-            
+
             // Disparar evento de pedido pago
             event(new OrderPaid($order));
         }
-        
+
         // Verificar se todos os pedidos da mesa foram pagos e desocupar se necessário
         if ($this->table_id) {
             $table = Table::find($this->table_id);
@@ -148,7 +151,3 @@ class Payment extends Model
         }
     }
 }
-
-
-
-

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Stripe\Stripe;
 use Stripe\PaymentIntent;
 use Stripe\Webhook;
+use Illuminate\Validation\Rule;
 
 class PaymentController extends Controller
 {
@@ -275,7 +276,7 @@ class PaymentController extends Controller
             $request->validate([
                 'qr_code' => 'required|string',
                 'order_ids' => 'required|array',
-                'order_ids.*' => 'required|integer|exists:orders,id',
+                'order_ids.*' => ['required', 'integer', Rule::exists('orders', 'id')->whereNull('DeletionDate')],
             ]);
 
             // Tentar encontrar mesa primeiro
@@ -479,7 +480,7 @@ class PaymentController extends Controller
     public function checkPaymentStatus(Request $request)
     {
         $request->validate([
-            'payment_id' => 'required|integer|exists:payments,id',
+            'payment_id' => ['required', 'integer', Rule::exists('payments', 'id')->whereNull('DeletionDate')],
         ]);
 
         $payment = Payment::findOrFail($request->payment_id);
@@ -567,7 +568,7 @@ class PaymentController extends Controller
 
         $request->validate([
             'order_ids' => 'required|array',
-            'order_ids.*' => 'required|integer|exists:orders,id',
+            'order_ids.*' => ['required', 'integer', Rule::exists('orders', 'id')->whereNull('DeletionDate')],
             'cash_received' => 'required|numeric|min:0',
             'notes' => 'nullable|string|max:500',
         ]);
@@ -619,10 +620,11 @@ class PaymentController extends Controller
     {
         try {
             $request->validate([
-                'qr_code' => 'required|string',
-                'order_ids' => 'required|array',
-                'order_ids.*' => 'required|integer|exists:orders,id',
-            ]);
+                $request->validate([
+                    'qr_code' => 'required|string',
+                    'order_ids' => 'required|array',
+                    'order_ids.*' => ['required', 'integer', Rule::exists('orders', 'id')->whereNull('DeletionDate')],
+                ]);
 
             // Tentar encontrar mesa primeiro
             $table = Table::where('qr_code', $request->qr_code)->first();
