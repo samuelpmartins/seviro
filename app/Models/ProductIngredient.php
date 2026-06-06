@@ -13,8 +13,6 @@ class ProductIngredient extends Model
 
     const DELETED_AT = 'DeletionDate';
 
-    protected $table = 'product_ingredient';
-
     protected $fillable = [
         'product_id',
         'name',
