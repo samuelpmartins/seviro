@@ -126,7 +126,7 @@ class MenuController extends Controller
         }
 
         if ($table_participants_count->count() > 0) {
-            return response()->json([ 
+            return response()->json([
                 'success' => false,
                 'message' => 'Esta mesa ja esta ocupada, encerre o pedido para novos clientes.'
             ], 400);
@@ -271,9 +271,12 @@ class MenuController extends Controller
             }
         }
 
+        $hasParticipants = \App\Models\TableParticipant::where('table_id', $table->id)->exists();
+
         return response()->json([
             'success' => true,
             'has_password' => $hasPassword,
+            'has_participants' => $hasParticipants,
             'is_authenticated' => $isAuthenticated,
         ]);
     }
