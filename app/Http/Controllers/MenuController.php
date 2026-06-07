@@ -45,8 +45,11 @@ class MenuController extends Controller
                     }
                 }
 
-                // Se não estiver autenticado, não carrega o cardápio completo
-                if (!$isAuthenticated) {
+                $hasParticipants = $table->participants()->exists();
+
+                // Se não estiver autenticado e a mesa exige senha ou ainda não tem participantes,
+                // não carrega o cardápio completo.
+                if (!$isAuthenticated && ($table->password || !$hasParticipants)) {
                     $categories = collect(); // Array vazio
                     return view('menu.show', compact('store', 'table', 'categories', 'isCounter'));
                 }
@@ -200,9 +203,9 @@ class MenuController extends Controller
 
         $table = Table::where('qr_code', $request->qr_code)->firstOrFail();
 
-        // Verifica se a senha foi validada
+        // Verifica se a senha foi validada, apenas quando a mesa tem senha.
         $passwordValidatedKey = 'table_' . $table->id . '_password_validated';
-        if (!$request->session()->get($passwordValidatedKey, false)) {
+        if ($table->password && !$request->session()->get($passwordValidatedKey, false)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Senha não validada.'
@@ -272,12 +275,32 @@ class MenuController extends Controller
         }
 
         $hasParticipants = \App\Models\TableParticipant::where('table_id', $table->id)->exists();
+        $participantName = null;
+
+        if (!$hasPassword && $hasParticipants && !$isAuthenticated) {
+            $firstParticipant = \App\Models\TableParticipant::where('table_id', $table->id)
+                ->orderByDesc('is_owner')
+                ->first();
+
+            if ($firstParticipant) {
+                $request->session()->put($sessionKey, true);
+                $request->session()->put($participantIdKey, $firstParticipant->id);
+                $isAuthenticated = true;
+                $participantName = $firstParticipant->name;
+            }
+        }
+
+        if ($isAuthenticated && $participantId) {
+            $participantName = \App\Models\TableParticipant::where('id', $participantId)
+                ->value('name') ?? $participantName;
+        }
 
         return response()->json([
             'success' => true,
             'has_password' => $hasPassword,
             'has_participants' => $hasParticipants,
             'is_authenticated' => $isAuthenticated,
+            'participant_name' => $participantName,
         ]);
     }
 }
