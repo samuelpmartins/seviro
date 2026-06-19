@@ -263,10 +263,8 @@ class OrderController extends Controller
             'payment_method' => 'cash'
         ]);
 
-        // Se o status for "Aguardando pagamento", muda para "Em produção"
-        if ($order->status === 'Aguardando pagamento') {
-            $order->update(['status' => 'Em produção']);
-        }
+        // Atualiza o status direto para finalizado
+        $order->update(['status' => 'Finalizado']);
 
         // Se for uma requisição AJAX, retorna JSON
         if ($request->ajax() || $request->wantsJson()) {

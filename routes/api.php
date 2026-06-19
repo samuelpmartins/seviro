@@ -78,14 +78,6 @@ Route::get('/table-orders/{qr_code}', function ($qrCode) {
     return response()->json(['orders' => $orders]);
 });
 
-// Rota para buscar detalhes de um pedido específico
-Route::get('/orders/{id}', function ($id) {
-    $order = Order::with(['items.product'])
-        ->findOrFail($id);
-
-    return response()->json(['order' => $order]);
-});
-
 // Rotas para autenticação de mesa (com suporte a sessão)
 Route::middleware(['web'])->group(function () {
     Route::post('/table/create-password', [MenuController::class, 'createPassword']);
@@ -185,16 +177,13 @@ Route::middleware(['web'])->group(function () {
                 $item = $data['item'];
                 $unitPrice = isset($data['computed_unit_price']) ? $data['computed_unit_price'] : floatval($data['product']->price);
 
-                $notesPayload = [
-                    'notes' => $item['notes'] ?? null,
-                    'selected_ingredients' => $item['selected_ingredients'] ?? []
-                ];
+                $notesPayload = $item['notes'] ?? null;
 
                 $order->items()->create([
                     'product_id' => $data['product']->id,
                     'quantity' => $item['quantity'],
                     'price' => $unitPrice,
-                    'notes' => json_encode($notesPayload),
+                    'notes' => $notesPayload,
                 ]);
             }
 
@@ -243,11 +232,23 @@ Route::middleware(['web'])->group(function () {
                     'created_at' => $order->created_at,
                     'participant_name' => $order->participant ? $order->participant->name : 'Desconhecido',
                     'items' => $order->items->map(function ($item) {
+                        $rawNotes = $item->notes;
+                        $decodedNotes = null;
+                        $selected = [];
+                        if (!empty($rawNotes)) {
+                            $tmp = json_decode($rawNotes, true);
+                            if (is_array($tmp)) {
+                                $decodedNotes = $tmp['notes'] ?? null;
+                                $selected = $tmp['selected_ingredients'] ?? [];
+                            }
+                        }
+
                         return [
                             'product_name' => $item->product->name,
                             'quantity' => $item->quantity,
                             'price' => $item->price,
-                            'notes' => $item->notes,
+                            'notes' => $decodedNotes,
+                            'selected_ingredients' => $selected,
                         ];
                     }),
                 ];
@@ -289,11 +290,23 @@ Route::middleware(['web'])->group(function () {
                     'created_at' => $order->created_at,
                     'participant_name' => null,
                     'items' => $order->items->map(function ($item) {
+                        $rawNotes = $item->notes;
+                        $decodedNotes = null;
+                        $selected = [];
+                        if (!empty($rawNotes)) {
+                            $tmp = json_decode($rawNotes, true);
+                            if (is_array($tmp)) {
+                                $decodedNotes = $tmp['notes'] ?? null;
+                                $selected = $tmp['selected_ingredients'] ?? [];
+                            }
+                        }
+
                         return [
                             'product_name' => $item->product->name,
                             'quantity' => $item->quantity,
                             'price' => $item->price,
-                            'notes' => $item->notes,
+                            'notes' => $decodedNotes,
+                            'selected_ingredients' => $selected,
                         ];
                     }),
                 ];
@@ -344,9 +357,8 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 
-    // Rota para buscar detalhes de um pedido
+    // Rota para buscar detalhes de um pedido para usuários autenticados
     Route::get('/orders/{order}', function (Order $order) {
-        // Verificar se o usuário tem permissão para ver este pedido
         $user = auth()->user();
         if ($user->store_id !== $order->store_id) {
             return response()->json(['success' => false, 'message' => 'Não autorizado'], 403);
@@ -359,12 +371,4 @@ Route::middleware(['web', 'auth'])->group(function () {
             'order' => $orderData
         ], 200);
     });
-});
-
-// Rotas de notificações para clientes não autenticados (baseado em pedidos)
-Route::middleware(['web'])->group(function () {
-    Route::get('/notifications/client-unread', [NotificationController::class, 'clientUnread']);
-    Route::get('/notifications/client-all', [NotificationController::class, 'clientAll']);
-    Route::post('/notifications/client/{id}/read', [NotificationController::class, 'clientMarkAsRead']);
-    Route::post('/notifications/client-mark-all-read', [NotificationController::class, 'clientMarkAllAsRead']);
 });
