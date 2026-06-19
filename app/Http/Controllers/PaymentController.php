@@ -27,7 +27,7 @@ class PaymentController extends Controller
     {
         // Tentar encontrar mesa primeiro
         $table = Table::where('qr_code', $qrCode)->first();
-        
+
         if ($table) {
             // É uma mesa
             $store = $table->store;
@@ -35,15 +35,15 @@ class PaymentController extends Controller
         } else {
             // Verificar se é QR code de balcão
             $store = \App\Models\Store::where('counter_qr_code', $qrCode)->first();
-            
+
             if (!$store) {
                 abort(404, 'QR Code não encontrado');
             }
-            
+
             $table = null;
             $isCounter = true;
         }
-        
+
         return view('payment.show', [
             'table' => $table,
             'qrCode' => $qrCode,
@@ -63,52 +63,52 @@ class PaymentController extends Controller
         try {
             // Tentar encontrar mesa primeiro
             $table = Table::where('qr_code', $qrCode)->first();
-            
+
             if (!$table) {
                 // Verificar se é QR code de balcão
                 $store = \App\Models\Store::where('counter_qr_code', $qrCode)->first();
-                
+
                 if (!$store) {
                     return response()->json([
                         'success' => false,
                         'message' => 'QR Code não encontrado'
                     ], 404);
                 }
-                
+
                 // É um pedido de balcão
                 return $this->getCounterOrdersForPayment($request, $store, $qrCode);
             }
-            
+
             // Verificar se o usuário está autenticado na mesa
             $sessionKey = 'table_' . $table->id . '_authenticated';
             $isAuthenticated = $request->session()->get($sessionKey, false);
-            
+
             $participant = null; // Inicializar a variável
-            
+
             // Buscar todos os participant_ids ativos (participantes que ainda existem na mesa)
             // Isso garante que apenas pedidos da sessão atual sejam mostrados
             $activeParticipantIds = $table->participants()->pluck('id')->toArray();
-            
+
             // Buscar TODOS os pedidos pendentes da mesa
             // Incluindo pedidos dos participantes ativos E pedidos sem participante (antigos)
             $ordersQuery = Order::where('table_id', $table->id)
                 ->where('payment_status', Order::PAYMENT_STATUS_PENDING);
-            
+
             // Se há participantes ativos, incluir seus pedidos E os pedidos sem participante
             if (!empty($activeParticipantIds)) {
                 $ordersQuery->where(function ($query) use ($activeParticipantIds) {
                     $query->whereIn('participant_id', $activeParticipantIds)
-                          ->orWhereNull('participant_id');
+                        ->orWhereNull('participant_id');
                 });
             } else {
                 // Se não há participantes, mostrar apenas pedidos sem participante
                 $ordersQuery->whereNull('participant_id');
             }
-            
+
             $orders = $ordersQuery->with(['items.product', 'participant'])
                 ->orderBy('created_at', 'desc')
                 ->get();
-            
+
             // Se estiver autenticado, buscar informações do participante
             if ($isAuthenticated) {
                 $participantId = $request->session()->get('table_' . $table->id . '_participant_id');
@@ -122,55 +122,55 @@ class PaymentController extends Controller
                 }
             }
 
-        // Agrupar pedidos por participante para exibição
-        $ordersByParticipant = $orders->groupBy(function ($order) {
-            return $order->participant_id ?? 'sem_participante';
-        });
+            // Agrupar pedidos por participante para exibição
+            $ordersByParticipant = $orders->groupBy(function ($order) {
+                return $order->participant_id ?? 'sem_participante';
+            });
 
-        // OTIMIZAÇÃO: Carregar todos os participantes de uma vez (evita N+1)
-        $participantIds = array_filter(
-            $ordersByParticipant->keys()->toArray(),
-            fn($id) => $id !== 'sem_participante' && is_numeric($id)
-        );
-        $participants = [];
-        if (!empty($participantIds)) {
-            $participants = TableParticipant::whereIn('id', $participantIds)
-                ->pluck('name', 'id')
-                ->toArray();
-        }
+            // OTIMIZAÇÃO: Carregar todos os participantes de uma vez (evita N+1)
+            $participantIds = array_filter(
+                $ordersByParticipant->keys()->toArray(),
+                fn($id) => $id !== 'sem_participante' && is_numeric($id)
+            );
+            $participants = [];
+            if (!empty($participantIds)) {
+                $participants = TableParticipant::whereIn('id', $participantIds)
+                    ->pluck('name', 'id')
+                    ->toArray();
+            }
 
-        $formattedOrders = [];
-        foreach ($ordersByParticipant as $participantId => $participantOrders) {
-            // Usar dados já carregados em vez de fazer nova query
-            $participantName = $participantId === 'sem_participante' 
-                ? 'Pedidos Gerais' 
-                : ($participants[$participantId] ?? 'Participante Removido');
+            $formattedOrders = [];
+            foreach ($ordersByParticipant as $participantId => $participantOrders) {
+                // Usar dados já carregados em vez de fazer nova query
+                $participantName = $participantId === 'sem_participante'
+                    ? 'Pedidos Gerais'
+                    : ($participants[$participantId] ?? 'Participante Removido');
 
-            $formattedOrders[] = [
-                'participant_id' => $participantId,
-                'participant_name' => $participantName,
-                'orders' => $participantOrders->map(function ($order) {
-                    return [
-                        'id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'total' => $order->total,
-                        'status' => $order->status,
-                        'payment_status' => $order->payment_status,
-                        'created_at' => $order->created_at->format('H:i'),
-                        'items' => $order->items->map(function ($item) {
-                            return [
-                                'id' => $item->id,
-                                'product_name' => $item->product->name ?? 'Produto',
-                                'quantity' => $item->quantity,
-                                'price' => $item->price,
-                                'subtotal' => $item->price * $item->quantity,
-                            ];
-                        }),
-                    ];
-                }),
-                'subtotal' => $participantOrders->sum('total'),
-            ];
-        }
+                $formattedOrders[] = [
+                    'participant_id' => $participantId,
+                    'participant_name' => $participantName,
+                    'orders' => $participantOrders->map(function ($order) {
+                        return [
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'total' => $order->total,
+                            'status' => $order->status,
+                            'payment_status' => $order->payment_status,
+                            'created_at' => $order->created_at->format('H:i'),
+                            'items' => $order->items->map(function ($item) {
+                                return [
+                                    'id' => $item->id,
+                                    'product_name' => $item->product->name ?? 'Produto',
+                                    'quantity' => $item->quantity,
+                                    'price' => $item->price,
+                                    'subtotal' => $item->price * $item->quantity,
+                                ];
+                            }),
+                        ];
+                    }),
+                    'subtotal' => $participantOrders->sum('total'),
+                ];
+            }
 
             // Preparar resposta baseado na autenticação
             $response = [
@@ -187,7 +187,6 @@ class PaymentController extends Controller
             }
 
             return response()->json($response);
-            
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar pedidos para pagamento: ' . $e->getMessage());
             return response()->json([
@@ -205,7 +204,7 @@ class PaymentController extends Controller
         try {
             // Buscar pedidos da sessão atual
             $sessionOrderIds = $request->session()->get('client_order_ids', []);
-            
+
             if (empty($sessionOrderIds)) {
                 return response()->json([
                     'success' => true,
@@ -213,7 +212,7 @@ class PaymentController extends Controller
                     'total' => 0,
                 ]);
             }
-            
+
             // Buscar pedidos do balcão (sem table_id) desta loja que pertencem à sessão
             $orders = Order::whereNull('table_id')
                 ->where('store_id', $store->id)
@@ -222,7 +221,7 @@ class PaymentController extends Controller
                 ->with(['items.product'])
                 ->orderBy('created_at', 'desc')
                 ->get();
-            
+
             $formattedOrders = [];
             if ($orders->isNotEmpty()) {
                 $formattedOrders[] = [
@@ -250,14 +249,13 @@ class PaymentController extends Controller
                     'subtotal' => $orders->sum('total'),
                 ];
             }
-            
+
             return response()->json([
                 'success' => true,
                 'orders' => $formattedOrders,
                 'total' => $orders->sum('total'),
                 'is_counter' => true,
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Erro ao buscar pedidos de balcão para pagamento: ' . $e->getMessage());
             return response()->json([
@@ -287,7 +285,7 @@ class PaymentController extends Controller
 
             if ($table) {
                 $store = $table->store;
-                
+
                 $orders = Order::whereIn('id', $request->order_ids)
                     ->where('table_id', $table->id)
                     ->where('payment_status', Order::PAYMENT_STATUS_PENDING)
@@ -299,16 +297,16 @@ class PaymentController extends Controller
                 }
             } else {
                 $store = \App\Models\Store::where('counter_qr_code', $request->qr_code)->first();
-                
+
                 if (!$store) {
                     return response()->json([
                         'success' => false,
                         'message' => 'QR Code não encontrado.'
                     ], 404);
                 }
-                
+
                 $isCounter = true;
-                
+
                 $orders = Order::whereIn('id', $request->order_ids)
                     ->whereNull('table_id')
                     ->where('store_id', $store->id)
@@ -359,7 +357,6 @@ class PaymentController extends Controller
                 'payment_intent_id' => $paymentIntent->id,
                 'amount' => $amount,
             ]);
-
         } catch (\Exception $e) {
             \Log::error('Erro ao criar PaymentIntent: ' . $e->getMessage());
             \Log::error($e->getTraceAsString());
@@ -384,7 +381,7 @@ class PaymentController extends Controller
 
             if (isset($paymentIntent->next_action->pix_display_qr_code)) {
                 $pixInfo = $paymentIntent->next_action->pix_display_qr_code;
-                
+
                 // Atualizar o registro de pagamento com as informações do PIX
                 $payment = Payment::where('stripe_payment_intent_id', $request->payment_intent_id)->first();
                 if ($payment) {
@@ -406,7 +403,6 @@ class PaymentController extends Controller
                 'success' => false,
                 'message' => 'Informações do PIX não disponíveis.'
             ], 400);
-
         } catch (\Exception $e) {
             Log::error('Erro ao obter informações do PIX: ' . $e->getMessage());
             return response()->json([
@@ -464,7 +460,6 @@ class PaymentController extends Controller
                 'message' => 'Pagamento ainda não confirmado.',
                 'status' => $paymentIntent->status,
             ], 400);
-
         } catch (\Exception $e) {
             Log::error('Erro ao confirmar pagamento: ' . $e->getMessage());
             return response()->json([
@@ -549,7 +544,6 @@ class PaymentController extends Controller
                 'status' => $paymentIntent->status,
                 'message' => 'Aguardando pagamento...',
             ]);
-
         } catch (\Exception $e) {
             Log::error('Erro ao verificar status do pagamento: ' . $e->getMessage());
             return response()->json([
@@ -603,7 +597,7 @@ class PaymentController extends Controller
         $payment->markOrdersAsPaid();
 
         $message = 'Pagamento em dinheiro registrado com sucesso! Troco: R$ ' . number_format($changeGiven, 2, ',', '.');
-        
+
         // Verificar se a mesa foi desocupada
         $table->refresh();
         if (!$table->occupied) {
@@ -620,11 +614,10 @@ class PaymentController extends Controller
     {
         try {
             $request->validate([
-                $request->validate([
-                    'qr_code' => 'required|string',
-                    'order_ids' => 'required|array',
-                    'order_ids.*' => ['required', 'integer', Rule::exists('orders', 'id')->whereNull('DeletionDate')],
-                ]);
+                'qr_code' => 'required|string',
+                'order_ids' => 'required|array',
+                'order_ids.*' => ['required', 'integer', Rule::exists('orders', 'id')->whereNull('DeletionDate')],
+            ]);
 
             // Tentar encontrar mesa primeiro
             $table = Table::where('qr_code', $request->qr_code)->first();
@@ -636,7 +629,7 @@ class PaymentController extends Controller
             if ($table) {
                 // É uma mesa
                 $store = $table->store;
-                
+
                 // Verificar se há autenticação (opcional)
                 $sessionKey = 'table_' . $table->id . '_authenticated';
                 if ($request->session()->get($sessionKey, false)) {
@@ -651,17 +644,17 @@ class PaymentController extends Controller
             } else {
                 // Verificar se é QR code de balcão
                 $store = \App\Models\Store::where('counter_qr_code', $request->qr_code)->first();
-                
+
                 if (!$store) {
                     return response()->json([
                         'success' => false,
                         'message' => 'QR Code não encontrado.'
                     ], 404);
                 }
-                
+
                 $isCounter = true;
                 $message = 'Solicitação enviada! Dirija-se ao balcão para efetuar o pagamento.';
-                
+
                 // Buscar pedidos do balcão
                 $orders = Order::whereIn('id', $request->order_ids)
                     ->whereNull('table_id')
@@ -696,7 +689,6 @@ class PaymentController extends Controller
                 'payment_id' => $payment->id,
                 'total' => $totalAmount,
             ]);
-            
         } catch (\Exception $e) {
             \Log::error('Erro ao solicitar pagamento em dinheiro: ' . $e->getMessage());
             return response()->json([
@@ -728,7 +720,6 @@ class PaymentController extends Controller
             }
 
             return response()->json(['status' => 'success']);
-
         } catch (\UnexpectedValueException $e) {
             Log::error('Webhook Stripe - Payload inválido: ' . $e->getMessage());
             return response()->json(['error' => 'Invalid payload'], 400);
@@ -755,12 +746,12 @@ class PaymentController extends Controller
             ]);
 
             $payment->markOrdersAsPaid();
-            
+
             $table = Table::find($payment->table_id);
             if ($table && !$table->occupied) {
                 Log::info('Mesa ' . $table->number . ' foi desocupada automaticamente após pagamento completo. Payment ID: ' . $payment->id);
             }
-            
+
             Log::info('Pagamento confirmado via webhook: ' . $payment->id);
         }
     }
@@ -854,7 +845,6 @@ class PaymentController extends Controller
                 'message' => $message,
                 'status' => $status,
             ]);
-
         } catch (\Exception $e) {
             Log::error('Erro na página de retorno do pagamento: ' . $e->getMessage());
             return redirect()->route('payment.show', $qrCode)
@@ -862,8 +852,3 @@ class PaymentController extends Controller
         }
     }
 }
-
-
-
-
-

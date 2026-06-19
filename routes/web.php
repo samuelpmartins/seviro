@@ -35,7 +35,7 @@ Route::middleware(['auth'])->group(function () {
     // Rotas para administrador
     Route::middleware(['role:admin'])->group(function () {
         Route::resource('stores', StoreController::class);
-        
+
         // Gerenciamento de Saques (Admin)
         Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/withdrawals', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'index'])->name('withdrawals.index');
@@ -53,36 +53,36 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/edit', [StoreController::class, 'edit'])->name('edit');
         Route::get('/manage', [StoreController::class, 'manage'])->name('manage');
         Route::put('/update', [StoreController::class, 'updateOwnStore'])->name('update');
-        
+
         // Gerenciamento de categorias
         Route::resource('categories', CategoryController::class);
         Route::post('categories/reorder', [CategoryController::class, 'reorder'])->name('categories.reorder');
-        
+
         // Gerenciamento de produtos
         Route::resource('products', ProductController::class);
         Route::post('products/reorder', [ProductController::class, 'reorder'])->name('products.reorder');
-        
+
         // Gerenciamento de mesas
         Route::resource('tables', TableController::class);
         Route::get('tables/{table}/qrcode', [TableController::class, 'generateQrCode'])->name('tables.qrcode');
         Route::get('counter/qrcode', [TableController::class, 'generateCounterQrCode'])->name('counter.qrcode');
         Route::post('tables/{table}/clear', [TableController::class, 'clear'])->name('tables.clear');
         Route::get('/menu/preview', [MenuController::class, 'preview'])->name('menu.preview');
-        
+
         // Tela de atendimento
         Route::get('/service', [TableController::class, 'serviceScreen'])->name('service.index');
         Route::post('/service/table/{table}/pay', [TableController::class, 'payTable'])->name('service.pay');
         Route::post('/service/table/{table}/pay-partial', [TableController::class, 'payTablePartial'])->name('service.pay-partial');
-        
+
         // Pagamento em dinheiro (garçom)
         Route::post('/service/table/{table}/cash-payment', [PaymentController::class, 'markAsCash'])->name('service.cash-payment');
-        
+
         // Gerenciamento de funcionários
         Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
         Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
         Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
         Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
-        
+
         // Gerenciamento de Dados Bancários e Saques
         Route::get('/bank-account', [\App\Http\Controllers\WithdrawalController::class, 'showBankAccount'])->name('bank-account');
         Route::post('/bank-account', [\App\Http\Controllers\WithdrawalController::class, 'storeBankAccount'])->name('bank-account.store');
@@ -103,7 +103,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    
+
     // Histórico de pedidos do usuário
     Route::get('/orders/history', [OrderController::class, 'userHistory'])->name('orders.history');
 });
@@ -134,6 +134,7 @@ Route::middleware(['auth', 'role:waiter'])->prefix('waiter')->name('waiter.')->g
     Route::get('/history', [EmployeeController::class, 'waiterHistory'])->name('history');
     Route::get('/table/{table}', [EmployeeController::class, 'waiterTableDetails'])->name('table-details');
     Route::post('/table/{table}/clear', [EmployeeController::class, 'waiterClearTable'])->name('table.clear');
+    Route::post('/employee/{order}/mark-paid-cash', [EmployeeController::class, 'markAsPaidCash'])->name('employee.mark-paid-cash');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

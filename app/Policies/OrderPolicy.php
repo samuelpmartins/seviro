@@ -9,11 +9,13 @@ class OrderPolicy
 {
     public function update(User $user, Order $order): bool
     {
-        return $user->store->id === $order->store_id;
+        return optional($user->store)->id === $order->store_id
+            || optional($user->workplace)->id === $order->store_id;
     }
 
     public function delete(User $user, Order $order): bool
     {
-        return $user->store->id === $order->store_id;
+        return optional($user->store)->id === $order->store_id
+            || optional($user->workplace)->id === $order->store_id;
     }
-} 
+}

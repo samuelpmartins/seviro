@@ -334,4 +334,30 @@ class EmployeeController extends Controller
         return redirect()->route('waiter.dashboard')
             ->with('success', 'Mesa ' . $table->number . ' desocupada com sucesso!');
     }
+
+    public function markAsPaidCash(Request $request, Order $order)
+    {
+        $this->authorize('update', $order);
+
+        // Atualizar o pedido
+        $order->update([
+            'payment_status' => Order::PAYMENT_STATUS_PAID,
+            'payment_method' => 'cash'
+        ]);
+
+        // Atualiza o status direto para finalizado
+        $order->update(['status' => 'Finalizado']);
+
+        // Se for uma requisição AJAX, retorna JSON
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'message' => 'Pedido marcado como pago!',
+                'order' => $order
+            ]);
+        }
+
+        // Se for um formulário normal, redireciona com mensagem
+        return redirect()->back()
+            ->with('success', 'Pedido marcado como pago em dinheiro!');
+    }
 }
