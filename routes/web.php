@@ -32,21 +32,6 @@ Route::middleware(['auth'])->group(function () {
     // Rota home para usuários comuns
     Route::get('/home', [HomeController::class, 'index'])->name('home');
 
-    // Rotas para administrador
-    Route::middleware(['role:admin'])->group(function () {
-        Route::resource('stores', StoreController::class);
-
-        // Gerenciamento de Saques (Admin)
-        Route::prefix('admin')->name('admin.')->group(function () {
-            Route::get('/withdrawals', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'index'])->name('withdrawals.index');
-            Route::get('/withdrawals/{withdrawal}', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'show'])->name('withdrawals.show');
-            Route::post('/withdrawals/{withdrawal}/approve', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'approve'])->name('withdrawals.approve');
-            Route::post('/withdrawals/{withdrawal}/reject', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'reject'])->name('withdrawals.reject');
-            Route::post('/withdrawals/{withdrawal}/complete', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'complete'])->name('withdrawals.complete');
-            Route::get('/withdrawals-history', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'history'])->name('withdrawals.history');
-        });
-    });
-
     // Rotas para lojas
     Route::middleware(['role:store'])->prefix('store')->name('store.')->group(function () {
         Route::get('/dashboard', [StoreController::class, 'dashboard'])->name('dashboard');
@@ -90,6 +75,29 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/withdrawals/create', [\App\Http\Controllers\WithdrawalController::class, 'create'])->name('withdrawals.create');
         Route::post('/withdrawals', [\App\Http\Controllers\WithdrawalController::class, 'store'])->name('withdrawals.store');
         Route::get('/withdrawals/history', [\App\Http\Controllers\WithdrawalController::class, 'history'])->name('withdrawals.history');
+    });
+});
+
+// Rotas de login do admin
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/login', [\App\Http\Controllers\Admin\Auth\LoginController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [\App\Http\Controllers\Admin\Auth\LoginController::class, 'login'])->name('login.submit');
+    Route::post('/logout', [\App\Http\Controllers\Admin\Auth\LoginController::class, 'logout'])->name('logout');
+
+    Route::middleware(['auth.admin'])->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/password/first-access', [\App\Http\Controllers\Admin\Auth\FirstAccessController::class, 'show'])->name('first-access');
+        Route::post('/password/first-access', [\App\Http\Controllers\Admin\Auth\FirstAccessController::class, 'update'])->name('first-access.update');
+
+        Route::resource('stores', StoreController::class);
+
+        // Gerenciamento de Saques (Admin)
+        Route::get('/withdrawals', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'index'])->name('withdrawals.index');
+        Route::get('/withdrawals/{withdrawal}', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'show'])->name('withdrawals.show');
+        Route::post('/withdrawals/{withdrawal}/approve', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'approve'])->name('withdrawals.approve');
+        Route::post('/withdrawals/{withdrawal}/reject', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'reject'])->name('withdrawals.reject');
+        Route::post('/withdrawals/{withdrawal}/complete', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'complete'])->name('withdrawals.complete');
+        Route::get('/withdrawals-history', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'history'])->name('withdrawals.history');
     });
 });
 
