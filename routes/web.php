@@ -10,6 +10,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\Admin\DemoRequestController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -89,6 +90,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/password/first-access', [\App\Http\Controllers\Admin\Auth\FirstAccessController::class, 'show'])->name('first-access');
         Route::post('/password/first-access', [\App\Http\Controllers\Admin\Auth\FirstAccessController::class, 'update'])->name('first-access.update');
 
+        Route::resource('demo-requests', \App\Http\Controllers\Admin\DemoRequestController::class)->only(['index', 'show', 'destroy']);
+        Route::post('/demo-requests/{demoRequest}/create-user', [\App\Http\Controllers\Admin\DemoRequestController::class, 'createUser'])->name('demo-requests.create-user');
+        Route::post('/demo-requests/{demoRequest}/update-status', [\App\Http\Controllers\Admin\DemoRequestController::class, 'updateStatus'])->name('demo-requests.update-status');
+        Route::post('/demo-requests/{demoRequest}/update-pending', [\App\Http\Controllers\Admin\DemoRequestController::class, 'updatePending'])->name('demo-requests.update-pending');
+
         Route::resource('stores', StoreController::class);
 
         // Gerenciamento de Saques (Admin)
@@ -118,6 +124,9 @@ Route::middleware('auth')->group(function () {
 
 // Rotas de Pedidos - permitindo acesso sem autenticação
 Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+
+//Rotas de solicitação de demostralção - Acesso público para criar solicitação, acesso admin para gerenciar
+Route::post('/demo-requests', [DemoRequestController::class, 'createDemoRequest'])->name('demo-requests.create');
 
 // Rotas de pedidos protegidas por autenticação (apenas para a loja)
 Route::middleware(['auth', 'role:store'])->group(function () {

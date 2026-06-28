@@ -559,9 +559,6 @@
             </form>
         @else
             <a href="{{ route('login') }}">Entrar</a>
-            @if (Route::has('register'))
-                <a href="{{ route('register') }}">Registrar</a>
-            @endif
         @endauth
     </nav>
 
@@ -587,38 +584,31 @@
                 <div class="form-tag">Solicite uma demonstração</div>
                 <h3 class="form-title">Comece sua jornada digital</h3>
 
-                <form>
-                    <div class="radio-group">
-                        <div class="radio-item">
-                            <input type="radio" id="restaurant" name="business_type" value="restaurant" checked>
-                            <label for="restaurant">Restaurante</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="cafe" name="business_type" value="cafe">
-                            <label for="cafe">Café</label>
-                        </div>
+                <form method="POST" action="{{ route('demo-requests.create') }}">
+                    @csrf
+
+                    <div class="form-group">
+                        <label for="name"> Nome do Restaurante/Café</label>
+                        <input id="name" name="name" type="text" class="form-control"
+                            placeholder="Ex: Restaurante Saboroso" required>
                     </div>
 
                     <div class="form-group">
-                        <input type="text" class="form-control" placeholder="Nome" required>
+                        <label for="document"> CNPJ</label>
+                        <input id="document" name="document" type="text" class="form-control" placeholder="CNPJ"
+                            required>
                     </div>
 
                     <div class="form-group">
-                        <input type="email" class="form-control" placeholder="E-mail" required>
+                        <label for="email"> E-mail</label>
+                        <input id="email" name="email" type="email" class="form-control" placeholder="E-mail"
+                            required>
                     </div>
 
                     <div class="form-group">
-                        <input type="tel" class="form-control" placeholder="Celular" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Selecione o plano *</label>
-                        <select class="form-control" required>
-                            <option value="">Selecione</option>
-                            <option value="basic">Básico</option>
-                            <option value="premium">Premium</option>
-                            <option value="enterprise">Enterprise</option>
-                        </select>
+                        <label for="phone"> Celular</label>
+                        <input id="phone" name="phone" type="tel" class="form-control" placeholder="Celular"
+                            required>
                     </div>
 
                     <button type="submit" class="btn-primary">Solicitar Demonstração</button>
@@ -744,12 +734,65 @@
             });
         });
 
-        // Form submission
         document.querySelector('form').addEventListener('submit', function(e) {
             e.preventDefault();
-            alert('Obrigado pelo interesse! Entraremos em contato em breve.');
+
+            const form = this;
+            const data = new FormData(form);
+            const url = form.action;
+
+            try {
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                    },
+                    body: data
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(result.message, 'success');
+
+                    window.location.reload();
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('Ocorreu um erro ao enviar o formulário.', 'error');
+            }
         });
+
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 9999;
+            animation: slideDown 0.3s ease;
+            font-weight: 500;
+        `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideUp 0.3s ease';
+                setTimeout(() => toast.remove(), 3000);
+            }, 3000);
+        }
     </script>
+
+    @vite(['resources/sass/app.scss', 'resources/js/app.js'])
 </body>
 
 </html>

@@ -4,11 +4,18 @@
     <div class="container-fluid py-5"
         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
         <!-- Header -->
-        <div class="container mb-5">
-            <h1 class="display-4 fw-bold text-white mb-2">
-                <i class="fas fa-chart-line me-3"></i>Painel Financeiro
-            </h1>
-            <p class="text-white-50 fs-5">Visão geral da receita e desempenho de seus restaurantes</p>
+        <div class="container mb-5 d-flex align-items-center justify-content-between">
+            <div>
+                <h1 class="display-4 fw-bold text-white mb-2">
+                    <i class="fas fa-chart-line me-3"></i>Painel Financeiro
+                </h1>
+                <p class="text-white-50 fs-5">Visão geral da receita e desempenho de seus restaurantes</p>
+            </div>
+            <div>
+                <a href="{{ route('admin.demo-requests.index') }}" class="btn btn-light btn-lg shadow-sm">
+                    <i class="fas fa-list me-2"></i>Solicitações de Demonstração
+                </a>
+            </div>
         </div>
 
         <!-- Cards de Métricas -->

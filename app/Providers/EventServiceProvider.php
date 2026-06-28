@@ -32,6 +32,9 @@ class EventServiceProvider extends ServiceProvider
         OrderStatusChanged::class => [
             NotifyOrderFinished::class,
         ],
+        'App\Events\DemoRequestApproved' => [
+            'App\Listeners\SendDemoRequestApprovedEmail',
+        ],
     ];
 
     /**

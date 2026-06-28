@@ -29,6 +29,7 @@ class User extends Authenticatable
         'email',
         'password',
         'store_id',
+        'first_access',
     ];
 
     /**
@@ -39,6 +40,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'first_access' => 'boolean',
     ];
 
     /**
