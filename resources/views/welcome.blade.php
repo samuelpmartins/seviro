@@ -807,6 +807,37 @@
 
         }
 
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const form = this;
+            const data = new FormData(form);
+            const url = form.action;
+
+            try {
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                    },
+                    body: data
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(result.message, 'success');
+
+                    window.location.reload();
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                showToast('Ocorreu um erro ao enviar o formulário.', 'error');
+            }
+        });
+
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
 
