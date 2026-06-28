@@ -563,7 +563,7 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero">
+    <section id="hero" class="hero">
         <div class="hero-content">
             <div class="hero-left">
                 <div class="hero-logo">
@@ -595,8 +595,8 @@
 
                     <div class="form-group">
                         <label for="document"> CNPJ</label>
-                        <input id="document" name="document" type="text" class="form-control" placeholder="CNPJ"
-                            required>
+                        <input id="document" name="document" type="text" class="form-control"
+                            placeholder="00.000.000/0000-00" maxlength="18" required>
                     </div>
 
                     <div class="form-group">
@@ -607,8 +607,8 @@
 
                     <div class="form-group">
                         <label for="phone"> Celular</label>
-                        <input id="phone" name="phone" type="tel" class="form-control" placeholder="Celular"
-                            required>
+                        <input id="phone" name="phone" type="tel" class="form-control"
+                            placeholder="(85) 99999-9999" maxlength="15" required>
                     </div>
 
                     <button type="submit" class="btn-primary">Solicitar Demonstração</button>
@@ -720,33 +720,126 @@
     </footer>
 
     <script>
-        // Smooth scrolling for anchor links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
+        const documentInput = document.getElementById('document');
+        const phoneInput = document.getElementById('phone');
+
+        documentInput.addEventListener('input', function() {
+
+            let value = this.value.replace(/\D/g, '');
+
+            value = value
+                .replace(/^(\d{2})(\d)/, '$1.$2')
+                .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+                .replace(/\.(\d{3})(\d)/, '.$1/$2')
+                .replace(/(\d{4})(\d)/, '$1-$2');
+
+            this.value = value.substring(0, 18);
+
         });
 
-        document.querySelector('form').addEventListener('submit', function(e) {
+        phoneInput.addEventListener('input', function() {
+
+            let value = this.value.replace(/\D/g, '');
+
+            if (value.length <= 10) {
+                value = value.replace(
+                    /^(\d{2})(\d{0,4})(\d{0,4})$/,
+                    (_, ddd, p1, p2) =>
+                    p2 ? `(${ddd}) ${p1}-${p2}` : `(${ddd}) ${p1}`
+                );
+            } else {
+                value = value.replace(
+                    /^(\d{2})(\d{0,5})(\d{0,4})$/,
+                    (_, ddd, p1, p2) =>
+                    p2 ? `(${ddd}) ${p1}-${p2}` : `(${ddd}) ${p1}`
+                );
+            }
+
+            this.value = value;
+
+        });
+
+        function validateCNPJ(cnpj) {
+
+            cnpj = cnpj.replace(/\D/g, '');
+
+            if (cnpj.length !== 14)
+                return false;
+
+            if (/^(\d)\1+$/.test(cnpj))
+                return false;
+
+            let length = cnpj.length - 2;
+            let numbers = cnpj.substring(0, length);
+            let digits = cnpj.substring(length);
+
+            let sum = 0;
+            let pos = length - 7;
+
+            for (let i = length; i >= 1; i--) {
+                sum += numbers.charAt(length - i) * pos--;
+
+                if (pos < 2)
+                    pos = 9;
+            }
+
+            let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+
+            if (result != digits.charAt(0))
+                return false;
+
+            length += 1;
+            numbers = cnpj.substring(0, length);
+
+            sum = 0;
+            pos = length - 7;
+
+            for (let i = length; i >= 1; i--) {
+                sum += numbers.charAt(length - i) * pos--;
+
+                if (pos < 2)
+                    pos = 9;
+            }
+
+            result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+
+            return result == digits.charAt(1);
+
+        }
+
+        document.querySelector('form').addEventListener('submit', async function(e) {
+
             e.preventDefault();
+
+            const cnpj = documentInput.value.replace(/\D/g, '');
+            const phone = phoneInput.value.replace(/\D/g, '');
+
+            if (!validateCNPJ(cnpj)) {
+                showToast('CNPJ inválido', 'error');
+                documentInput.focus();
+                return;
+            }
+
+            if (phone.length < 10 || phone.length > 11) {
+                showToast('Telefone inválido', 'error');
+                phoneInput.focus();
+                return;
+            }
 
             const form = this;
             const data = new FormData(form);
-            const url = form.action;
+
+            data.set('document', cnpj);
+            data.set('phone', phone);
 
             try {
 
-                const response = await fetch(url, {
+                const response = await fetch(form.action, {
                     method: 'POST',
                     headers: {
-                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                        'X-CSRF-TOKEN': document.querySelector(
+                            'input[name="_token"]'
+                        ).value
                     },
                     body: data
                 });
@@ -755,41 +848,42 @@
 
                 if (result.success) {
                     showToast(result.message, 'success');
-
                     window.location.reload();
                 } else {
                     showToast(result.message, 'error');
                 }
-            } catch (error) {
-                showToast('Ocorreu um erro ao enviar o formulário.', 'error');
+
+            } catch {
+
+                showToast(
+                    'Ocorreu um erro ao enviar.',
+                    'error'
+                );
             }
         });
 
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
 
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 9999;
-            animation: slideDown 0.3s ease;
-            font-weight: 500;
-        `;
-            toast.textContent = message;
-            document.body.appendChild(toast);
+                const targetId = this.getAttribute('href');
 
-            setTimeout(() => {
-                toast.style.animation = 'slideUp 0.3s ease';
-                setTimeout(() => toast.remove(), 3000);
-            }, 3000);
-        }
+                if (!targetId || targetId === '#')
+                    return;
+
+                const target = document.querySelector(targetId);
+
+                if (!target)
+                    return;
+
+                e.preventDefault();
+
+                window.scrollTo({
+                    top: target.offsetTop - 20,
+                    behavior: 'smooth'
+                });
+
+            });
+        });
     </script>
 
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
