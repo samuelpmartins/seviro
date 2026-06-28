@@ -807,61 +807,6 @@
 
         }
 
-        document.querySelector('form').addEventListener('submit', async function(e) {
-
-            e.preventDefault();
-
-            const cnpj = documentInput.value.replace(/\D/g, '');
-            const phone = phoneInput.value.replace(/\D/g, '');
-
-            if (!validateCNPJ(cnpj)) {
-                showToast('CNPJ inválido', 'error');
-                documentInput.focus();
-                return;
-            }
-
-            if (phone.length < 10 || phone.length > 11) {
-                showToast('Telefone inválido', 'error');
-                phoneInput.focus();
-                return;
-            }
-
-            const form = this;
-            const data = new FormData(form);
-
-            data.set('document', cnpj);
-            data.set('phone', phone);
-
-            try {
-
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector(
-                            'input[name="_token"]'
-                        ).value
-                    },
-                    body: data
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showToast(result.message, 'success');
-                    window.location.reload();
-                } else {
-                    showToast(result.message, 'error');
-                }
-
-            } catch {
-
-                showToast(
-                    'Ocorreu um erro ao enviar.',
-                    'error'
-                );
-            }
-        });
-
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
 

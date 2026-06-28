@@ -30,6 +30,11 @@ class DemoRequestController extends Controller
 
     public function createDemoRequest(Request $request)
     {
+        $request->merge([
+            'document' => preg_replace('/\D/', '', $request->document),
+            'phone' => preg_replace('/\D/', '', $request->phone),
+        ]);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:demo_requests,email',
