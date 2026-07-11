@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,12 +24,12 @@ class AppServiceProvider extends ServiceProvider
     {
         // Prevenir Lazy Loading (N+1 queries)
         Model::preventLazyLoading(!app()->isProduction());
-        
+
         // Monitorar queries e detectar problemas
         DB::listen(function ($query) {
             static $queryCount = 0;
             $queryCount++;
-            
+
             // Em desenvolvimento: detectar queries lentas
             if (!app()->isProduction() && $query->time > 100) {
                 \Log::warning('Slow query detected', [
@@ -37,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
                     'time' => $query->time . 'ms'
                 ]);
             }
-            
+
             // Em produção: alertar se houver muitas queries
             if (app()->isProduction() && $queryCount > 500) {
                 \Log::error('Too many queries in single request', [
@@ -46,5 +47,7 @@ class AppServiceProvider extends ServiceProvider
                 ]);
             }
         });
+
+        Paginator::useBootstrapFive();
     }
 }
