@@ -1327,8 +1327,12 @@
             }
 
             function showProductDetailPanel() {
+                if (!detailPanel) return;
                 detailPanel.classList.add('active');
-                panelOverlay.classList.add('active');
+                if (panelOverlay) {
+                    panelOverlay.classList.add('active');
+                    panelOverlay.style.display = 'block';
+                }
                 document.body.style.overflow = 'hidden';
             }
 
@@ -1568,11 +1572,38 @@
 
             // Função para fechar detalhes do produto
             function closeProductDetail() {
-                detailPanel.classList.remove('active');
-                panelOverlay.classList.remove('active');
+                if (detailPanel) detailPanel.classList.remove('active');
+                if (panelOverlay) {
+                    panelOverlay.classList.remove('active');
+                    panelOverlay.style.display = 'none';
+                }
                 document.body.style.overflow = '';
                 currentProduct = null;
             }
+
+            // Remove backdrops órfãos e corrige estado do overlay ao carregar
+            window.addEventListener('load', function() {
+                // remover modal-backdrop se não houver modal visível
+                const backdrop = document.querySelector('.modal-backdrop');
+                const anyModalShown = document.querySelector('.modal.show');
+                if (backdrop && !anyModalShown) backdrop.remove();
+
+                // garantir que o overlay do painel esteja oculto se o painel não estiver ativo
+                if (panelOverlay && detailPanel && !detailPanel.classList.contains('active')) {
+                    panelOverlay.classList.remove('active');
+                    panelOverlay.style.display = 'none';
+                }
+            });
+
+            // Fechar painel ao pressionar Esc (melhora usabilidade mobile/desktop)
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    try {
+                        closeProductDetail();
+                    } catch (err) {
+                        /* ignore */ }
+                }
+            });
 
             // Atualizar botão de adicionar ao carrinho
             function updateAddToCartButton() {
@@ -1747,10 +1778,10 @@
                         return `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                <img src="/storage/${item.image}" alt="${item.name}" class="cart-item-img">
-                                                ` : `
-                                                <div class="cart-item-placeholder"><i class="fas fa-utensils"></i></div>
-                                                `}
+                                                    <img src="/storage/${item.image}" alt="${item.name}" class="cart-item-img">
+                                                    ` : `
+                                                    <div class="cart-item-placeholder"><i class="fas fa-utensils"></i></div>
+                                                    `}
                     <div class="flex-fill min-w-0">
                         <h6 class="mb-1 cart-item-name">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
@@ -1940,22 +1971,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                                                            <small class="text-muted">
-                                                                                                            <i class="fas fa-user me-1"></i>
-                                                                                                            <strong>${order.participant_name}</strong>
-                                                                                                            </small>
-                                                                                                            ` : ''}
+                                                                                                                <small class="text-muted">
+                                                                                                                <i class="fas fa-user me-1"></i>
+                                                                                                                <strong>${order.participant_name}</strong>
+                                                                                                                </small>
+                                                                                                                ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                                                            <span class="badge badge-sm badge-paid">
-                                                                                                            <i class="fas fa-check-circle me-1"></i>Pago
-                                                                                                            </span>
-                                                                                                            ` : `
-                                                                                                            <span class="badge badge-sm badge-pending">
-                                                                                                            <i class="fas fa-clock me-1"></i>Pendente
-                                                                                                            </span>
-                                                                                                            `}
+                                                                                                                <span class="badge badge-sm badge-paid">
+                                                                                                                <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                                                </span>
+                                                                                                                ` : `
+                                                                                                                <span class="badge badge-sm badge-pending">
+                                                                                                                <i class="fas fa-clock me-1"></i>Pendente
+                                                                                                                </span>
+                                                                                                                `}
                                         <span class="badge badge-sm ${order.status === 'Finalizado' ? 'badge-status-success' : order.status === 'Em produção' ? 'badge-status-warning' : order.status === 'Aguardando pagamento' ? 'badge-status-info' : order.status === 'Cancelado' ? 'badge-status-danger' : 'badge-status-secondary'}">
                                             ${order.status}
                                         </span>
@@ -1963,11 +1994,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                                                        <div class="d-flex justify-content-between py-1">
-                                                                                                        <span>${item.quantity}x ${item.product_name}</span>
-                                                                                                        <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                                                        </div>
-                                                                                                        `).join('')}
+                                                                                                            <div class="d-flex justify-content-between py-1">
+                                                                                                            <span>${item.quantity}x ${item.product_name}</span>
+                                                                                                            <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                                            </div>
+                                                                                                            `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">

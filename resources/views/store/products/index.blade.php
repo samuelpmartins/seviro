@@ -2,15 +2,16 @@
 
 @section('content')
     <style>
-        /* Fundo preto por padrão */
-        body {
+        /* Estilo escuro aplicado apenas à página de produtos (não afetar todo o site) */
+        .products-page {
             background: #000000;
             color: #e8e8e9;
             min-height: 100vh;
+            padding-bottom: 40px;
         }
 
-        /* Tema light - fundo cinza claro */
-        [data-bs-theme="light"] body {
+        /* Tema light - apenas para a página de produtos */
+        [data-bs-theme="light"] .products-page {
             background: #e8e8e9;
             color: #000000;
         }
@@ -79,7 +80,7 @@
         }
     </style>
 
-    <div class="container products-container">
+    <div class="container products-container products-page">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="products-title">Produtos</h1>
             <a href="{{ route('store.products.create') }}" class="btn btn-new-product">
