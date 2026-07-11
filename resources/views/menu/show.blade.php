@@ -1,47 +1,39 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="menu-wrapper" style="min-height: 100vh; background-color: #f8f9fa;">
+    <div class="menu-wrapper">
 
         <!-- Seção de Capa e Header -->
-        <div class="profile-section" style="position: relative;">
+        <div class="profile-section">
             <!-- Imagem de capa do restaurante -->
-            <div class="cover-image-wrapper" style="height: 180px; overflow: hidden; position: relative;">
+            <div class="cover-image-wrapper">
                 @if (isset($store) && $store->cover_image)
-                    <img src="{{ asset('storage/' . $store->cover_image) }}" alt="Capa {{ $store->name }}" class="cover-image"
-                        style="width: 100%; height: 100%; object-fit: cover;">
-                    <div class="cover-overlay"
-                        style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0, 0, 0, 0.6) 100%);">
-                    </div>
+                    <img src="{{ asset('storage/' . $store->cover_image) }}" alt="Capa {{ $store->name }}"
+                        class="cover-image">
+                    <div class="cover-overlay"></div>
                 @else
                     <!-- Placeholder para capa -->
-                    <div
-                        style="width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-utensils" style="font-size: 4rem; color: rgba(255, 255, 255, 0.3);"></i>
+                    <div class="cover-placeholder">
+                        <i class="fas fa-utensils"></i>
                     </div>
-                    <div class="cover-overlay"
-                        style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0, 0, 0, 0.6) 100%);">
-                    </div>
+                    <div class="cover-overlay"></div>
                 @endif
 
                 @if (isset($table) || (isset($isCounter) && $isCounter))
                     <!-- Botão para visualizar pedidos da mesa ou balcão -->
-                    <button type="button" class="btn position-absolute top-0 end-0 m-3" id="viewOrdersBtn"
-                        style="background: rgba(0,0,0,0.5); border: none; color: white; border-radius: 20px; padding: 0.5rem 1rem; z-index: 10;">
+                    <button type="button" class="btn position-absolute top-0 end-0 m-3 btn-orders" id="viewOrdersBtn">
                         <i class="fas fa-receipt me-1"></i> Pedido
                     </button>
                 @endif
             </div>
 
             <!-- Header do Cardápio -->
-            <div class="menu-header px-3 text-center position-relative"
-                style="background: white; color: #333; padding-top: 50px; padding-bottom: 1rem; margin-top: -30px; border-radius: 20px 20px 0 0; position: relative; z-index: 5; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);">
+            <div class="menu-header px-3 text-center position-relative">
                 @if ($store->logo)
                     <img src="{{ asset('storage/' . $store->logo) }}" alt="{{ $store->name }}"
-                        class="rounded-circle store-logo"
-                        style="width: 80px; height: 80px; object-fit: cover; position: absolute; top: -40px; left: 50%; transform: translateX(-50%); border: 4px solid white; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);">
+                        class="rounded-circle store-logo">
                 @endif
-                <h1 class="mb-1" style="color: #333; font-weight: 700; font-size: 1.5rem;">{{ $store->name }}</h1>
+                <h1 class="mb-1">{{ $store->name }}</h1>
                 @if ($store->description)
                     <p class="mb-0 small text-muted">{{ $store->description }}</p>
                 @endif
@@ -51,12 +43,11 @@
         <!-- Seção de Participantes da Mesa -->
         @if (isset($table))
             <div class="container-fluid px-3 py-2">
-                <div class="participants-card"
-                    style="background: white; border-radius: 12px; padding: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="participants-card">
                     <div class="d-flex align-items-center justify-content-between flex-wrap">
                         <div class="d-flex align-items-center mb-2 mb-md-0">
-                            <i class="fas fa-users me-2" style="font-size: 1.1rem; color: #000;"></i>
-                            <strong style="font-size: 0.9rem; color: #000; font-weight: 700;">Participantes:</strong>
+                            <i class="fas fa-users me-2"></i>
+                            <strong>Participantes:</strong>
                         </div>
                         <div id="participants-list" class="d-flex flex-wrap gap-2">
                             <!-- Participantes serão carregados aqui via JavaScript -->
@@ -68,15 +59,13 @@
 
         <!-- Navegação das Categorias (Sticky Tabs) -->
         @if ($categories && $categories->count() > 0)
-            <div class="category-nav sticky-top"
-                style="background: white; border-bottom: 2px solid #e0e0e0; top: 0; z-index: 1020; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+            <div class="category-nav sticky-top">
                 <div class="container-fluid px-3">
-                    <div class="nav-scroller" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                        <nav class="nav py-3 flex-nowrap" style="gap: 0.75rem;">
+                    <div class="nav-scroller">
+                        <nav class="nav py-3 flex-nowrap">
                             @foreach ($categories as $category)
                                 <a class="nav-link category-tab {{ $loop->first ? 'active' : '' }}"
-                                    data-category="category-{{ $category->id }}"
-                                    style="color: {{ $loop->first ? '#333' : '#999' }}; white-space: nowrap; transition: all 0.3s ease; cursor: pointer; padding: 0.5rem 1rem; border-radius: 20px; font-weight: {{ $loop->first ? '700' : '600' }}; font-size: 0.9rem; background: {{ $loop->first ? '#f0f0f0' : 'transparent' }}; border: none;">
+                                    data-category="category-{{ $category->id }}">
                                     {{ $category->name }}
                                 </a>
                             @endforeach
@@ -90,44 +79,38 @@
         <div class="container-fluid px-0" id="menu-content">
             @foreach ($categories as $category)
                 <!-- Divisor de Categoria com Cor -->
-                <div class="category-divider"
-                    style="background: {{ $loop->iteration % 5 == 1 ? '#8b5cf6' : ($loop->iteration % 5 == 2 ? '#3b82f6' : ($loop->iteration % 5 == 3 ? '#10b981' : ($loop->iteration % 5 == 4 ? '#f59e0b' : '#ef4444'))) }}; padding: 0.75rem 1.25rem;">
-                    <h2 class="mb-0" style="color: white; font-size: 1rem; font-weight: 700;">
+                <div class="category-divider c-{{ $loop->iteration % 5 }}">
+                    <h2 class="mb-0">
                         {{ $category->name }}
                     </h2>
                 </div>
 
                 <!-- Lista de Produtos da Categoria -->
-                <div id="category-{{ $category->id }}" class="menu-category" style="background: white;">
+                <div id="category-{{ $category->id }}" class="menu-category">
                     @foreach ($category->products as $product)
                         <div class="product-item" data-product-id="{{ $product->id }}"
                             data-product-name="{{ $product->name }}" data-product-price="{{ $product->price }}"
-                            data-product-image="{{ $product->image ? asset('storage/' . $product->image) : '' }}"
-                            style="border-bottom: 1px solid #f0f0f0; padding: 1.25rem; transition: background 0.2s ease; position: relative; display: grid; grid-template-columns: 80px 1fr auto; gap: 1.25rem; align-items: flex-start;">
+                            data-product-image="{{ $product->image ? asset('storage/' . $product->image) : '' }}">
 
                             <!-- Coluna 1: Imagem (Esquerda) -->
-                            <div class="product-image" style="flex-shrink: 0;">
+                            <div class="product-image">
                                 @if ($product->image)
-                                    <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}"
-                                        style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">
+                                    <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}">
                                 @else
-                                    <div
-                                        style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="fas fa-utensils" style="color: #ccc; font-size: 2rem;"></i>
+                                    <div class="product-img-placeholder">
+                                        <i class="fas fa-utensils"></i>
                                     </div>
                                 @endif
                             </div>
 
                             <!-- Coluna 2: Informações do Produto (Centro) -->
-                            <div class="product-info" style="min-width: 0;">
-                                <h3 class="product-name"
-                                    style="font-size: 1rem; font-weight: 700; color: #333; margin: 0 0 0.5rem 0; line-height: 1.2;">
+                            <div class="product-info">
+                                <h3 class="product-name">
                                     {{ $product->name }}
                                 </h3>
 
                                 @if ($product->description)
-                                    <p class="product-description"
-                                        style="font-size: 0.85rem; color: #999; margin: 0 0 0.5rem 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                                    <p class="product-description">
                                         {{ $product->description }}
                                     </p>
                                 @endif
@@ -153,36 +136,29 @@
                                 @endphp
 
                                 @if ($ingredientText)
-                                    <p class="product-ingredients"
-                                        style="font-size: 0.8rem; color: #bbb; margin: 0 0 0.75rem 0;">
+                                    <p class="product-ingredients">
                                         {{ Str::limit($ingredientText, 60) }}
                                     </p>
                                 @endif
 
-                                <div class="product-price" style="font-size: 1rem; font-weight: 700; color: #333;">
+                                <div class="product-price">
                                     R$ {{ number_format($product->price, 2, ',', '.') }}
                                 </div>
                             </div>
 
                             <!-- Coluna 3: Controles e Botão (Direita) -->
-                            <div class="product-controls"
-                                style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.45rem; flex-shrink: 0; white-space: nowrap;">
+                            <div class="product-controls">
                                 <!-- Controles de Quantidade (Compacto) -->
-                                <div class="product-quick-add" data-product-id="{{ $product->id }}"
-                                    style="display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid #e6e6e6; border-radius: 999px; padding: 0.35rem 0.45rem; background: #f7f7f7; min-width: 110px; justify-content: space-between;">
-                                    <button type="button" class="btn btn-sm quick-decr"
-                                        style="width: 28px; height: 28px; padding: 0; border: none; background: transparent; color: #666; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%;">−</button>
-                                    <span class="quick-qty"
-                                        style="width: 34px; text-align: center; font-weight: 700; color: #333; font-size: 0.95rem;">0</span>
-                                    <button type="button" class="btn btn-sm quick-incr"
-                                        style="width: 28px; height: 28px; padding: 0; border: none; background: transparent; color: #666; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%;">+</button>
+                                <div class="product-quick-add" data-product-id="{{ $product->id }}">
+                                    <button type="button" class="btn btn-sm quick-decr">−</button>
+                                    <span class="quick-qty">0</span>
+                                    <button type="button" class="btn btn-sm quick-incr">+</button>
                                 </div>
 
                                 <!-- Botão "Personalização" (Se customizável) -->
                                 @if ($product->customizable)
                                     <button type="button" class="btn btn-sm product-detail-btn"
-                                        data-product-id="{{ $product->id }}"
-                                        style="font-weight: 600; padding: 0.35rem 0.9rem; border-radius: 999px; background: #f4f4f4; border: 1px solid #e6e6e6; color: #333; font-size: 0.85rem; width: 100%; max-width: 130px; transition: all 0.2s ease; white-space: nowrap;">
+                                        data-product-id="{{ $product->id }}">
                                         Personalização
                                     </button>
                                 @endif
@@ -193,65 +169,53 @@
             @endforeach
 
             <!-- Espaçamento no final para não ficar atrás do carrinho flutuante -->
-            <div style="height: 120px;"></div>
+            <div class="bottom-spacer"></div>
         </div>
     </div>
 
     <!-- Painel Lateral de Detalhes do Produto (Slide da Direita) -->
-    <div id="product-detail-panel" class="product-detail-panel"
-        style="position: fixed; top: 0; right: 0; width: 100%; height: 100%; background: white; z-index: 2000; transform: translateX(100%); transition: transform 0.3s ease-in-out; overflow-y: auto;">
+    <div id="product-detail-panel" class="product-detail-panel">
         <div class="panel-content">
             <!-- Header do Painel -->
-            <div class="panel-header"
-                style="position: sticky; top: 0; background: white; z-index: 10; padding: 1rem 1.25rem; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between;">
-                <button type="button" id="close-panel" class="btn"
-                    style="background: transparent; border: none; color: #000; padding: 0.5rem; margin-left: -0.5rem;">
-                    <i class="fas fa-arrow-left" style="font-size: 1.2rem;"></i>
+            <div class="panel-header">
+                <button type="button" id="close-panel" class="btn">
+                    <i class="fas fa-arrow-left"></i>
                 </button>
-                <h2 class="mb-0"
-                    style="font-size: 1.1rem; font-weight: 700; flex: 1; text-align: center; padding: 0 1rem; color: #000;">
+                <h2 class="mb-0">
                     Detalhes do Produto</h2>
-                <div style="width: 40px;"></div>
+                <div class="panel-spacer"></div>
             </div>
 
             <!-- Imagem Grande do Produto -->
-            <div id="panel-image-container" class="panel-image"
-                style="width: 100%; height: 250px; overflow: hidden; background: #f0f0f0;">
+            <div id="panel-image-container" class="panel-image">
                 <!-- Imagem será inserida aqui -->
             </div>
 
             <!-- Corpo do Painel -->
-            <div class="panel-body" style="padding: 1.5rem 1.25rem;">
-                <h2 id="panel-product-name" class="mb-2" style="font-size: 1.5rem; font-weight: 700; color: #333;">
-                </h2>
+            <div class="panel-body">
+                <h2 id="panel-product-name" class="mb-2"></h2>
 
-                <div id="panel-product-description" class="mb-3"
-                    style="font-size: 0.95rem; color: #666; line-height: 1.6;"></div>
+                <div id="panel-product-description" class="mb-3"></div>
 
-                <div id="panel-product-ingredient-customization" class="mb-3" style="font-size: 0.9rem; color: #444;">
-                </div>
+                <div id="panel-product-ingredient-customization" class="mb-3"></div>
 
-                <div class="price-section mb-4" style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                <div class="price-section mb-4">
                     <div class="d-flex justify-content-between align-items-center">
-                        <span style="font-size: 0.9rem; color: #666;">Preço</span>
-                        <span id="panel-product-price" style="font-size: 1.5rem; font-weight: 700; color: #333;"></span>
+                        <span>Preço</span>
+                        <span id="panel-product-price"></span>
                     </div>
                 </div>
 
                 <!-- Seletor de Quantidade -->
                 <div class="quantity-section mb-4">
-                    <label class="form-label"
-                        style="font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 0.75rem;">Quantidade</label>
+                    <label class="form-label">Quantidade</label>
                     <div class="d-flex align-items-center gap-3">
-                        <button type="button" id="decrease-quantity" class="btn"
-                            style="width: 40px; height: 40px; border-radius: 50%; background: #f0f0f0; border: none; color: #333; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                        <button type="button" id="decrease-quantity" class="btn circle-btn">
                             <i class="fas fa-minus"></i>
                         </button>
                         <input type="number" id="product-quantity" value="1" min="1"
-                            class="form-control text-center"
-                            style="width: 80px; height: 40px; border: 2px solid #f0f0f0; border-radius: 8px; font-weight: 600; font-size: 1.1rem;">
-                        <button type="button" id="increase-quantity" class="btn"
-                            style="width: 40px; height: 40px; border-radius: 50%; background: #f0f0f0; border: none; color: #333; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                            class="form-control text-center product-qty-input">
+                        <button type="button" id="increase-quantity" class="btn circle-btn">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
@@ -259,22 +223,18 @@
 
                 <!-- Observações Automáticas -->
                 <div class="notes-section mb-4">
-                    <label for="product-notes" class="form-label"
-                        style="font-size: 0.9rem; font-weight: 600; color: #333; margin-bottom: 0.75rem;">Observações</label>
+                    <label for="product-notes" class="form-label">Observações</label>
                     <textarea id="product-notes" class="form-control" rows="3"
-                        placeholder="As observações serão preenchidas automaticamente..."
-                        style="border: 2px solid #f0f0f0; border-radius: 8px; font-size: 0.9rem;" readonly></textarea>
+                        placeholder="As observações serão preenchidas automaticamente..." class="notes-section" readonly></textarea>
                 </div>
             </div>
 
             <!-- Footer Fixo com Botão Adicionar -->
-            <div class="panel-footer"
-                style="position: sticky; bottom: 0; background: white; padding: 1rem 1.25rem; border-top: 1px solid #f0f0f0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);">
-                <button type="button" id="add-to-cart-btn" class="btn w-100"
-                    style="background: #000; border: none; color: white; font-weight: 600; border-radius: 12px; padding: 1rem; font-size: 1rem; transition: all 0.3s ease;">
+            <div class="panel-footer">
+                <button type="button" id="add-to-cart-btn" class="btn w-100 btn-add-cart">
                     <i class="fas fa-shopping-cart me-2"></i>
                     <span id="add-to-cart-text">Adicionar ao Pedido</span>
-                    <span id="add-to-cart-total" style="margin-left: 0.5rem;"></span>
+                    <span id="add-to-cart-total" class="ms-2"></span>
                 </button>
             </div>
         </div>
@@ -283,56 +243,45 @@
     <!-- Overlay Escuro -->
     <!-- Modal de Detalhes do Produto -->
     <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog"
-            style="position: fixed; top: 0; right: 0; margin: 0; width: 420px; max-width: 100%; height: 100vh; transform: none;">
-            <div class="modal-content"
-                style="height: 100%; border-radius: 0; border: none; overflow: hidden; box-shadow: -10px 0 30px rgba(0,0,0,0.12);">
-                <div class="modal-header"
-                    style="padding: 1rem 1.25rem; border-bottom: 1px solid #e6e6e6; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;">
-                    <div style="flex: 1; min-width: 0;">
-                        <h5 id="modal-product-name" class="modal-title"
-                            style="margin: 0; font-weight: 700; word-break: break-word;"></h5>
-                        <div id="modal-product-description" class="small text-muted mt-2"
-                            style="max-height: 4rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-break: break-word;">
+        <div class="modal-dialog modal-dialog-right">
+            <div class="modal-content modal-content-right">
+                <div class="modal-header modal-header-right">
+                    <div>
+                        <h5 id="modal-product-name" class="modal-title"></h5>
+                        <div id="modal-product-description" class="small text-muted mt-2"></div>
+                        <div class="small text-muted mt-2">Preço unitário: <span id="modal-unit-price">R$ 0,00</span>
                         </div>
-                        <div class="small text-muted mt-2">Preço unitário: <span id="modal-unit-price"
-                                style="font-weight:700; color:#000;">R$ 0,00</span></div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
-                <div class="modal-body p-0 d-flex flex-column" style="height: calc(100% - 68px);">
-                    <div class="overflow-auto" style="padding: 1.25rem; flex: 1;">
-                        <div id="modal-product-image"
-                            style="width: 100%; height: 180px; border-radius: 12px; overflow: hidden; background: #f0f0f0; margin-bottom: 1rem;">
-                        </div>
+                <div class="modal-body modal-body-right p-0 d-flex flex-column">
+                    <div class="overflow-auto">
+                        <div id="modal-product-image" class="modal-product-image"></div>
                         <div id="modal-product-ingredients" class="mb-3"></div>
                         <div id="modal-ingredient-customization" class="mb-3"></div>
                         <div class="d-flex align-items-center justify-content-between mb-3">
-                            <div style="font-weight: 600;">Quantidade</div>
+                            <div class="fw-semibold">Quantidade</div>
                             <div class="d-flex align-items-center gap-2">
                                 <button type="button" id="modal-decrease-quantity"
                                     class="btn btn-outline-secondary btn-sm">-</button>
                                 <input type="number" id="modal-product-quantity" value="1" min="1"
-                                    style="width: 70px; text-align: center; border: 2px solid #f0f0f0; border-radius: 8px; background: #fff;" />
+                                    class="modal-qty-input" />
                                 <button type="button" id="modal-increase-quantity"
                                     class="btn btn-outline-secondary btn-sm">+</button>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label" style="font-weight:600;">Observações</label>
-                            <textarea id="modal-product-notes" class="form-control" rows="3"
-                                style="border:1px solid #e6e6e6; border-radius:8px; resize: vertical;"></textarea>
+                            <label class="form-label">Observações</label>
+                            <textarea id="modal-product-notes" class="form-control modal-product-notes" rows="3"></textarea>
                         </div>
                     </div>
-                    <div class="modal-footer d-flex align-items-center justify-content-between"
-                        style="padding: 1rem 1.25rem; border-top: 1px solid #e6e6e6; gap: 1rem; align-items: center;">
-                        <div style="min-width: 0;">
-                            <div class="small text-muted" style="font-size: 0.85rem; color: #666;">Total</div>
-                            <div id="modal-total-price" style="font-weight:700; font-size:1.4rem; color:#000;">R$ 0,00
-                            </div>
+                    <div class="modal-footer modal-footer-right d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="small text-muted">Total</div>
+                            <div id="modal-total-price">R$ 0,00</div>
                         </div>
-                        <button type="button" id="modal-add-to-cart-btn" class="btn btn-primary"
-                            style="padding: 1rem 1.25rem; min-height: 48px; font-size: 1rem; white-space: nowrap; flex-shrink: 0;">Adicionar</button>
+                        <button type="button" id="modal-add-to-cart-btn"
+                            class="btn btn-primary modal-add-btn">Adicionar</button>
                     </div>
                 </div>
             </div>
@@ -340,50 +289,40 @@
     </div>
     </div>
 
-    <div id="panel-overlay"
-        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1999; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;">
-    </div>
+    <div id="panel-overlay"></div>
 
     <!-- Resumo Flutuante do Carrinho (Mobile) -->
-    <div id="floating-cart-summary" class="floating-cart-summary"
-        style="position: fixed; bottom: 0; left: 0; right: 0; z-index: 1050; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); transition: all 0.3s ease;">
-        <div class="floating-cart-header" id="floating-cart-toggle"
-            style="padding: 1rem 1.25rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #000; color: white;">
+    <div id="floating-cart-summary" class="floating-cart-summary">
+        <div class="floating-cart-header" id="floating-cart-toggle">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-shopping-cart"></i>
-                <span id="floating-cart-count" style="font-weight: 600;">0 itens</span>
+                <span id="floating-cart-count" class="fw-bold">0 itens</span>
             </div>
             <div class="d-flex align-items-center gap-3">
-                <span id="floating-cart-total" style="font-weight: 700; font-size: 1.1rem;">R$ 0,00</span>
+                <span id="floating-cart-total" class="fw-bold fs-5">R$ 0,00</span>
                 <i class="fas fa-chevron-up" id="floating-cart-icon"></i>
             </div>
         </div>
-        <div class="floating-cart-content" id="floating-cart-content"
-            style="display: none; max-height: 60vh; overflow-y: auto;">
-            <div class="floating-cart-items" id="floating-cart-items" style="padding: 1rem 1.25rem;">
+        <div class="floating-cart-content" id="floating-cart-content">
+            <div class="floating-cart-items p-3" id="floating-cart-items">
                 <!-- Itens do carrinho serão exibidos aqui -->
             </div>
-            <div class="floating-cart-footer"
-                style="padding: 1rem 1.25rem; background: #f8f9fa; border-top: 1px solid #e0e0e0;">
-                <div class="d-flex justify-content-between align-items-center mb-3 pb-3"
-                    style="border-bottom: 2px solid #e0e0e0;">
-                    <span style="font-size: 1rem; font-weight: 600; color: #333;">
+            <div class="floating-cart-footer">
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-3 cart-footer-row">
+                    <span>
                         <i class="fas fa-calculator me-2"></i>Total
                     </span>
-                    <span id="floating-cart-total-footer" style="font-size: 1.3rem; font-weight: 700; color: #000;">R$
-                        0,00</span>
+                    <span id="floating-cart-total-footer" class="fw-bold">R$ 0,00</span>
                 </div>
                 <div class="mb-3">
-                    <label for="floating-order-notes" class="form-label"
-                        style="font-size: 0.9rem; font-weight: 700; color: #000;">
+                    <label for="floating-order-notes" class="form-label">
                         <i class="fas fa-comment-dots me-1"></i>
                         Observações do Pedido
                     </label>
-                    <textarea id="floating-order-notes" class="form-control" rows="2" placeholder="Alguma observação? (opcional)"
-                        style="border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem;"></textarea>
+                    <textarea id="floating-order-notes" class="form-control floating-order-notes" rows="2"
+                        placeholder="Alguma observação? (opcional)"></textarea>
                 </div>
-                <button id="floating-checkout-btn" class="btn w-100" disabled
-                    style="background: #000; border: none; color: white; font-weight: 600; border-radius: 12px; padding: 0.875rem; font-size: 1rem;">
+                <button id="floating-checkout-btn" class="btn w-100 btn-checkout" disabled>
                     <i class="fas fa-check me-2"></i> Finalizar Pedido
                 </button>
             </div>
@@ -394,62 +333,55 @@
     @if (isset($table))
         <div class="modal fade" id="authModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content" style="border-radius: 16px;">
-                    <div class="modal-header" style="background: #000; color: white; border-radius: 16px 16px 0 0;">
+                <div class="modal-content orders-modal">
+                    <div class="modal-header orders-modal">
                         <h5 class="modal-title" id="authModalTitle">
                             <i class="fas fa-lock me-2"></i>
                             Acesso à Mesa
                         </h5>
                     </div>
-                    <div class="modal-body" style="padding: 2rem;">
+                    <div class="modal-body">
                         <!-- Etapa 1: Criar senha (primeiro usuário) -->
-                        <div id="createPasswordStep" style="display: none;">
+                        <div id="createPasswordStep" class="d-none">
                             <p class="text-center mb-4">Olá, Seja Bem-vindo!</p>
                             <form id="createPasswordForm">
                                 <div class="mb-3">
                                     <label for="ownerName" class="form-label">Digite seu nome para continuarmos</label>
                                     <input type="text" class="form-control" id="ownerName"
-                                        placeholder="Digite seu nome"
-                                        style="border: 2px solid #e0e0e0; border-radius: 8px;" required>
+                                        placeholder="Digite seu nome" required>
                                 </div>
-                                <button type="submit" class="btn w-100"
-                                    style="background: #000; color: white; border-radius: 8px; padding: 0.75rem; font-weight: 600;">
+                                <button type="submit" class="btn-auth">
                                     <i class="fas fa-check me-2"></i>Entrar
                                 </button>
                             </form>
                         </div>
 
                         <!-- Etapa 2: Validar senha (demais usuários) -->
-                        <div id="validatePasswordStep" style="display: none;">
+                        <div id="validatePasswordStep" class="d-none">
                             <p class="text-center mb-4">Digite a senha da mesa para continuar.</p>
                             <form id="validatePasswordForm">
                                 <div class="mb-3">
                                     <label for="tablePassword" class="form-label">Senha da Mesa</label>
-                                    <input type="text" class="form-control text-center" id="tablePassword"
-                                        maxlength="4" pattern="[0-9]{4}" placeholder="0000"
-                                        style="font-size: 1.5rem; letter-spacing: 0.5rem; border: 2px solid #e0e0e0; border-radius: 8px;"
-                                        required>
+                                    <input type="text" class="form-control table-password-input" id="tablePassword"
+                                        maxlength="4" pattern="[0-9]{4}" placeholder="0000" required>
                                 </div>
-                                <button type="submit" class="btn w-100"
-                                    style="background: #000; color: white; border-radius: 8px; padding: 0.75rem; font-weight: 600;">
+                                <button type="submit" class="btn-auth">
                                     <i class="fas fa-unlock me-2"></i>Validar Senha
                                 </button>
                             </form>
-                            <div id="passwordError" class="alert alert-danger mt-3" style="display: none;"></div>
+                            <div id="passwordError" class="alert alert-danger mt-3 d-none"></div>
                         </div>
 
                         <!-- Etapa 3: Digitar nome (após validar senha) -->
-                        <div id="enterNameStep" style="display: none;">
+                        <div id="enterNameStep" class="d-none">
                             <p class="text-center mb-4">Senha validada! Agora digite seu nome para entrar na mesa.</p>
                             <form id="enterNameForm">
                                 <div class="mb-3">
                                     <label for="participantName" class="form-label">Seu Nome</label>
                                     <input type="text" class="form-control" id="participantName"
-                                        placeholder="Digite seu nome"
-                                        style="border: 2px solid #e0e0e0; border-radius: 8px;" required>
+                                        placeholder="Digite seu nome" required>
                                 </div>
-                                <button type="submit" class="btn w-100"
-                                    style="background: #000; color: white; border-radius: 8px; padding: 0.75rem; font-weight: 600;">
+                                <button type="submit" class="btn-auth">
                                     <i class="fas fa-sign-in-alt me-2"></i>Entrar na Mesa
                                 </button>
                             </form>
@@ -464,8 +396,8 @@
     @if (isset($table) || (isset($isCounter) && $isCounter))
         <div class="modal fade" id="ordersModal" tabindex="-1">
             <div class="modal-dialog modal-dialog-scrollable modal-lg">
-                <div class="modal-content" style="border-radius: 16px;">
-                    <div class="modal-header" style="background: #000; color: white; border-radius: 16px 16px 0 0;">
+                <div class="modal-content orders-modal">
+                    <div class="modal-header orders-modal">
                         <h5 class="modal-title">
                             <i class="fas fa-receipt me-2"></i>
                             @if (isset($table))
@@ -476,7 +408,7 @@
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body" id="ordersModalBody" style="padding: 1.5rem;">
+                    <div class="modal-body orders-modal-body" id="ordersModalBody">
                         <!-- Pedidos serão carregados aqui -->
                     </div>
                 </div>
@@ -1416,8 +1348,8 @@
 
                         const panelImage = document.getElementById('panel-image-container');
                         panelImage.innerHTML = product.image ?
-                            `<img src="/storage/${product.image}" alt="${product.name}" style="width:100%; height:100%; object-fit:cover;">` :
-                            `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#f0f0f0;"><i class="fas fa-utensils" style="font-size:2.5rem; color:#ccc;"></i></div>`;
+                            `<img src="/storage/${product.image}" alt="${product.name}" class="panel-image-img">` :
+                            `<div class="panel-image-placeholder"><i class="fas fa-utensils"></i></div>`;
 
                         renderIngredientCustomization('panel-product-ingredient-customization');
 
@@ -1453,14 +1385,14 @@
                     const baseQty = parseInt(ing.amount_item) || 0;
                     const price = parseFloat(ing.additional_price || 0).toFixed(2).replace('.', ',');
                     return `
-                        <div class="d-flex align-items-center justify-content-between mb-2" style="padding: 0.85rem 0; border-bottom: 1px solid #f0f0f0;">
-                            <div style="min-width: 0;">
-                                <div style="font-weight: 600;">${ing.name}</div>
+                        <div class="ingredient-row">
+                            <div class="min-w-0">
+                                <div class="ingredient-name">${ing.name}</div>
                                 <div class="small text-muted">Padrão: ${baseQty} • +R$ ${price} cada</div>
                             </div>
-                            <div style="text-align: right;">
+                            <div class="text-end">
                                 <div class="small text-muted">Qtd</div>
-                                <div style="font-weight: 700;">${qty}</div>
+                                <div class="fw-bold">${qty}</div>
                             </div>
                         </div>`;
                 }).join('');
@@ -1482,14 +1414,14 @@
                     const base = parseInt(ing.amount_item) || 0;
                     return `
                         <div class="d-flex align-items-center justify-content-between mb-2" data-ing-id="${ing.id}">
-                            <div style="min-width:0">
-                                <div style="font-weight:600">${ing.name}</div>
+                            <div class="min-w-0">
+                                <div class="ingredient-name">${ing.name}</div>
                                 <div class="small text-muted">Padrão: ${base} • +R$ ${parseFloat(ing.additional_price || 0).toFixed(2).replace('.', ',')} cada</div>
                             </div>
-                            <div style="display:flex; align-items:center; gap:0.5rem; border:2px solid #f0f0f0; border-radius:12px; padding:0.35rem; background:#ffffff;">
-                                <button type="button" class="btn btn-sm ingredient-decr" data-id="${ing.id}" style="width:28px; height:28px; padding:0; border:none; background:transparent; color:#666; font-size:1.2rem; cursor:pointer;">−</button>
-                                <input type="number" min="0" value="${selected}" class="form-control form-control-sm ingredient-qty-input" data-id="${ing.id}" style="width:50px; text-align:center; border:2px solid #f0f0f0; border-radius:8px; background:#fff; padding:0.25rem 0.2rem; font-weight:700;">
-                                <button type="button" class="btn btn-sm ingredient-incr" data-id="${ing.id}" style="width:28px; height:28px; padding:0; border:none; background:transparent; color:#666; font-size:1.2rem; cursor:pointer;">+</button>
+                            <div class="ingredient-controls">
+                                <button type="button" class="btn btn-sm ingredient-decr" data-id="${ing.id}">−</button>
+                                <input type="number" min="0" value="${selected}" class="form-control form-control-sm ingredient-qty-input" data-id="${ing.id}">
+                                <button type="button" class="btn btn-sm ingredient-incr" data-id="${ing.id}">+</button>
                             </div>
                         </div>
                     `;
@@ -1815,34 +1747,32 @@
                         return `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                        <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                        ` : `
-                                        <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                        <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                        </div>
-                                        `}
-                    <div style="flex: 1; min-width: 0;">
-                        <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
+                                                <img src="/storage/${item.image}" alt="${item.name}" class="cart-item-img">
+                                                ` : `
+                                                <div class="cart-item-placeholder"><i class="fas fa-utensils"></i></div>
+                                                `}
+                    <div class="flex-fill min-w-0">
+                        <h6 class="mb-1 cart-item-name">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
                         ${addedHtml}
                         ${removedHtml}
                         <div class="d-flex align-items-center justify-content-between mt-2">
                             <div class="d-flex align-items-center gap-2">
-                                <button class="btn btn-sm" onclick="updateCartItemQuantity(${index}, ${item.quantity - 1})" style="width: 28px; height: 28px; padding: 0; background: #f0f0f0; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-minus" style="font-size: 0.7rem;"></i>
+                                <button class="btn btn-sm cart-qty-btn" onclick="updateCartItemQuantity(${index}, ${item.quantity - 1})">
+                                    <i class="fas fa-minus"></i>
                                 </button>
-                                <span style="font-weight: 700; min-width: 30px; text-align: center; color: #000; font-size: 0.95rem;">${item.quantity}</span>
-                                <button class="btn btn-sm" onclick="updateCartItemQuantity(${index}, ${item.quantity + 1})" style="width: 28px; height: 28px; padding: 0; background: #f0f0f0; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-plus" style="font-size: 0.7rem;"></i>
+                                <span class="cart-qty-num">${item.quantity}</span>
+                                <button class="btn btn-sm cart-qty-btn" onclick="updateCartItemQuantity(${index}, ${item.quantity + 1})">
+                                    <i class="fas fa-plus"></i>
                                 </button>
                             </div>
                             <div class="d-flex align-items-center gap-2">
-                                <div style="text-align:right; font-size:0.85rem;">
+                                <div class="cart-price-right">
                                     <div class="small text-muted">R$ ${(item.price).toFixed(2).replace('.', ',')} (unitário)</div>
-                                    <div style="font-weight: 600;">R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}</div>
+                                    <div class="fw-semibold">R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}</div>
                                 </div>
-                                <button class="btn btn-sm" onclick="removeFromCart(${index})" style="width: 28px; height: 28px; padding: 0; background: transparent; border: none; color: #ef4444;">
-                                    <i class="fas fa-trash" style="font-size: 0.8rem;"></i>
+                                <button class="btn btn-sm cart-remove-btn" onclick="removeFromCart(${index})">
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                         </div>
@@ -2003,46 +1933,41 @@
                                     'pending');
 
                                 let html = data.orders.map(order => `
-                        <div class="card mb-3" style="border-radius: 12px; border: 2px solid #f0f0f0;">
+                        <div class="card mb-3 card-custom">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div>
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                <small class="text-muted">
-                                                                <i class="fas fa-user me-1"></i>
-                                                                <strong>${order.participant_name}</strong>
-                                                                </small>
-                                                                ` : ''}
+                                                                                                            <small class="text-muted">
+                                                                                                            <i class="fas fa-user me-1"></i>
+                                                                                                            <strong>${order.participant_name}</strong>
+                                                                                                            </small>
+                                                                                                            ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                <i class="fas fa-check-circle me-1"></i>Pago
-                                                                </span>
-                                                                ` : `
-                                                                <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                <i class="fas fa-clock me-1"></i>Pendente
-                                                                </span>
-                                                                `}
-                                        <span class="badge" style="background: ${
-                                            order.status === 'Finalizado' ? '#10b981' : 
-                                            order.status === 'Em produção' ? '#f59e0b' : 
-                                            order.status === 'Aguardando pagamento' ? '#3b82f6' :
-                                            order.status === 'Cancelado' ? '#ef4444' : '#6b7280'
-                                        }; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                            <span class="badge badge-sm badge-paid">
+                                                                                                            <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                                            </span>
+                                                                                                            ` : `
+                                                                                                            <span class="badge badge-sm badge-pending">
+                                                                                                            <i class="fas fa-clock me-1"></i>Pendente
+                                                                                                            </span>
+                                                                                                            `}
+                                        <span class="badge badge-sm ${order.status === 'Finalizado' ? 'badge-status-success' : order.status === 'Em produção' ? 'badge-status-warning' : order.status === 'Aguardando pagamento' ? 'badge-status-info' : order.status === 'Cancelado' ? 'badge-status-danger' : 'badge-status-secondary'}">
                                             ${order.status}
                                         </span>
                                     </div>
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                            <div class="d-flex justify-content-between py-1">
-                                                            <span>${item.quantity}x ${item.product_name}</span>
-                                                            <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                            </div>
-                                                            `).join('')}
+                                                                                                        <div class="d-flex justify-content-between py-1">
+                                                                                                        <span>${item.quantity}x ${item.product_name}</span>
+                                                                                                        <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                                        </div>
+                                                                                                        `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">
@@ -2057,7 +1982,7 @@
                                 if (hasPendingOrders) {
                                     html += `
                             <div class="mt-3">
-                                <a href="/payment/${qrCode}" class="btn w-100" style="background: #000; color: white; border-radius: 12px; padding: 1rem; font-weight: 600; text-decoration: none; display: inline-block; text-align: center; font-size: 1rem;">
+                                <a href="/payment/${qrCode}" class="btn w-100 btn-pay">
                                     <i class="fas fa-credit-card me-2"></i>Pagar
                                 </a>
                             </div>

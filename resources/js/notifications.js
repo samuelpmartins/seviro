@@ -12,45 +12,45 @@ class NotificationSystem {
             console.warn('NotificationSystem já foi inicializado. Ignorando...');
             return;
         }
-        
+
         window.__notificationSystemInitialized = true;
-        
+
         this.pollingInterval = null;
         this.lastNotificationId = null;
         this.notificationCount = 0;
         this.audioContext = null;
         this.isAuthenticated = null; // Será determinado na primeira requisição
-        
+
         // Inicializar ao carregar
         this.init();
     }
-    
+
     /**
      * Inicializa o sistema de notificações
      */
     init() {
         // Criar badge de contador no DOM se não existir
         this.createNotificationBadge();
-        
+
         // Iniciar polling
         this.startPolling();
-        
+
         // Buscar notificações iniciais
         this.fetchNotifications();
     }
-    
+
     /**
      * Cria o badge de contador de notificações
      */
     createNotificationBadge() {
         // Verificar se já existe e está no DOM
         let badge = document.getElementById('notification-badge');
-        
+
         // Se existir e estiver no DOM, não fazer nada
         if (badge && badge.parentElement) {
             return badge;
         }
-        
+
         // Se não existir ou foi removido do DOM, criar um novo
         badge = document.createElement('div');
         badge.id = 'notification-badge';
@@ -75,7 +75,7 @@ class NotificationSystem {
             cursor: pointer;
             transition: all 0.3s ease;
         `;
-        
+
         // Criar ícone de sino
         badge.innerHTML = `
             <div style="position: relative;">
@@ -97,7 +97,7 @@ class NotificationSystem {
                 "></span>
             </div>
         `;
-        
+
         badge.onclick = () => this.showNotificationsList();
         badge.onmouseover = () => {
             badge.style.transform = 'scale(1.1)';
@@ -107,11 +107,11 @@ class NotificationSystem {
             badge.style.transform = 'scale(1)';
             badge.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
         };
-        
+
         document.body.appendChild(badge);
         return badge;
     }
-    
+
     /**
      * Inicia o polling de notificações
      */
@@ -120,13 +120,13 @@ class NotificationSystem {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
         }
-        
+
         // Buscar a cada 5 segundos
         this.pollingInterval = setInterval(() => {
             this.fetchNotifications();
         }, 5000);
     }
-    
+
     /**
      * Para o polling
      */
@@ -136,14 +136,14 @@ class NotificationSystem {
             this.pollingInterval = null;
         }
     }
-    
+
     /**
      * Busca notificações não lidas
      */
     async fetchNotifications() {
         try {
             let response;
-            
+
             // Se já sabemos se está autenticado ou não, usar a rota correta
             if (this.isAuthenticated === true) {
                 // Usuário autenticado - usar rota autenticada
@@ -175,7 +175,7 @@ class NotificationSystem {
                     },
                     credentials: 'same-origin'
                 });
-                
+
                 // Se retornou 401, usuário não está autenticado
                 if (response.status === 401) {
                     this.isAuthenticated = false;
@@ -193,28 +193,28 @@ class NotificationSystem {
                     this.isAuthenticated = true;
                 }
             }
-            
+
             if (!response.ok) {
                 return;
             }
-            
+
             const data = await response.json();
-            
+
             if (data.success && data.notifications && data.notifications.length > 0) {
                 // Verificar se há notificações novas
                 const newNotifications = this.filterNewNotifications(data.notifications);
-                
+
                 if (newNotifications.length > 0) {
                     // Tocar som apenas para notificações novas
                     this.playNotificationSound();
-                    
+
                     // Mostrar popup da notificação mais recente
                     this.showNotificationPopup(newNotifications[0]);
                 }
-                
+
                 // Atualizar contador
                 this.updateBadgeCounter(data.count);
-                
+
                 // Atualizar última notificação vista
                 if (data.notifications[0]) {
                     this.lastNotificationId = data.notifications[0].id;
@@ -226,7 +226,7 @@ class NotificationSystem {
             console.error('Erro ao buscar notificações:', error);
         }
     }
-    
+
     /**
      * Filtra notificações novas desde a última verificação
      */
@@ -235,7 +235,7 @@ class NotificationSystem {
             // Primeira vez, considerar apenas a mais recente
             return notifications.slice(0, 1);
         }
-        
+
         const newOnes = [];
         for (const notif of notifications) {
             if (notif.id === this.lastNotificationId) {
@@ -243,32 +243,32 @@ class NotificationSystem {
             }
             newOnes.push(notif);
         }
-        
+
         return newOnes;
     }
-    
+
     /**
      * Atualiza o contador de notificações
      */
     updateBadgeCounter(count) {
         this.notificationCount = count;
         let badge = document.getElementById('notification-badge');
-        
+
         // Se o badge não existir ou não estiver no DOM, recriá-lo
         if (!badge || !badge.parentElement) {
             badge = this.createNotificationBadge();
         }
-        
+
         if (badge && badge.parentElement) {
             // Badge principal sempre visível
             badge.style.display = 'flex';
-            
+
             const countBadge = document.getElementById('notification-count-badge');
-            
+
             if (count > 0) {
                 // Mudar cor quando houver notificações
                 badge.style.background = '#e74c3c';
-                
+
                 // Mostrar contador
                 if (countBadge) {
                     countBadge.textContent = count > 99 ? '99+' : count;
@@ -277,7 +277,7 @@ class NotificationSystem {
             } else {
                 // Cor padrão quando não houver notificações
                 badge.style.background = '#3498db';
-                
+
                 // Esconder contador
                 if (countBadge) {
                     countBadge.style.display = 'none';
@@ -285,7 +285,7 @@ class NotificationSystem {
             }
         }
     }
-    
+
     /**
      * Toca o som de notificação
      */
@@ -293,13 +293,13 @@ class NotificationSystem {
         // Tentar tocar o arquivo MP3 primeiro
         const audio = new Audio('/sounds/notification.mp3');
         audio.volume = 0.5;
-        
+
         audio.play().catch(() => {
             // Se falhar, criar um beep sintético
             this.playBeep();
         });
     }
-    
+
     /**
      * Cria um beep sintético usando Web Audio API
      */
@@ -308,43 +308,43 @@ class NotificationSystem {
             if (!this.audioContext) {
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
-            
+
             const oscillator = this.audioContext.createOscillator();
             const gainNode = this.audioContext.createGain();
-            
+
             oscillator.connect(gainNode);
             gainNode.connect(this.audioContext.destination);
-            
+
             oscillator.frequency.value = 800;
             oscillator.type = 'sine';
-            
+
             gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
-            
+
             oscillator.start(this.audioContext.currentTime);
             oscillator.stop(this.audioContext.currentTime + 0.5);
         } catch (error) {
             console.error('Erro ao tocar beep:', error);
         }
     }
-    
+
     /**
      * Mostra popup de notificação
      */
     showNotificationPopup(notification) {
         const data = notification.data;
         const type = data.type;
-        
+
         // Verificar se é notificação para cliente (precisa de popup destacado)
         if (type === 'order_ready_client') {
             this.showClientReadyModal(data, notification.id);
             return;
         }
-        
+
         // Para outros tipos, mostrar toast simples
         this.showToast(data.message, this.getNotificationColor(type), notification.id);
     }
-    
+
     /**
      * Mostra modal grande para cliente quando pedido estiver pronto
      */
@@ -354,7 +354,7 @@ class NotificationSystem {
         if (existingModal) {
             existingModal.remove();
         }
-        
+
         // Criar modal
         const modal = document.createElement('div');
         modal.id = 'client-ready-modal';
@@ -371,7 +371,7 @@ class NotificationSystem {
             z-index: 99999;
             animation: fadeIn 0.3s ease;
         `;
-        
+
         modal.innerHTML = `
             <div style="
                 background: white;
@@ -419,9 +419,9 @@ class NotificationSystem {
                 </button>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
         // Adicionar estilos de animação
         if (!document.getElementById('notification-animations')) {
             const style = document.createElement('style');
@@ -439,7 +439,7 @@ class NotificationSystem {
             document.head.appendChild(style);
         }
     }
-    
+
     /**
      * Mostra toast de notificação
      */
@@ -448,25 +448,27 @@ class NotificationSystem {
         toast.className = 'notification-toast';
         toast.style.cssText = `
             position: fixed;
-            top: 80px;
-            right: 20px;
+            top: 16px;
+            right: 16px;
+            left: auto;
             background: ${color};
             color: white;
             padding: 15px 50px 15px 20px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             z-index: 10001;
-            max-width: 350px;
+            max-width: min(90vw, 350px);
+            width: auto;
             animation: slideIn 0.3s ease;
             font-size: 14px;
             line-height: 1.5;
             position: relative;
         `;
-        
+
         const messageDiv = document.createElement('div');
         messageDiv.textContent = message;
         toast.appendChild(messageDiv);
-        
+
         // Adicionar botão de fechar
         const closeBtn = document.createElement('button');
         closeBtn.innerHTML = '×';
@@ -494,7 +496,7 @@ class NotificationSystem {
             setTimeout(() => toast.remove(), 300);
         };
         toast.appendChild(closeBtn);
-        
+
         // Adicionar animação de slide
         if (!document.getElementById('toast-animations')) {
             const style = document.createElement('style');
@@ -511,9 +513,9 @@ class NotificationSystem {
             `;
             document.head.appendChild(style);
         }
-        
+
         document.body.appendChild(toast);
-        
+
         // Auto-dismiss após 5 segundos
         const autoDismissTimer = setTimeout(() => {
             if (notificationId) {
@@ -522,11 +524,11 @@ class NotificationSystem {
             toast.style.animation = 'slideOut 0.3s ease';
             setTimeout(() => toast.remove(), 300);
         }, 5000);
-        
+
         // Cancelar auto-dismiss se o usuário interagir
         toast.onmouseenter = () => clearTimeout(autoDismissTimer);
     }
-    
+
     /**
      * Retorna a cor baseada no tipo de notificação
      */
@@ -537,17 +539,17 @@ class NotificationSystem {
             'order_ready_waiter': '#3498db',
             'order_ready_client': '#27ae60',
         };
-        
+
         return colors[type] || '#3498db';
     }
-    
+
     /**
      * Marca notificação como lida
      */
     async markAsRead(notificationId) {
         try {
             let response;
-            
+
             // Usar a rota correta baseado no status de autenticação
             if (this.isAuthenticated === false) {
                 // Cliente não autenticado
@@ -571,7 +573,7 @@ class NotificationSystem {
                     },
                     credentials: 'same-origin'
                 });
-                
+
                 // Se retornou 401, tentar rota de cliente
                 if (response.status === 401) {
                     this.isAuthenticated = false;
@@ -586,7 +588,7 @@ class NotificationSystem {
                     });
                 }
             }
-            
+
             if (response.ok) {
                 // Atualizar lista de notificações
                 this.fetchNotifications();
@@ -595,14 +597,14 @@ class NotificationSystem {
             console.error('Erro ao marcar notificação como lida:', error);
         }
     }
-    
+
     /**
      * Mostra lista de todas as notificações
      */
     async showNotificationsList() {
         try {
             let response;
-            
+
             // Usar a rota correta baseado no status de autenticação
             if (this.isAuthenticated === false) {
                 // Cliente não autenticado
@@ -624,7 +626,7 @@ class NotificationSystem {
                     },
                     credentials: 'same-origin'
                 });
-                
+
                 // Se retornou 401, tentar rota de cliente
                 if (response.status === 401) {
                     this.isAuthenticated = false;
@@ -638,19 +640,19 @@ class NotificationSystem {
                     });
                 }
             }
-            
+
             if (!response.ok) {
                 console.error('Erro ao buscar notificações');
                 return;
             }
-            
+
             const data = await response.json();
             this.renderNotificationsModal(data.notifications || []);
         } catch (error) {
             console.error('Erro ao buscar lista de notificações:', error);
         }
     }
-    
+
     /**
      * Renderiza o modal com lista de notificações
      */
@@ -660,7 +662,7 @@ class NotificationSystem {
         if (existingModal) {
             existingModal.remove();
         }
-        
+
         // Criar modal
         const modal = document.createElement('div');
         modal.id = 'notifications-list-modal';
@@ -677,7 +679,7 @@ class NotificationSystem {
             z-index: 99998;
             animation: fadeIn 0.3s ease;
         `;
-        
+
         // Criar conteúdo do modal
         const modalContent = document.createElement('div');
         modalContent.style.cssText = `
@@ -691,7 +693,7 @@ class NotificationSystem {
             box-shadow: 0 10px 50px rgba(0,0,0,0.3);
             animation: slideUp 0.3s ease;
         `;
-        
+
         // Cabeçalho
         const header = document.createElement('div');
         header.style.cssText = `
@@ -721,7 +723,7 @@ class NotificationSystem {
             " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">×</button>
         `;
         modalContent.appendChild(header);
-        
+
         // Lista de notificações
         const listContainer = document.createElement('div');
         listContainer.style.cssText = `
@@ -729,7 +731,7 @@ class NotificationSystem {
             overflow-y: auto;
             padding: 10px;
         `;
-        
+
         if (notifications.length === 0) {
             listContainer.innerHTML = `
                 <div style="
@@ -747,9 +749,9 @@ class NotificationSystem {
                 listContainer.appendChild(notifItem);
             });
         }
-        
+
         modalContent.appendChild(listContainer);
-        
+
         // Rodapé com ação de marcar todas como lidas
         if (notifications.some(n => !n.read_at)) {
             const footer = document.createElement('div');
@@ -775,10 +777,10 @@ class NotificationSystem {
             `;
             modalContent.appendChild(footer);
         }
-        
+
         modal.appendChild(modalContent);
         document.body.appendChild(modal);
-        
+
         // Fechar ao clicar fora
         modal.onclick = (e) => {
             if (e.target === modal) {
@@ -786,7 +788,7 @@ class NotificationSystem {
             }
         };
     }
-    
+
     /**
      * Cria um item de notificação
      */
@@ -795,7 +797,7 @@ class NotificationSystem {
         const isUnread = !notification.read_at;
         const data = notification.data;
         const color = this.getNotificationColor(data.type);
-        
+
         item.style.cssText = `
             background: ${isUnread ? '#fff3cd' : 'white'};
             border-left: 4px solid ${color};
@@ -809,10 +811,10 @@ class NotificationSystem {
             position: relative;
             ${isUnread ? 'box-shadow: 0 2px 8px rgba(0,0,0,0.1);' : ''}
         `;
-        
+
         item.onmouseover = () => item.style.transform = 'translateX(5px)';
         item.onmouseout = () => item.style.transform = 'translateX(0)';
-        
+
         // Badge de "Nova" para não lidas
         if (isUnread) {
             const newBadge = document.createElement('div');
@@ -844,11 +846,11 @@ class NotificationSystem {
             readIcon.title = 'Lida';
             item.appendChild(readIcon);
         }
-        
+
         // Conteúdo
         const content = document.createElement('div');
         content.style.cssText = 'flex: 1; padding-right: 50px;';
-        
+
         const message = document.createElement('div');
         message.textContent = data.message;
         message.style.cssText = `
@@ -858,7 +860,7 @@ class NotificationSystem {
             ${isUnread ? 'font-weight: 600;' : ''}
         `;
         content.appendChild(message);
-        
+
         const time = document.createElement('div');
         time.textContent = this.formatDate(notification.created_at);
         time.style.cssText = `
@@ -867,9 +869,9 @@ class NotificationSystem {
             font-weight: normal;
         `;
         content.appendChild(time);
-        
+
         item.appendChild(content);
-        
+
         // Botão de marcar como lida (apenas para não lidas)
         if (isUnread) {
             const dismissBtn = document.createElement('button');
@@ -912,10 +914,10 @@ class NotificationSystem {
             };
             item.appendChild(dismissBtn);
         }
-        
+
         return item;
     }
-    
+
     /**
      * Formata a data da notificação
      */
@@ -926,22 +928,22 @@ class NotificationSystem {
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
-        
+
         if (diffMins < 1) return 'Agora';
         if (diffMins < 60) return `Há ${diffMins} min`;
         if (diffHours < 24) return `Há ${diffHours}h`;
         if (diffDays < 7) return `Há ${diffDays}d`;
-        
+
         return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     }
-    
+
     /**
      * Marca todas as notificações como lidas
      */
     async markAllAsRead() {
         try {
             let response;
-            
+
             // Usar a rota correta baseado no status de autenticação
             if (this.isAuthenticated === false) {
                 // Cliente não autenticado
@@ -965,7 +967,7 @@ class NotificationSystem {
                     },
                     credentials: 'same-origin'
                 });
-                
+
                 // Se retornou 401, tentar rota de cliente
                 if (response.status === 401) {
                     this.isAuthenticated = false;
@@ -980,7 +982,7 @@ class NotificationSystem {
                     });
                 }
             }
-            
+
             if (response.ok) {
                 // Fechar modal e atualizar
                 document.getElementById('notifications-list-modal')?.remove();
@@ -990,7 +992,7 @@ class NotificationSystem {
             console.error('Erro ao marcar todas como lidas:', error);
         }
     }
-    
+
     /**
      * Destruir o sistema
      */

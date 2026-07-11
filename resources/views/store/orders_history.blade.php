@@ -342,6 +342,22 @@
             padding-right: 0 !important;
         }
 
+        @media (max-width: 768px) {
+            .modal-dialog {
+                margin: 0.75rem;
+                max-width: calc(100% - 1.5rem);
+            }
+
+            .modal-content {
+                max-height: calc(100vh - 1.5rem);
+            }
+
+            .modal-body {
+                max-height: calc(100vh - 9rem);
+                overflow-y: auto;
+            }
+        }
+
         /* Estilo dos itens de lista no modal */
         #statusModalGlobal .list-group-item {
             cursor: pointer;
@@ -728,7 +744,7 @@
             }
 
             /* While a modal is open, prevent hover effects and pointer events
-                               on underlying page elements to avoid layout shifts/repaints. */
+                                       on underlying page elements to avoid layout shifts/repaints. */
             body.modal-open .history-card,
             body.modal-open .table tbody tr,
             body.modal-open .history-container,
