@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Store;
 use App\Models\Table;
 use App\Models\TableParticipant;
+use App\Models\TableParticipantPin;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class MenuController extends Controller
 {
@@ -31,13 +31,12 @@ class MenuController extends Controller
                 $isAuthenticated = $request->session()->get($sessionKey, false);
                 $participantId = $request->session()->get($participantIdKey);
 
-                // Verificar se o participante ainda existe (pode ter sido removido ao desocupar a mesa)
+                // Se o participante foi removido, invalidar a sessão
                 if ($isAuthenticated && $participantId) {
                     $participantExists = \App\Models\TableParticipant::where('id', $participantId)
                         ->where('table_id', $table->id)
                         ->exists();
 
-                    // Se o participante não existe mais, invalidar a sessão
                     if (!$participantExists) {
                         $request->session()->forget($sessionKey);
                         $request->session()->forget($participantIdKey);
@@ -46,10 +45,31 @@ class MenuController extends Controller
                 }
 
                 $hasParticipants = $table->participants()->exists();
+                $pinValid = false;
 
-                // Se não estiver autenticado e a mesa exige senha ou ainda não tem participantes,
-                // não carrega o cardápio completo.
-                if (!$isAuthenticated && ($table->password || !$hasParticipants)) {
+                if ($hasParticipants && !$table->password) {
+                    $owner = TableParticipant::where('table_id', $table->id)->where('is_owner', true)->first();
+                    if ($owner) {
+                        $activePin = TableParticipantPin::where('table_participant_id', $owner->id)
+                            ->where('status', 'active')
+                            ->latest()
+                            ->first();
+
+                        if ($activePin && $activePin->next_validate && now()->lessThanOrEqualTo($activePin->next_validate)) {
+                            $pinValid = true;
+                        }
+                    }
+
+                    if (!$pinValid) {
+                        $request->session()->forget($sessionKey);
+                        $request->session()->forget($participantIdKey);
+                        $isAuthenticated = false;
+                    }
+                }
+
+                // Se não estiver autenticado e não houver PIN válido, bloquear o acesso ao cardápio da mesa
+                // para forçar a validação por PIN/senha antes de mostrar os produtos.
+                if (!$isAuthenticated && !$pinValid) {
                     $categories = collect(); // Array vazio
                     return view('menu.show', compact('store', 'table', 'categories', 'isCounter'));
                 }
@@ -118,37 +138,20 @@ class MenuController extends Controller
         ]);
 
         $table = Table::where('qr_code', $request->qr_code)->firstOrFail();
-        $table_participants_count = TableParticipant::where('table_id', $table->id);
-
-        // Verifica se a mesa já tem senha
-        if ($table->password) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Esta mesa já possui uma senha definida.'
-            ], 400);
-        }
-
-        if ($table_participants_count->count() > 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Esta mesa ja esta ocupada, encerre o pedido para novos clientes.'
-            ], 400);
-        }
-
-        if (!empty($request->password)) {
-            // Define a senha
-            $table->update([
-                'password' => $request->password,
-                'occupied' => true,
-                'occupied_at' => now()
-            ]);
-        }
 
         // Cria o primeiro participante (owner)
         $participant = TableParticipant::create([
             'table_id' => $table->id,
             'name' => $request->name,
             'is_owner' => true,
+        ]);
+
+        $pin = $this->generateParticipantPin();
+        TableParticipantPin::create([
+            'table_participant_id' => $participant->id,
+            'pin' => $pin,
+            'status' => 'active',
+            'next_validate' => now()->addSeconds(30),
         ]);
 
         $table->update([
@@ -163,7 +166,57 @@ class MenuController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Senha criada com sucesso!'
+            'message' => 'Pin de identificação da mesa',
+            'pin' => $pin,
+        ]);
+    }
+
+    public function validatePin(Request $request)
+    {
+        $request->validate([
+            'qr_code' => 'required|string',
+            'pin' => 'required|string|size:4|regex:/^[0-9]{4}$/',
+        ]);
+
+        $table = Table::where('qr_code', $request->qr_code)->firstOrFail();
+
+        // Preferência: validar somente contra o PIN do proprietário (owner)
+        $owner = TableParticipant::where('table_id', $table->id)->where('is_owner', true)->first();
+
+        if ($owner) {
+            $pinRecord = TableParticipantPin::where('table_participant_id', $owner->id)
+                ->where('pin', $request->pin)
+                ->where('status', 'active')
+                ->latest()
+                ->first();
+        } else {
+            // Fallback: aceitar PIN de qualquer participante da mesa (compatibilidade)
+            $pinRecord = TableParticipantPin::where('pin', $request->pin)
+                ->where('status', 'active')
+                ->whereHas('participant', function ($query) use ($table) {
+                    $query->where('table_id', $table->id);
+                })
+                ->latest()
+                ->first();
+        }
+
+        if (!$pinRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PIN incorreto.'
+            ], 401);
+        }
+
+        $sessionKey = 'table_' . $table->id . '_pin_validated';
+        $request->session()->put($sessionKey, true);
+
+        $pinRecord->update(['next_validate' => now()->addSeconds(30)]);
+        $request->session()->put('table_' . $table->id . '_authenticated', true);
+        $request->session()->put('table_' . $table->id . '_participant_id', $pinRecord->table_participant_id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'PIN validado!'
         ]);
     }
 
@@ -194,6 +247,11 @@ class MenuController extends Controller
         ]);
     }
 
+    private function generateParticipantPin(): string
+    {
+        return str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+    }
+
     public function addParticipant(Request $request)
     {
         $request->validate([
@@ -205,10 +263,19 @@ class MenuController extends Controller
 
         // Verifica se a senha foi validada, apenas quando a mesa tem senha.
         $passwordValidatedKey = 'table_' . $table->id . '_password_validated';
+        $pinValidatedKey = 'table_' . $table->id . '_pin_validated';
+
         if ($table->password && !$request->session()->get($passwordValidatedKey, false)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Senha não validada.'
+            ], 401);
+        }
+
+        if (!$table->password && !$request->session()->get($pinValidatedKey, false)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PIN não validado.'
             ], 401);
         }
 
@@ -224,6 +291,7 @@ class MenuController extends Controller
         $request->session()->put($sessionKey, true);
         $request->session()->put('table_' . $table->id . '_participant_id', $participant->id);
         $request->session()->forget($passwordValidatedKey);
+        $request->session()->forget($pinValidatedKey);
 
         return response()->json([
             'success' => true,
@@ -276,19 +344,24 @@ class MenuController extends Controller
 
         $hasParticipants = \App\Models\TableParticipant::where('table_id', $table->id)->exists();
         $participantName = null;
+        $pinValid = false;
 
-        if (!$hasPassword && $hasParticipants && !$isAuthenticated) {
-            $firstParticipant = \App\Models\TableParticipant::where('table_id', $table->id)
-                ->orderByDesc('is_owner')
-                ->first();
+        if ($hasParticipants && !$hasPassword) {
+            $owner = TableParticipant::where('table_id', $table->id)->where('is_owner', true)->first();
+            if ($owner) {
+                $activePin = TableParticipantPin::where('table_participant_id', $owner->id)
+                    ->where('status', 'active')
+                    ->whereNull('DeletionDate')
+                    ->latest()
+                    ->first();
 
-            if ($firstParticipant) {
-                $request->session()->put($sessionKey, true);
-                $request->session()->put($participantIdKey, $firstParticipant->id);
-                $isAuthenticated = true;
-                $participantName = $firstParticipant->name;
+                if ($activePin && $activePin->next_validate && now()->lessThanOrEqualTo($activePin->next_validate)) {
+                    $pinValid = true;
+                }
             }
         }
+
+        $requiresPinValidation = !$hasPassword && $hasParticipants && !$pinValid;
 
         if ($isAuthenticated && $participantId) {
             $participantName = \App\Models\TableParticipant::where('id', $participantId)
@@ -300,7 +373,49 @@ class MenuController extends Controller
             'has_password' => $hasPassword,
             'has_participants' => $hasParticipants,
             'is_authenticated' => $isAuthenticated,
+            'is_pin_validated' => $pinValid,
+            'requires_pin_validation' => $requiresPinValidation,
             'participant_name' => $participantName,
+        ]);
+    }
+
+    /**
+     * Request a new PIN for the table owner (creates a new PIN linked to owner participant)
+     */
+    public function requestNewPin(Request $request)
+    {
+        $request->validate([
+            'qr_code' => 'required|string',
+        ]);
+
+        $table = Table::where('qr_code', $request->qr_code)->firstOrFail();
+
+        // Find an owner participant if exists
+        $owner = TableParticipant::where('table_id', $table->id)->where('is_owner', true)->first();
+        if (!$owner) {
+            // fallback to first participant
+            $owner = TableParticipant::where('table_id', $table->id)->first();
+        }
+
+        if (!$owner) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nenhum participante encontrado para gerar PIN.'
+            ], 400);
+        }
+
+        $pin = $this->generateParticipantPin();
+        TableParticipantPin::create([
+            'table_participant_id' => $owner->id,
+            'pin' => $pin,
+            'status' => 'active',
+            'next_validate' => now()->addSeconds(30),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Novo PIN gerado.',
+            'pin' => $pin,
         ]);
     }
 }

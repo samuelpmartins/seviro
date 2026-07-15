@@ -82,6 +82,8 @@ Route::get('/table-orders/{qr_code}', function ($qrCode) {
 Route::middleware(['web'])->group(function () {
     Route::post('/table/create-password', [MenuController::class, 'createPassword']);
     Route::post('/table/validate-password', [MenuController::class, 'validatePassword']);
+    Route::post('/table/request-pin', [MenuController::class, 'requestNewPin']);
+    Route::post('/table/validate-pin', [MenuController::class, 'validatePin']);
     Route::post('/table/add-participant', [MenuController::class, 'addParticipant']);
     Route::get('/table/{qrCode}/participants', [MenuController::class, 'getParticipants']);
     Route::get('/table/{qrCode}/status', [MenuController::class, 'checkTableStatus']);
