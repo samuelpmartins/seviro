@@ -154,72 +154,71 @@ class Order extends Model
      */
     public static function generateOrderNumber($tableId): string
     {
-        // Se não tiver table_id (pedido de balcão)
-        if (empty($tableId) || $tableId === 0) {
-            // Tenta gerar um número único até conseguir
-            $maxAttempts = 100;
-            $attempt = 0;
+        // Use a tabela order_sequences para gerar um contador atômico por mesa (table_id)
+        // tableId null ou 0 => contador para balcão
+        $seqTableId = empty($tableId) ? null : $tableId;
 
-            do {
-                // Conta quantos pedidos de balcão já existem
-                $orderCount = self::whereNull('table_id')->count() + 1 + $attempt;
-
-                // Formata a ordem do pedido com 2 dígitos (ou mais se necessário)
-                $orderSequence = str_pad($orderCount, 2, '0', STR_PAD_LEFT);
-
-                // Gera no formato: BALA01
-                $orderNumber = 'BAL' . 'A' . $orderSequence;
-
-                // Verifica se já existe
-                $exists = self::where('order_number', $orderNumber)->exists();
-
-                if (!$exists) {
-                    return $orderNumber;
-                }
-
-                $attempt++;
-            } while ($attempt < $maxAttempts);
-
-            // Se não conseguiu gerar um número único, usa timestamp
-            return 'BAL' . 'A' . time();
-        }
-
-        // Pedido de mesa normal
-        $table = Table::find($tableId);
-
-        if (!$table) {
-            throw new \Exception('Mesa não encontrada');
-        }
-
-        // Formata o número da mesa com 2 dígitos (ou mais se necessário)
-        $tableNumber = str_pad($table->number, 2, '0', STR_PAD_LEFT);
-
-        // Tenta gerar um número único até conseguir
-        $maxAttempts = 100;
+        // Retry loop to handle concurrent inserts safely
+        $maxAttempts = 5;
         $attempt = 0;
 
         do {
-            // Conta quantos pedidos já existem para essa mesa
-            $orderCount = self::where('table_id', $tableId)->count() + 1 + $attempt;
+            try {
+                return DB::transaction(function () use ($seqTableId) {
+                    // Try to atomically increment existing row
+                    $updated = DB::table('order_sequences')->where('table_id', $seqTableId)->increment('last_sequence', 1);
 
-            // Formata a ordem do pedido com 2 dígitos (ou mais se necessário)
-            $orderSequence = str_pad($orderCount, 2, '0', STR_PAD_LEFT);
+                    if ($updated > 0) {
+                        // fetch the new value
+                        $row = DB::table('order_sequences')->where('table_id', $seqTableId)->lockForUpdate()->first();
+                        $next = intval($row->last_sequence);
+                    } else {
+                        // No row existed - attempt to insert starting with sequence 1
+                        try {
+                            $id = DB::table('order_sequences')->insertGetId([
+                                'table_id' => $seqTableId,
+                                'last_sequence' => 1,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
 
-            // Gera no formato: 06A02
-            $orderNumber = $tableNumber . 'A' . $orderSequence;
+                            $row = DB::table('order_sequences')->where('id', $id)->lockForUpdate()->first();
+                            $next = intval($row->last_sequence);
+                        } catch (\Exception $e) {
+                            // Insert conflict - another process created the row; throw to outer transaction to retry
+                            throw $e;
+                        }
+                    }
 
-            // Verifica se já existe
-            $exists = self::where('order_number', $orderNumber)->exists();
+                    // Build order number
+                    if (is_null($seqTableId)) {
+                        $orderSequence = str_pad($next, 2, '0', STR_PAD_LEFT);
+                        return 'BAL' . 'A' . $orderSequence;
+                    }
 
-            if (!$exists) {
-                return $orderNumber;
+                    $table = Table::find($seqTableId);
+                    if (!$table) {
+                        throw new \Exception('Mesa não encontrada');
+                    }
+
+                    $tableNumber = str_pad($table->number, 2, '0', STR_PAD_LEFT);
+                    $orderSequence = str_pad($next, 2, '0', STR_PAD_LEFT);
+                    // Prefix with store id to make order_number unique across stores
+                    $storePrefix = str_pad($table->store_id, 2, '0', STR_PAD_LEFT);
+                    return $storePrefix . '-' . $tableNumber . 'A' . $orderSequence;
+                });
+            } catch (\Exception $e) {
+                // If a unique constraint on table_id happened or other concurrency issue, retry
+                $attempt++;
+                if ($attempt >= $maxAttempts) {
+                    throw $e;
+                }
+                usleep(2000 * $attempt);
+                continue;
             }
-
-            $attempt++;
         } while ($attempt < $maxAttempts);
 
-        // Se não conseguiu gerar um número único, usa timestamp
-        return $tableNumber . 'A' . time();
+        throw new \Exception('Falha ao gerar order_number por causa de concorrência');
     }
 
     /**
