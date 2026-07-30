@@ -40,7 +40,7 @@ class QuickItemForWaiter extends Notification
     public function toArray(object $notifiable): array
     {
         $itemNames = implode(', ', array_column($this->quickItems, 'name'));
-        
+
         return [
             'type' => 'quick_item_waiter',
             'order_id' => $this->order->id,
@@ -48,7 +48,7 @@ class QuickItemForWaiter extends Notification
             'table_display' => $this->order->getTableDisplayName(),
             'quick_items' => $this->quickItems,
             'message' => "Pedido #{$this->order->order_number} com item rápido: {$itemNames}",
-            'created_at' => $this->order->created_at->toISOString(),
+            'created_at' => $this->order->created_at->toIso8601String(),
         ];
     }
 }

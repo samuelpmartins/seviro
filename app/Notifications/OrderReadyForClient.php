@@ -44,7 +44,7 @@ class OrderReadyForClient extends Notification
             'table_display' => $this->order->getTableDisplayName(),
             'total' => $this->order->total,
             'message' => "Seu pedido #{$this->order->order_number} está pronto! Retire no balcão.",
-            'created_at' => now()->toISOString(),
+            'created_at' => now()->toIso8601String(),
         ];
     }
 }

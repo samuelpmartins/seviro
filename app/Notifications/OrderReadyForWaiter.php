@@ -44,7 +44,7 @@ class OrderReadyForWaiter extends Notification
             'table_display' => $this->order->getTableDisplayName(),
             'total' => $this->order->total,
             'message' => "Pedido #{$this->order->order_number} pronto para servir - {$this->order->getTableDisplayName()}",
-            'created_at' => now()->toISOString(),
+            'created_at' => now()->toIso8601String(),
         ];
     }
 }

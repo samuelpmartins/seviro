@@ -231,7 +231,7 @@ class Order extends Model
      * @return self
      * @throws \Exception
      */
-    public static function createWithRetry(array $attributes, $maxAttempts = 5)
+    public static function createWithRetry(array $attributes, callable $callback = null, $maxAttempts = 5)
     {
         $attempt = 0;
 
@@ -241,8 +241,16 @@ class Order extends Model
             }
 
             try {
-                return DB::transaction(function () use ($attributes) {
-                    return self::create($attributes);
+                return DB::transaction(function () use ($attributes, $callback) {
+                    $order = self::create($attributes);
+
+                    if (is_callable($callback)) {
+                        $callback($order);
+                        // refresh to ensure relations are loaded if callback changed data
+                        $order->refresh();
+                    }
+
+                    return $order;
                 });
             } catch (QueryException $e) {
                 $isDuplicate = ($e->getCode() == '23000') || str_contains($e->getMessage(), 'Duplicate entry');
@@ -251,6 +259,8 @@ class Order extends Model
                     // Forçar nova geração no próximo loop
                     unset($attributes['order_number']);
                     $attempt++;
+                    // small sleep to reduce tight-loop collisions (only in PHP CLI/web, microseconds)
+                    usleep(1000 * $attempt);
                     continue;
                 }
 

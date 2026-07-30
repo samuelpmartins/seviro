@@ -45,7 +45,7 @@ class NewOrderForKitchen extends Notification
             'total' => $this->order->total,
             'items_count' => $this->order->items()->count(),
             'message' => "Novo pedido #{$this->order->order_number} - {$this->order->getTableDisplayName()}",
-            'created_at' => $this->order->created_at->toISOString(),
+            'created_at' => $this->order->created_at->toIso8601String(),
         ];
     }
 }

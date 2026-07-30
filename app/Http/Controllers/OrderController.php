@@ -72,22 +72,11 @@ class OrderController extends Controller
                 ];
             }
 
-            \Illuminate\Support\Facades\DB::beginTransaction();
-
-            // Gerar número do pedido (pode colidir em requisições simultâneas)
-            $orderNumber = \App\Models\Order::generateOrderNumber($tableId ?? 0);
-
-            // Validar que o número foi gerado corretamente
-            if (empty($orderNumber)) {
-                throw new \Exception('Não foi possível gerar o número do pedido');
-            }
-
             // Definir status inicial baseado em ter garçons ou não
             $initialStatus = $store->hasWaiters() ? 'Em produção' : 'Aguardando pagamento';
 
             // Criar o pedido com retry em caso de colisão no campo único
             $order = \App\Models\Order::createWithRetry([
-                'order_number' => $orderNumber,
                 'store_id' => $store->id,
                 'table_id' => $tableId,
                 'user_id' => $user ? $user->id : null,
@@ -96,21 +85,20 @@ class OrderController extends Controller
                 'payment_status' => 'pending',
                 'total' => $total,
                 'notes' => $request->notes
-            ]);
+            ], function ($order) use ($items, $request) {
+                // Criar itens dentro da mesma transação
+                foreach ($items as $item) {
+                    $order->items()->create($item);
+                }
 
-            foreach ($items as $item) {
-                $order->items()->create($item);
-            }
+                // Armazenar ID do pedido na sessão para rastreamento de notificações
+                $sessionOrderIds = $request->session()->get('client_order_ids', []);
+                $sessionOrderIds[] = $order->id;
+                $request->session()->put('client_order_ids', array_unique($sessionOrderIds));
 
-            \Illuminate\Support\Facades\DB::commit();
-
-            // Armazenar ID do pedido na sessão para rastreamento de notificações
-            $sessionOrderIds = $request->session()->get('client_order_ids', []);
-            $sessionOrderIds[] = $order->id;
-            $request->session()->put('client_order_ids', array_unique($sessionOrderIds));
-
-            // Disparar evento de pedido criado
-            event(new OrderCreated($order));
+                // Disparar evento de pedido criado
+                event(new OrderCreated($order));
+            });
 
             return response()->json([
                 'message' => 'Pedido criado com sucesso!',

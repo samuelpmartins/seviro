@@ -172,36 +172,41 @@ Route::middleware(['web'])->group(function () {
             }
             $orderAttributes['total'] = $total;
 
-            $order = Order::createWithRetry($orderAttributes);
+            $order = Order::createWithRetry($orderAttributes, function ($order) use ($allProducts, $request) {
+                // Adicionar os itens do pedido (salvando preço calculado e ingredientes selecionados no campo notes como JSON)
+                foreach ($allProducts as $data) {
+                    $item = $data['item'];
+                    $unitPrice = isset($data['computed_unit_price']) ? $data['computed_unit_price'] : floatval($data['product']->price);
 
-            // Adicionar os itens do pedido (salvando preço calculado e ingredientes selecionados no campo notes como JSON)
-            foreach ($allProducts as $data) {
-                $item = $data['item'];
-                $unitPrice = isset($data['computed_unit_price']) ? $data['computed_unit_price'] : floatval($data['product']->price);
+                    $notesPayload = $item['notes'] ?? null;
 
-                $notesPayload = $item['notes'] ?? null;
+                    $order->items()->create([
+                        'product_id' => $data['product']->id,
+                        'quantity' => $item['quantity'],
+                        'price' => $unitPrice,
+                        'notes' => $notesPayload,
+                    ]);
+                }
 
-                $order->items()->create([
-                    'product_id' => $data['product']->id,
-                    'quantity' => $item['quantity'],
-                    'price' => $unitPrice,
-                    'notes' => $notesPayload,
-                ]);
-            }
+                // Armazenar ID do pedido na sessão para rastreamento de notificações
+                $sessionOrderIds = $request->session()->get('client_order_ids', []);
+                $sessionOrderIds[] = $order->id;
+                $request->session()->put('client_order_ids', array_unique($sessionOrderIds));
 
-            // Armazenar ID do pedido na sessão para rastreamento de notificações
-            $sessionOrderIds = $request->session()->get('client_order_ids', []);
-            $sessionOrderIds[] = $order->id;
-            $request->session()->put('client_order_ids', array_unique($sessionOrderIds));
-
-            // Disparar evento de pedido criado (para notificações)
-            event(new \App\Events\OrderCreated($order));
+                // Disparar evento de pedido criado (para notificações)
+                event(new \App\Events\OrderCreated($order));
+            });
 
             return response()->json(['success' => true, 'order' => $order->load('items')], 201);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     });
+
+    // Push notifications endpoints
+    Route::post('/push/register', [NotificationController::class, 'registerDeviceToken']);
+    Route::post('/push/unregister', [NotificationController::class, 'unregisterDeviceToken']);
+    Route::post('/push/test', [NotificationController::class, 'sendTestPush']);
 
     // Rotas de pedidos (com suporte a sessão)
     Route::get('/tables/{id}/orders', function ($id, Request $request) {
