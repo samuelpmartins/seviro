@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 
 class Order extends Model
 {
@@ -218,5 +220,44 @@ class Order extends Model
 
         // Se não conseguiu gerar um número único, usa timestamp
         return $tableNumber . 'A' . time();
+    }
+
+    /**
+     * Cria um pedido com tentativas para evitar colisões de `order_number`.
+     * Em caso de constraint unique violada, refaz a geração do número e tenta novamente.
+     *
+     * @param array $attributes
+     * @param int $maxAttempts
+     * @return self
+     * @throws \Exception
+     */
+    public static function createWithRetry(array $attributes, $maxAttempts = 5)
+    {
+        $attempt = 0;
+
+        do {
+            if (empty($attributes['order_number'])) {
+                $attributes['order_number'] = self::generateOrderNumber($attributes['table_id'] ?? 0);
+            }
+
+            try {
+                return DB::transaction(function () use ($attributes) {
+                    return self::create($attributes);
+                });
+            } catch (QueryException $e) {
+                $isDuplicate = ($e->getCode() == '23000') || str_contains($e->getMessage(), 'Duplicate entry');
+
+                if ($isDuplicate && $attempt < $maxAttempts - 1) {
+                    // Forçar nova geração no próximo loop
+                    unset($attributes['order_number']);
+                    $attempt++;
+                    continue;
+                }
+
+                throw $e;
+            }
+        } while ($attempt < $maxAttempts);
+
+        throw new \Exception('Não foi possível criar pedido único após várias tentativas');
     }
 }

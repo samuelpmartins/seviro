@@ -134,15 +134,15 @@ Route::middleware(['web'])->group(function () {
                 $initialStatus = $store->hasWaiters() ? 'Em produção' : 'Aguardando pagamento';
             }
 
-            // Criar o pedido
-            $order = new Order();
-            $order->store_id = $validated['store_id'];
-            $order->table_id = $validated['table_id'] ?? null;
-            $order->participant_id = $participantId;
-            $order->status = $initialStatus;
-            $order->payment_status = Order::PAYMENT_STATUS_PENDING;
-            $order->notes = $validated['notes'] ?? null;
-
+            // Criar o pedido com retry para evitar colisões no order_number
+            $orderAttributes = [
+                'store_id' => $validated['store_id'],
+                'table_id' => $validated['table_id'] ?? null,
+                'participant_id' => $participantId,
+                'status' => $initialStatus,
+                'payment_status' => Order::PAYMENT_STATUS_PENDING,
+                'notes' => $validated['notes'] ?? null,
+            ];
             // Calcular o total usando ingredientes selecionados (segurança: servidor recalcula preço)
             $total = 0;
             foreach ($allProducts as $data) {
@@ -170,9 +170,9 @@ Route::middleware(['web'])->group(function () {
                 // store computed unit price for later item creation
                 $data['computed_unit_price'] = $unitPrice;
             }
-            $order->total = $total;
+            $orderAttributes['total'] = $total;
 
-            $order->save();
+            $order = Order::createWithRetry($orderAttributes);
 
             // Adicionar os itens do pedido (salvando preço calculado e ingredientes selecionados no campo notes como JSON)
             foreach ($allProducts as $data) {

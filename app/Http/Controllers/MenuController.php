@@ -209,7 +209,7 @@ class MenuController extends Controller
 
         $sessionKey = 'table_' . $table->id . '_pin_validated';
         $request->session()->put($sessionKey, true);
-
+    
         $pinRecord->update(['next_validate' => now()->addSeconds(30)]);
         $request->session()->put('table_' . $table->id . '_authenticated', true);
         $request->session()->put('table_' . $table->id . '_participant_id', $pinRecord->table_participant_id);

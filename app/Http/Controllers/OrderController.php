@@ -74,7 +74,7 @@ class OrderController extends Controller
 
             \Illuminate\Support\Facades\DB::beginTransaction();
 
-            // Gerar número do pedido
+            // Gerar número do pedido (pode colidir em requisições simultâneas)
             $orderNumber = \App\Models\Order::generateOrderNumber($tableId ?? 0);
 
             // Validar que o número foi gerado corretamente
@@ -85,8 +85,8 @@ class OrderController extends Controller
             // Definir status inicial baseado em ter garçons ou não
             $initialStatus = $store->hasWaiters() ? 'Em produção' : 'Aguardando pagamento';
 
-            // Criar o pedido
-            $order = new \App\Models\Order([
+            // Criar o pedido com retry em caso de colisão no campo único
+            $order = \App\Models\Order::createWithRetry([
                 'order_number' => $orderNumber,
                 'store_id' => $store->id,
                 'table_id' => $tableId,
@@ -97,8 +97,6 @@ class OrderController extends Controller
                 'total' => $total,
                 'notes' => $request->notes
             ]);
-
-            $order->save();
 
             foreach ($items as $item) {
                 $order->items()->create($item);
