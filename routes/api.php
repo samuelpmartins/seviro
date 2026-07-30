@@ -325,17 +325,8 @@ Route::middleware(['web'])->group(function () {
     Route::get('/tables/{table}/unpaid-orders', function ($tableId, Request $request) {
         $table = Table::findOrFail($tableId);
 
-        // Buscar todos os participant_ids ativos (participantes que ainda existem na mesa)
-        $activeParticipantIds = $table->participants()->pluck('id')->toArray();
-
-        // Se não há participantes ativos, retornar array vazio
-        if (empty($activeParticipantIds)) {
-            return response()->json(['orders' => []]);
-        }
-
-        // Filtrar apenas pedidos de participantes ativos (sessão atual)
+        // Buscar todos os pedidos pendentes da mesa, incluindo aqueles sem participant_id.
         $orders = Order::where('table_id', $table->id)
-            ->whereIn('participant_id', $activeParticipantIds)
             ->where('payment_status', Order::PAYMENT_STATUS_PENDING)
             ->with(['participant'])
             ->orderBy('created_at', 'desc')

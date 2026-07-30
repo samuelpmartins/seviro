@@ -163,6 +163,7 @@ class MenuController extends Controller
         $sessionKey = 'table_' . $table->id . '_authenticated';
         $request->session()->put($sessionKey, true);
         $request->session()->put('table_' . $table->id . '_participant_id', $participant->id);
+        $request->session()->put('table_' . $table->id . '_access_pin', $pin);
 
         return response()->json([
             'success' => true,
@@ -209,10 +210,10 @@ class MenuController extends Controller
 
         $sessionKey = 'table_' . $table->id . '_pin_validated';
         $request->session()->put($sessionKey, true);
-    
+
         $pinRecord->update(['next_validate' => now()->addSeconds(30)]);
-        $request->session()->put('table_' . $table->id . '_authenticated', true);
-        $request->session()->put('table_' . $table->id . '_participant_id', $pinRecord->table_participant_id);
+        $request->session()->forget('table_' . $table->id . '_authenticated');
+        $request->session()->forget('table_' . $table->id . '_participant_id');
 
         return response()->json([
             'success' => true,
@@ -361,7 +362,9 @@ class MenuController extends Controller
             }
         }
 
-        $requiresPinValidation = !$hasPassword && $hasParticipants && !$pinValid;
+        $pinValidatedInSession = $request->session()->get('table_' . $table->id . '_pin_validated', false);
+        $requiresPinValidation = !$hasPassword && $hasParticipants && !$pinValid && !$pinValidatedInSession;
+        $requiresParticipantName = $pinValidatedInSession && !$isAuthenticated;
 
         if ($isAuthenticated && $participantId) {
             $participantName = \App\Models\TableParticipant::where('id', $participantId)
@@ -375,6 +378,7 @@ class MenuController extends Controller
             'is_authenticated' => $isAuthenticated,
             'is_pin_validated' => $pinValid,
             'requires_pin_validation' => $requiresPinValidation,
+            'requires_participant_name' => $requiresParticipantName,
             'participant_name' => $participantName,
         ]);
     }
@@ -411,6 +415,8 @@ class MenuController extends Controller
             'status' => 'active',
             'next_validate' => now()->addSeconds(30),
         ]);
+
+        $request->session()->put('table_' . $table->id . '_access_pin', $pin);
 
         return response()->json([
             'success' => true,

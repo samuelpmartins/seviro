@@ -41,6 +41,9 @@
                         class="rounded-circle store-logo"
                         style="width: 80px; height: 80px; object-fit: cover; position: absolute; top: -40px; left: 50%; transform: translateX(-50%); border: 4px solid white; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);">
                 @endif
+                <p id="accessCodeLabel" class="mb-1"
+                    style="color: #555; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em; display: none;">Código
+                    de Acesso: <span id="accessCodeValue"></span></p>
                 <h1 class="mb-1" style="color: #333; font-weight: 700; font-size: 1.5rem;">{{ $store->name }}</h1>
                 @if ($store->description)
                     <p class="mb-0 small text-muted">{{ $store->description }}</p>
@@ -965,6 +968,12 @@
                 @else
                     null
                 @endif ;
+            const accessPin =
+                @if (isset($table) && session()->has('table_' . $table->id . '_access_pin'))
+                    '{{ session('table_' . $table->id . '_access_pin') }}'
+                @else
+                    null
+                @endif ;
             const isCounter =
                 @if (isset($isCounter) && $isCounter)
                     true
@@ -975,6 +984,16 @@
             // Carrinho
             let cart = [];
             let currentProduct = null;
+
+            // Exibir código de acesso se já estiver armazenado na sessão
+            if (accessPin) {
+                const accessCodeLabel = document.getElementById('accessCodeLabel');
+                const accessCodeValue = document.getElementById('accessCodeValue');
+                if (accessCodeLabel && accessCodeValue) {
+                    accessCodeValue.textContent = accessPin;
+                    accessCodeLabel.style.display = 'block';
+                }
+            }
 
             // Verificar autenticação da mesa
             @if (isset($table))
@@ -1012,19 +1031,19 @@
                             const authModalEl = document.getElementById('authModal');
                             const createStep = document.getElementById('createPasswordStep');
                             const validateStep = document.getElementById('validatePasswordStep');
+                            const validatePinStep = document.getElementById('validatePinStep');
                             const enterNameStep = document.getElementById('enterNameStep');
 
                             if (createStep) createStep.classList.add('d-none');
                             if (validateStep) validateStep.classList.add('d-none');
+                            if (validatePinStep) validatePinStep.classList.add('d-none');
                             if (enterNameStep) enterNameStep.classList.add('d-none');
                             const pinNoticeStep = document.getElementById('pinNoticeStep');
-                            const validatePinStep = document.getElementById('validatePinStep');
 
                             if (pinNoticeStep) pinNoticeStep.classList.add('d-none');
-                            if (validatePinStep) validatePinStep.classList.add('d-none');
 
                             if (!data.has_password && !data.has_participants) {
-                                // Primeira pessoa - criar senha
+                                // Primeira pessoa - criar senha e participante
                                 if (authModalEl) {
                                     showAuthModal();
                                     setTimeout(() => {
@@ -1035,7 +1054,7 @@
                                 }
                                 createStep.classList.remove('d-none');
                             } else if (data.requires_pin_validation) {
-                                // Mesa ocupada sem senha - validar PIN
+                                // Mesa ocupada sem senha - validar PIN para desbloquear nome
                                 if (authModalEl) {
                                     showAuthModal();
                                     setTimeout(() => {
@@ -1045,6 +1064,17 @@
                                     }, 150);
                                 }
                                 validatePinStep.classList.remove('d-none');
+                            } else if (data.requires_participant_name) {
+                                // PIN validado, mas ainda precisa digitar o nome do participante
+                                if (authModalEl) {
+                                    showAuthModal();
+                                    setTimeout(() => {
+                                        if (!authModalEl.classList.contains('show')) {
+                                            showAuthModal();
+                                        }
+                                    }, 150);
+                                }
+                                enterNameStep.classList.remove('d-none');
                             } else if (data.has_password) {
                                 // Demais pessoas - validar senha
                                 if (authModalEl) {
@@ -1099,6 +1129,8 @@
                         const enterNameStep = document.getElementById('enterNameStep');
                         const pinNoticeStep = document.getElementById('pinNoticeStep');
                         const generatedPinValue = document.getElementById('generatedPinValue');
+                        const accessCodeLabel = document.getElementById('accessCodeLabel');
+                        const accessCodeValue = document.getElementById('accessCodeValue');
 
                         if (data.success) {
                             if (data.pin) {
@@ -1110,6 +1142,10 @@
                                         generatedPinValue.textContent = data.pin;
                                     }
                                     pinNoticeStep.classList.remove('d-none');
+                                }
+                                if (accessCodeLabel && accessCodeValue) {
+                                    accessCodeValue.textContent = data.pin;
+                                    accessCodeLabel.style.display = 'block';
                                 }
                                 submitBtn.disabled = false;
                                 submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>Entrar';
@@ -1265,9 +1301,9 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            // PIN válido, autentica o participante existente e recarrega a mesa
-                            bootstrap.Modal.getInstance(document.getElementById('authModal')).hide();
-                            setTimeout(() => location.reload(), 300);
+                            // PIN válido, pedir para digitar o nome do participante
+                            document.getElementById('validatePinStep')?.classList.add('d-none');
+                            document.getElementById('enterNameStep')?.classList.remove('d-none');
                         } else {
                             errorDiv.textContent = data.message || 'PIN incorreto';
                             errorDiv.classList.remove('d-none');
@@ -1275,7 +1311,7 @@
                             submitBtn.innerHTML = '<i class="fas fa-unlock me-2"></i>Validar PIN';
 
                             const requestNewPinWrapper = document.getElementById(
-                            'requestNewPinWrapper');
+                                'requestNewPinWrapper');
                             if (requestNewPinWrapper) {
                                 requestNewPinWrapper.classList.remove('d-none');
                             }
@@ -1323,9 +1359,13 @@
                             const pinNoticeStep = document.getElementById('pinNoticeStep');
                             const generatedPinValue = document.getElementById('generatedPinValue');
                             const validatePinStep = document.getElementById('validatePinStep');
+                            const accessCodeLabel = document.getElementById('accessCodeLabel');
+                            const accessCodeValue = document.getElementById('accessCodeValue');
 
                             // Show generated PIN to the requester
                             if (generatedPinValue) generatedPinValue.textContent = data.pin;
+                            if (accessCodeValue) accessCodeValue.textContent = data.pin;
+                            if (accessCodeLabel) accessCodeLabel.style.display = 'block';
                             if (pinNoticeStep) pinNoticeStep.classList.remove('d-none');
                             if (validatePinStep) validatePinStep.classList.add('d-none');
                         } else {
@@ -2020,12 +2060,12 @@
                         return `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                                                                                        <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                                                                                                        ` : `
-                                                                                                                        <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                                                                        <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                                                                                                        </div>
-                                                                                                                        `}
+                                                                                                                                        <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                                                                                                                                        ` : `
+                                                                                                                                        <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                                                                                                        <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
+                                                                                                                                        </div>
+                                                                                                                                        `}
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
@@ -2215,22 +2255,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                                                                                                <small class="text-muted">
-                                                                                                                                                <i class="fas fa-user me-1"></i>
-                                                                                                                                                <strong>${order.participant_name}</strong>
-                                                                                                                                                </small>
-                                                                                                                                                ` : ''}
+                                                                                                                                                                <small class="text-muted">
+                                                                                                                                                                <i class="fas fa-user me-1"></i>
+                                                                                                                                                                <strong>${order.participant_name}</strong>
+                                                                                                                                                                </small>
+                                                                                                                                                                ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                                                                                                <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                <i class="fas fa-check-circle me-1"></i>Pago
-                                                                                                                                                </span>
-                                                                                                                                                ` : `
-                                                                                                                                                <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                <i class="fas fa-clock me-1"></i>Pendente
-                                                                                                                                                </span>
-                                                                                                                                                `}
+                                                                                                                                                                <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                                                                                                </span>
+                                                                                                                                                                ` : `
+                                                                                                                                                                <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                <i class="fas fa-clock me-1"></i>Pendente
+                                                                                                                                                                </span>
+                                                                                                                                                                `}
                                         <span class="badge" style="background: ${
                                             order.status === 'Finalizado' ? '#10b981' : 
                                             order.status === 'Em produção' ? '#f59e0b' : 
@@ -2243,11 +2283,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                                                                                            <div class="d-flex justify-content-between py-1">
-                                                                                                                                            <span>${item.quantity}x ${item.product_name}</span>
-                                                                                                                                            <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                                                                                            </div>
-                                                                                                                                            `).join('')}
+                                                                                                                                                            <div class="d-flex justify-content-between py-1">
+                                                                                                                                                            <span>${item.quantity}x ${item.product_name}</span>
+                                                                                                                                                            <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                                                                                            </div>
+                                                                                                                                                            `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">
