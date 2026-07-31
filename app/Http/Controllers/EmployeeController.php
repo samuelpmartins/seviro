@@ -216,7 +216,7 @@ class EmployeeController extends Controller
             // Se a mesa está desocupada (sem participantes), não mostrar pedidos
             if (!empty($activeParticipantIds)) {
                 $table->orders = Order::where('table_id', $table->id)
-                    ->whereNotIn('status', ['Cancelado'])
+                    ->whereIn('status', ['Aguardando pagamento', 'Em produção'])
                     ->where(function ($query) use ($activeParticipantIds) {
                         $query->whereIn('participant_id', $activeParticipantIds)
                             ->orWhereNull('participant_id');
@@ -297,7 +297,7 @@ class EmployeeController extends Controller
         // Se não tem participantes, não mostrar pedidos
         if (!empty($activeParticipantIds)) {
             $orders = Order::where('table_id', $table->id)
-                ->whereNotIn('status', ['Cancelado'])
+                ->whereIn('status', ['Aguardando pagamento', 'Em produção'])
                 ->where(function ($query) use ($activeParticipantIds) {
                     $query->whereIn('participant_id', $activeParticipantIds)
                         ->orWhereNull('participant_id');
