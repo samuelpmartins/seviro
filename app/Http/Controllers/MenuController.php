@@ -151,7 +151,7 @@ class MenuController extends Controller
             'table_participant_id' => $participant->id,
             'pin' => $pin,
             'status' => 'active',
-            'next_validate' => now()->addSeconds(30),
+            'next_validate' => now()->addSeconds(10),
         ]);
 
         $table->update([
@@ -413,7 +413,7 @@ class MenuController extends Controller
             'table_participant_id' => $owner->id,
             'pin' => $pin,
             'status' => 'active',
-            'next_validate' => now()->addSeconds(30),
+            'next_validate' => now()->addSeconds(10),
         ]);
 
         $request->session()->put('table_' . $table->id . '_access_pin', $pin);
