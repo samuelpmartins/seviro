@@ -122,19 +122,34 @@ class NotificationController extends Controller
         ];
 
         $printRequest = [
-            'PrinterAddress' => ($data['agent_model'] === 'Android') ? ($data['printer_address'] ?? '') : '',
+            'PrinterAddress' => $data['printer_address'],
             'Copies' => 1,
             'CutPaper' => true,
             'Content' => json_encode($printOrder, JSON_UNESCAPED_UNICODE),
         ];
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Payload de impressão preparado com sucesso.',
-            'printRequest' => $printRequest,
-            'agent_url' => $agentUrl,
-            'agent_model' => $data['agent_model'] ?? null,
-        ], 200);
+        try {
+            $response = Http::timeout(15)->post(rtrim($agentUrl, '/') . '/print', $printRequest);
+
+            if ($response->failed()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Falha ao enviar a impressão para o Agent.',
+                    'details' => $response->body()
+                ], $response->status() ?: 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Impressão enviada com sucesso.',
+                'agent_response' => $response->json()
+            ]);
+        } catch (\Throwable $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao enviar a impressão: ' . $exception->getMessage(),
+            ], 500);
+        }
     }
 
     /**
