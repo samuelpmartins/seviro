@@ -147,6 +147,8 @@ class NotificationSystem {
                 const body = await printResponse.text();
                 console.error('printOrder agent non-ok response', { orderId, status: printResponse.status, body });
                 throw new Error(`Falha ao imprimir no Agent: ${printResponse.status} ${body}`);
+            } else {
+                console.info(`Pedido ${orderId} enviado para impressão com sucesso.`);
             }
 
             return printResponse;
