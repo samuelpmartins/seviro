@@ -591,7 +591,7 @@
                     agentUrl: baseUrl,
                     connected: true,
                     agentModel: result.model,
-                    printerAddress: ''
+                    printerAddress: result.address || ''
                 });
 
                 if (result.model === 'Windows') {
