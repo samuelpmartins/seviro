@@ -159,6 +159,27 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Retorna o HTML parcial com a grid de pedidos (usado para polling via AJAX)
+     */
+    public function kitchenOrdersPartial()
+    {
+        $user = auth()->user();
+        $store = $user->workplace;
+
+        if (!$store) {
+            return response('', 204);
+        }
+
+        $orders = Order::where('store_id', $store->id)
+            ->whereIn('status', ['Aguardando pagamento', 'Em produção'])
+            ->with(['table', 'items.product', 'participant'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return view('kitchen._orders_grid', compact('orders'));
+    }
+
+    /**
      * Atualizar status do pedido pela cozinha
      */
     public function kitchenUpdateStatus(Request $request, Order $order)

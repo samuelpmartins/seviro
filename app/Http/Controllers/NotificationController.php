@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use App\Models\DeviceToken;
 use App\Services\PushService;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
@@ -47,8 +48,127 @@ class NotificationController extends Controller
     }
 
     /**
+     * Envia instrução de impressão para o Agent com os dados do pedido
+     */
+    public function printOrder(Request $request)
+    {
+        $data = $request->validate([
+            'order_id' => 'required|integer|exists:orders,id',
+            'agent_url' => 'nullable|url',
+            'agent_model' => 'nullable|string',
+            'printer_address' => 'nullable|string',
+        ]);
+
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuário não autenticado'
+            ], 401);
+        }
+
+        /** @var Order $order */
+        $order = Order::with(['items.product', 'table', 'participant' => function ($query) {
+            $query->withTrashed();
+        }, 'user'])->findOrFail($data['order_id']);
+
+        if ($user->store_id !== $order->store_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Não autorizado'
+            ], 403);
+        }
+
+        $agentUrl = $data['agent_url'] ?? config('app.printer_agent_base_url');
+        if (!$agentUrl) {
+            return response()->json([
+                'success' => false,
+                'message' => 'URL do Agent de impressão não configurada.'
+            ], 500);
+        }
+
+        $tableName = $order->table ? 'Mesa ' . $order->table->number : 'Balcão';
+        $participantName = $order->participant?->name ?? $order->user?->name ?? 'Sem participante';
+        $orderLabel = sprintf('%s - %s', $tableName, $participantName);
+        // avoid printing to output (which breaks JSON responses) — log instead
+        Log::debug('printOrder prepared label', ['order_id' => $order->id, 'label' => $orderLabel]);
+
+        $items = $order->items->map(function ($item) {
+            $observations = [];
+            if ($item->notes) {
+                $observations = array_filter(array_map('trim', preg_split('/\r?\n|;|\\|/', $item->notes)));
+                $observations = array_map([$this, 'normalizeText'], $observations);
+            }
+
+            $description = $item->product->name ?? $item->name ?? 'Item sem descrição';
+            $description = $this->normalizeText($description);
+
+            $result = [
+                'Quantity' => $item->quantity ?? 1,
+                'Description' => $description,
+            ];
+
+            if (!empty($observations)) {
+                $result['Observations'] = array_values($observations);
+            }
+
+            return $result;
+        })->all();
+
+        $printOrder = [
+            'OrderNumber' => $orderLabel,
+            'CreatedAt' => $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
+            'Items' => $items,
+        ];
+
+        $printRequest = [
+            'PrinterAddress' => ($data['agent_model'] === 'Android') ? ($data['printer_address'] ?? '') : '',
+            'Copies' => 1,
+            'CutPaper' => true,
+            'Content' => json_encode($printOrder, JSON_UNESCAPED_UNICODE),
+        ];
+
+        try {
+            $response = Http::timeout(15)->post(rtrim($agentUrl, '/') . '/print', $printRequest);
+
+            if ($response->failed()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Falha ao enviar a impressão para o Agent.',
+                    'details' => $response->body()
+                ], $response->status() ?: 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Impressão enviada com sucesso.',
+                'agent_response' => $response->json()
+            ]);
+        } catch (\Throwable $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao enviar a impressão: ' . $exception->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Marca uma notificação como lida
      */
+    private function normalizeText(string $text): string
+    {
+        // Remove acentuação e caracteres especiais, preservando letras, números e espaços.
+        if (class_exists('\Normalizer')) {
+            $text = \Normalizer::normalize($text, \Normalizer::FORM_D);
+            $text = preg_replace('/\p{M}/u', '', $text);
+        }
+
+        $text = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $text);
+        $text = preg_replace('/\s+/u', ' ', $text);
+
+        return trim($text);
+    }
+
     public function markAsRead(Request $request, $id)
     {
         $user = auth()->user();

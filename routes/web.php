@@ -142,6 +142,7 @@ Route::middleware(['auth', 'role:store'])->group(function () {
 // Rotas da Cozinha
 Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->name('kitchen.')->group(function () {
     Route::get('/dashboard', [EmployeeController::class, 'kitchenDashboard'])->name('dashboard');
+    Route::get('/orders/partial', [EmployeeController::class, 'kitchenOrdersPartial'])->name('orders.partial');
     Route::put('/orders/{order}/status', [EmployeeController::class, 'kitchenUpdateStatus'])->name('update-status');
 });
 

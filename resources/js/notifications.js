@@ -21,8 +21,172 @@ class NotificationSystem {
         this.audioContext = null;
         this.isAuthenticated = null; // Será determinado na primeira requisição
 
+        this.printerStorageKeys = {
+            agentUrl: 'kitchenPrinterAgentUrl',
+            agentModel: 'kitchenPrinterAgentModel',
+            printerAddress: 'kitchenPrinterAddress',
+            connected: 'kitchenPrinterConnected'
+        };
+
         // Inicializar ao carregar
         this.init();
+    }
+
+    /**
+     * Retorna a configuração de impressão armazenada no localStorage
+     */
+    getPrinterConfig() {
+        return {
+            agentUrl: localStorage.getItem(this.printerStorageKeys.agentUrl) || '',
+            agentModel: localStorage.getItem(this.printerStorageKeys.agentModel) || '',
+            printerAddress: localStorage.getItem(this.printerStorageKeys.printerAddress) || '',
+            connected: localStorage.getItem(this.printerStorageKeys.connected) === 'true'
+        };
+    }
+
+    // Acquire a short-lived print lock to avoid concurrent sends for same order
+    acquirePrintLock(orderId) {
+        const lockKey = `kitchenPrinting:${orderId}`;
+        try {
+            const now = Date.now();
+            const lockRaw = localStorage.getItem(lockKey);
+            if (lockRaw) {
+                const lockTs = parseInt(lockRaw, 10) || 0;
+                if (now - lockTs < 60000) return false; // locked
+            }
+            localStorage.setItem(lockKey, String(now));
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // mark that retry button was clicked once to prevent re-enabling after DOM refresh
+    markRetryClicked(orderId) {
+        try { localStorage.setItem(`kitchenRetryClicked:${orderId}`, 'true'); } catch (e) { /* ignore */ }
+    }
+
+    retryClicked(orderId) {
+        try { return localStorage.getItem(`kitchenRetryClicked:${orderId}`) === 'true'; } catch (e) { return false; }
+    }
+
+    clearRetryClicked(orderId) {
+        try { localStorage.removeItem(`kitchenRetryClicked:${orderId}`); } catch (e) { /* ignore */ }
+    }
+
+    /**
+     * Failed prints queue helpers (localStorage)
+     */
+    getFailedPrints() {
+        try {
+            const raw = localStorage.getItem('kitchenFailedPrints') || '[]';
+            return JSON.parse(raw);
+        } catch (e) {
+            return [];
+        }
+    }
+
+    addFailedPrint(orderId) {
+        const list = this.getFailedPrints();
+        if (!list.includes(orderId)) {
+            list.push(orderId);
+            localStorage.setItem('kitchenFailedPrints', JSON.stringify(list));
+        }
+    }
+
+    removeFailedPrint(orderId) {
+        let list = this.getFailedPrints();
+        list = list.filter(id => id !== orderId);
+        localStorage.setItem('kitchenFailedPrints', JSON.stringify(list));
+    }
+
+
+    async printOrder(orderId) {
+        const printerConfig = this.getPrinterConfig();
+
+        try {
+            const response = await fetch('/api/notifications/print', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    order_id: orderId,
+                    agent_url: printerConfig.agentUrl,
+                    agent_model: printerConfig.agentModel,
+                    printer_address: printerConfig.printerAddress,
+                })
+            });
+
+            if (response.status !== 200) {
+                const body = await response.text();
+                console.error('printOrder non-ok response', { orderId, status: response.status, body });
+                throw new Error(`Falha ao enviar impressão: ${response.status} ${body}`);
+            }
+
+            return response;
+        } catch (error) {
+            console.error('Erro ao chamar printOrder no backend:', error);
+            throw error;
+        }
+    }
+
+    async processNewOrderNotifications(notifications) {
+        for (const notification of notifications) {
+            const data = notification.data;
+            if (data.type === 'new_order_kitchen' && data.order_id) {
+                try {
+                    // Skip if already printed (local) to avoid duplicate prints
+                    try {
+                        const printedMap = JSON.parse(localStorage.getItem('kitchenPrintedOrders') || '{}');
+                        if (printedMap && printedMap[data.order_id]) {
+                            console.info(`Pedido ${data.order_id} já marcado como impresso (pulando).`);
+                            continue;
+                        }
+                    } catch (e) { /* ignore */ }
+
+                    // Skip if a recent print attempt is in progress
+                    try {
+                        const lockKey = `kitchenPrinting:${data.order_id}`;
+                        const lockRaw = localStorage.getItem(lockKey);
+                        if (lockRaw && (Date.now() - parseInt(lockRaw, 10) < 60000)) {
+                            console.info(`Pedido ${data.order_id} está em tentativa de impressão recente (pulando).`);
+                            continue;
+                        }
+                    } catch (e) { /* ignore */ }
+
+                    // Acquire lock to avoid duplicate concurrent prints for same order
+                    if (!this.acquirePrintLock(data.order_id)) {
+                        console.info(`Pedido ${data.order_id} já está em impressão recente, pulando.`);
+                        continue;
+                    }
+
+                    // Enviar apenas uma vez ao receber a notificação. Se retornar success=false,
+                    // registrar como falha para permitir reenvio manual via botão.
+                    try {
+                        const res = await this.printOrder(data.order_id);
+
+                        if (res && res.status === 200) {
+                            // success on initial notification: do nothing (no UI change, no cache)
+
+                        } else {
+                            // backend informou falha
+                            this.addFailedPrint(data.order_id);
+                            console.info(`Pedido ${data.order_id} adicionado à fila de falhas para reenvio manual.`);
+                        }
+                    } catch (err) {
+                        console.warn('Falha ao imprimir pedido via backend; marcando como falha para reenvio manual:', data.order_id, err);
+                        try { this.addFailedPrint(data.order_id); } catch (e) { /* ignore */ }
+                    }
+                } catch (error) {
+                    console.warn('Falha ao imprimir pedido via backend; marcando como falha para reenvio manual:', data.order_id, error);
+                    try { this.addFailedPrint(data.order_id); } catch (e) { /* ignore */ }
+                }
+            }
+        }
     }
 
     /**
@@ -35,8 +199,17 @@ class NotificationSystem {
         // Iniciar polling
         this.startPolling();
 
+        // Nota: não iniciar rotina de reenvio automática — reenvio manual somente via botão
+
         // Buscar notificações iniciais
         this.fetchNotifications();
+    }
+
+    /**
+     * Inicia um intervalo que tenta reenviar pedidos que falharam
+     */
+    startFailedPrintsRetry() {
+        // removed: automatic periodic re-send deprecated per spec
     }
 
     /**
@@ -203,10 +376,14 @@ class NotificationSystem {
             if (data.success && data.notifications && data.notifications.length > 0) {
                 // Verificar se há notificações novas
                 const newNotifications = this.filterNewNotifications(data.notifications);
+                console.debug('[NotificationSystem] notifications received', data.notifications, 'newNotifications', newNotifications);
 
                 if (newNotifications.length > 0) {
                     // Tocar som apenas para notificações novas
                     this.playNotificationSound();
+
+                    // Imprimir pedidos novos via backend
+                    this.processNewOrderNotifications(newNotifications);
 
                     // Mostrar popup da notificação mais recente
                     this.showNotificationPopup(newNotifications[0]);
@@ -998,6 +1175,10 @@ class NotificationSystem {
      */
     destroy() {
         this.stopPolling();
+        if (this._failedPrintsRetryInterval) {
+            clearInterval(this._failedPrintsRetryInterval);
+            this._failedPrintsRetryInterval = null;
+        }
         window.__notificationSystemInitialized = false;
         // NÃO remover o badge do DOM para evitar piscar
         // const badge = document.getElementById('notification-badge');

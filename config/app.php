@@ -57,6 +57,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'printer_agent_base_url' => env('PRINTER_AGENT_BASE_URL', ''),
+
     'asset_url' => env('ASSET_URL'),
 
     /*

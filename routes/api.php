@@ -354,6 +354,7 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/notifications/all', [NotificationController::class, 'all']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::post('/notifications/print', [NotificationController::class, 'printOrder']);
 
     // Rota para buscar detalhes de um pedido para usuários autenticados
     Route::get('/orders/{order}', function (Order $order) {
@@ -362,11 +363,17 @@ Route::middleware(['web', 'auth'])->group(function () {
             return response()->json(['success' => false, 'message' => 'Não autorizado'], 403);
         }
 
-        $orderData = $order->load(['items.product', 'table', 'participant', 'user']);
+        $orderData = $order->load(['items.product', 'table', 'participant' => function ($query) {
+            $query->withTrashed();
+        }, 'user']);
+
+        $orderArray = $orderData->toArray();
+        $orderArray['participant_name'] = $orderData->participant?->name;
+        $orderArray['table_display'] = $orderData->table ? 'Mesa ' . $orderData->table->number : 'Balcão';
 
         return response()->json([
             'success' => true,
-            'order' => $orderData
+            'order' => $orderArray
         ], 200);
     });
 });
