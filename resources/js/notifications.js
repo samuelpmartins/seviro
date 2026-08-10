@@ -128,34 +128,35 @@ class NotificationSystem {
             }
 
             const backendData = await backendResponse.json();
-            if (!backendData.success || !backendData.printRequest || !backendData.agent_url) {
-                console.error('printOrder backend returned invalid payload', backendData);
-                throw new Error(backendData.message || 'Resposta inválida do servidor de impressão');
-            }
 
-            const agentUrl = backendData.agent_url.replace(/\/+$/g, '');
-            const printResponse = await fetch(`${agentUrl}/print`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(backendData.printRequest)
-            });
+            return await this.sendPrint(backendData, orderId);
 
-            if (printResponse.status !== 200) {
-                const body = await printResponse.text();
-                console.error('printOrder agent non-ok response', { orderId, status: printResponse.status, body });
-                throw new Error(`Falha ao imprimir no Agent: ${printResponse.status} ${body}`);
-            } else {
-                console.info(`Pedido ${orderId} enviado para impressão com sucesso.`);
-            }
-
-            return printResponse;
         } catch (error) {
             console.error('Erro ao executar printOrder no frontend:', error);
             throw error;
         }
+    }
+
+    async sendPrint(backendData, orderId) {
+        const agentUrl = backendData.agent_url;
+        const printResponse = await fetch(`${agentUrl}/print`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(backendData.printRequest)
+        });
+
+        if (printResponse.status !== 200) {
+            const body = await printResponse.text();
+            console.error('printOrder agent non-ok response', { orderId, status: printResponse.status, body });
+            throw new Error(`Falha ao imprimir no Agent: ${printResponse.status} ${body}`);
+        } else {
+            console.info(`Pedido ${orderId} enviado para impressão com sucesso.`);
+        }
+
+        return printResponse;
     }
 
     async processNewOrderNotifications(notifications) {
