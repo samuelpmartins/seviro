@@ -131,9 +131,9 @@ class Payment extends Model
                 'payment_method' => $this->payment_method,
             ];
 
-            // Se o status for "Aguardando pagamento", muda para "Em produção"
+            // O pagamento não inicia a produção; a cozinha fará isso manualmente.
             if ($order->status === 'Aguardando pagamento') {
-                $updateData['status'] = 'Em produção';
+                $updateData['status'] = 'Aguardando produção';
             }
 
             $order->update($updateData);

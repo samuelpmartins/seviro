@@ -127,11 +127,11 @@ Route::middleware(['web'])->group(function () {
 
             // Definir status inicial
             if ($onlyQuickItems) {
-                // Pedido com apenas itens rápidos vai direto para "Finalizado"
-                $initialStatus = 'Finalizado';
+                // Itens rápidos também aguardam o início da produção quando há garçons.
+                $initialStatus = $store->hasWaiters() ? 'Aguardando produção' : 'Finalizado';
             } else {
-                // Pedido normal: baseado em ter garçons ou não
-                $initialStatus = $store->hasWaiters() ? 'Em produção' : 'Aguardando pagamento';
+                // Todo novo pedido aguarda o início da produção quando há garçons.
+                $initialStatus = $store->hasWaiters() ? 'Aguardando produção' : 'Aguardando pagamento';
             }
 
             // Criar o pedido com retry para evitar colisões no order_number
@@ -178,13 +178,20 @@ Route::middleware(['web'])->group(function () {
                     $item = $data['item'];
                     $unitPrice = isset($data['computed_unit_price']) ? $data['computed_unit_price'] : floatval($data['product']->price);
 
-                    $notesPayload = $item['notes'] ?? null;
+                    $notesPayload = [
+                        'notes' => $item['notes'] ?? null,
+                        'selected_ingredients' => collect($item['selected_ingredients'] ?? [])
+                            ->map(fn($ingredient) => [
+                                'id' => $ingredient['id'],
+                                'selected_amount' => $ingredient['selected_amount'],
+                            ])->values()->all(),
+                    ];
 
                     $order->items()->create([
                         'product_id' => $data['product']->id,
                         'quantity' => $item['quantity'],
                         'price' => $unitPrice,
-                        'notes' => $notesPayload,
+                        'notes' => json_encode($notesPayload, JSON_UNESCAPED_UNICODE),
                     ]);
                 }
 
@@ -240,12 +247,12 @@ Route::middleware(['web'])->group(function () {
                     'participant_name' => $order->participant ? $order->participant->name : 'Desconhecido',
                     'items' => $order->items->map(function ($item) {
                         $rawNotes = $item->notes;
-                        $decodedNotes = null;
+                        $decodedNotes = $rawNotes;
                         $selected = [];
                         if (!empty($rawNotes)) {
                             $tmp = json_decode($rawNotes, true);
-                            if (is_array($tmp)) {
-                                $decodedNotes = $tmp['notes'] ?? null;
+                            if (is_array($tmp) && array_key_exists('notes', $tmp)) {
+                                $decodedNotes = $tmp['notes'];
                                 $selected = $tmp['selected_ingredients'] ?? [];
                             }
                         }
@@ -368,6 +375,16 @@ Route::middleware(['web', 'auth'])->group(function () {
         }, 'user']);
 
         $orderArray = $orderData->toArray();
+        $orderArray['items'] = collect($orderArray['items'])->map(function ($item) {
+            $payload = json_decode($item['notes'] ?? '', true);
+            if (is_array($payload) && array_key_exists('notes', $payload)) {
+                $item['notes'] = $payload['notes'];
+                $item['selected_ingredients'] = $payload['selected_ingredients'] ?? [];
+            } else {
+                $item['selected_ingredients'] = [];
+            }
+            return $item;
+        })->values()->all();
         $orderArray['participant_name'] = $orderData->participant?->name;
         $orderArray['table_display'] = $orderData->table ? 'Mesa ' . $orderData->table->number : 'Balcão';
 

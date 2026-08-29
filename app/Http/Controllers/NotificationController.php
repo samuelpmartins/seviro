@@ -96,7 +96,11 @@ class NotificationController extends Controller
         $items = $order->items->map(function ($item) {
             $observations = [];
             if ($item->notes) {
-                $observations = array_filter(array_map('trim', preg_split('/\r?\n|;|\\|/', $item->notes)));
+                $itemNotes = json_decode($item->notes, true);
+                $itemNotes = is_array($itemNotes) && array_key_exists('notes', $itemNotes)
+                    ? ($itemNotes['notes'] ?? '')
+                    : $item->notes;
+                $observations = array_filter(array_map('trim', preg_split('/\r?\n|;|\\|/', $itemNotes)));
                 $observations = array_map([$this, 'normalizeText'], $observations);
             }
 
@@ -114,6 +118,32 @@ class NotificationController extends Controller
 
             return $result;
         })->all();
+
+        // Garantir índices contíguos (0..n-1) antes de usar count()-1 para obter último índice.
+        $items = array_values($items);
+
+        // If the user supplied general order notes, append them to the last item's
+        // `Observations` array (after items were mapped) so printing API remains unchanged.
+        if (!empty($order->notes)) {
+            $note = $this->normalizeText($order->notes);
+
+            if (!empty($items)) {
+                $lastIndex = count($items) - 1;
+                if (isset($items[$lastIndex]['Observations']) && is_array($items[$lastIndex]['Observations'])) {
+                    $items[$lastIndex]['Observations'][] = $note;
+                } else {
+                    $items[$lastIndex]['Observations'] = [$note];
+                }
+            } else {
+                // No items: create a dedicated item containing the order notes so the
+                // print API still receives Observations inside an item.
+                $items[] = [
+                    'Quantity' => 1,
+                    'Description' => $this->normalizeText('Observações do pedido'),
+                    'Observations' => [$note],
+                ];
+            }
+        }
 
         $printOrder = [
             'OrderNumber' => $orderLabel,

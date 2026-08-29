@@ -372,7 +372,7 @@
                 <div class="d-flex align-items-center gap-3">
                     <div class="refresh-indicator">
                         <i class="fas fa-sync-alt"></i>
-                        <span>Atualiza a cada 30s</span>
+                        <span>Atualiza a cada 10s</span>
                     </div>
                     <button type="button" class="btn btn-logout" data-bs-toggle="modal" data-bs-target="#printerConfigModal">
                         <i class="fas fa-print me-2"></i>Configurar Impressora
@@ -702,7 +702,7 @@
     <script>
         // Poll parcial de pedidos para atualizar a grid sem recarregar a página inteira
         const KITCHEN_PARTIAL_URL = '{{ route('kitchen.orders.partial') }}';
-        const KITCHEN_POLL_INTERVAL = 30000; // 30s
+        const KITCHEN_POLL_INTERVAL = 10000; // 10s
 
         function getPrintedOrders() {
             try {
@@ -732,7 +732,9 @@
         }
 
         function updateKitchenCounters() {
-            const waitingCount = document.querySelectorAll('.order-card[data-order-status="Aguardando pagamento"]').length;
+            const waitingCount = document.querySelectorAll(
+                '.order-card[data-order-status="Aguardando pagamento"], .order-card[data-order-status="Aguardando produção"]'
+            ).length;
             const productionCount = document.querySelectorAll('.order-card[data-order-status="Em produção"]').length;
             const waitingEl = document.querySelector('.orders-counter .counter-card.waiting h3');
             const productionEl = document.querySelector('.orders-counter .counter-card.production h3');

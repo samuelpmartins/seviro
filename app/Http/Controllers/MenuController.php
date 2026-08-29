@@ -280,12 +280,20 @@ class MenuController extends Controller
             ], 401);
         }
 
-        // Cria o participante
-        $participant = TableParticipant::create([
-            'table_id' => $table->id,
-            'name' => $request->name,
-            'is_owner' => false,
-        ]);
+        // Verifica se já existe um participante com o mesmo nome e sem DeletionDate (soft-deleted flag)
+        $participant = TableParticipant::where('table_id', $table->id)
+            ->where('name', $request->name)
+            ->whereNull('DeletionDate')
+            ->first();
+
+        // Se não existir, cria um novo participante
+        if (!$participant) {
+            $participant = TableParticipant::create([
+                'table_id' => $table->id,
+                'name' => $request->name,
+                'is_owner' => false,
+            ]);
+        }
 
         // Autentica na sessão
         $sessionKey = 'table_' . $table->id . '_authenticated';

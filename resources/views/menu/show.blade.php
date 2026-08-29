@@ -128,13 +128,6 @@
                                     {{ $product->name }}
                                 </h3>
 
-                                @if ($product->description)
-                                    <p class="product-description"
-                                        style="font-size: 0.85rem; color: #999; margin: 0 0 0.5rem 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-                                        {{ $product->description }}
-                                    </p>
-                                @endif
-
                                 @php
                                     $ingredientText = '';
                                     if (!empty($product->additionalIngredients)) {
@@ -153,9 +146,27 @@
                                                 ->implode(', ');
                                         }
                                     }
+                                    $displayDescription = $product->description ?: $ingredientText;
                                 @endphp
 
-                                @if ($ingredientText)
+                                @if ($displayDescription)
+                                    @if (Str::length($displayDescription) > 5)
+                                        <button type="button" class="product-description-more"
+                                            data-product-name="{{ $product->name }}"
+                                            data-product-description="{{ $displayDescription }}"
+                                            data-product-image="{{ $product->image ? asset('storage/' . $product->image) : '' }}"
+                                            data-product-price="R$ {{ number_format($product->price, 2, ',', '.') }}">
+                                            Ver mais
+                                        </button>
+                                    @else
+                                        <p class="product-description"
+                                            style="font-size: 0.85rem; color: #999; margin: 0 0 0.5rem 0;">
+                                            {{ $displayDescription }}
+                                        </p>
+                                    @endif
+                                @endif
+
+                                @if ($ingredientText && $product->description)
                                     <p class="product-ingredients"
                                         style="font-size: 0.8rem; color: #bbb; margin: 0 0 0.75rem 0;">
                                         {{ Str::limit($ingredientText, 60) }}
@@ -341,6 +352,24 @@
             </div>
         </div>
     </div>
+    </div>
+
+    <!-- Modal de visualização da descrição completa do produto -->
+    <div class="modal fade" id="productDescriptionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered product-description-modal-dialog">
+            <div class="modal-content product-description-modal-content">
+                <div class="product-description-modal-image" id="description-modal-image"></div>
+                <div class="product-description-modal-body">
+                    <h2 id="description-modal-name"></h2>
+                    <p id="description-modal-description"></p>
+                    <div class="product-description-modal-divider"></div>
+                    <div class="product-description-modal-price" id="description-modal-price"></div>
+                    <button type="button" class="btn product-description-modal-close" data-bs-dismiss="modal">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="panel-overlay"
@@ -552,6 +581,128 @@
 
         .product-item:active {
             background: #f0f0f0 !important;
+        }
+
+        .product-description-more {
+            width: 100%;
+            max-width: 100px;
+            padding: 0.2rem 0.6rem;
+            border: 1px solid #e6e6e6;
+            border-radius: 999px;
+            background: #f4f4f4;
+            color: #333;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .product-description-more:hover {
+            background: #eaeaea;
+            color: #333;
+        }
+
+        .product-description-modal-dialog {
+            width: calc(100% - 2rem) !important;
+            max-width: 420px !important;
+            margin: 1rem auto !important;
+        }
+
+        .product-description-modal-content {
+            width: 100%;
+            overflow: hidden;
+            border: none;
+            border-radius: 14px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
+            animation: productDescriptionModalIn 0.25s ease-out;
+        }
+
+        .product-description-modal-image {
+            height: 170px;
+            background: #f0f0f0;
+        }
+
+        .product-description-modal-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .product-description-modal-body {
+            padding: 1.25rem;
+        }
+
+        .product-description-modal-body h2 {
+            margin: 0 0 0.5rem;
+            color: #333;
+            font-size: 1.3rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .product-description-modal-body p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            white-space: pre-line;
+        }
+
+        .product-description-modal-divider {
+            height: 1px;
+            margin: 1rem 0;
+            background: #e6e6e6;
+        }
+
+        .product-description-modal-price {
+            margin-bottom: 1rem;
+            color: #333;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .product-description-modal-close {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: none;
+            border-radius: 10px;
+            background: #000;
+            color: #fff;
+            font-weight: 600;
+            transition: background 0.2s ease;
+        }
+
+        .product-description-modal-close:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        @keyframes productDescriptionModalIn {
+            from {
+                transform: translateY(12px) scale(0.98);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .product-description-modal-dialog {
+                width: calc(100% - 1.5rem) !important;
+                max-width: 360px !important;
+            }
+
+            .product-description-modal-image {
+                height: 145px;
+            }
+
+            .product-description-modal-body {
+                padding: 1rem;
+            }
         }
 
         /* Hover effect na parte esquerda do produto */
@@ -1412,6 +1563,43 @@
                 });
             });
 
+            // Abrir a descrição completa sem habilitar edição ou adição ao carrinho.
+            const descriptionModalElement = document.getElementById('productDescriptionModal');
+            const descriptionModal = descriptionModalElement && window.bootstrap ?
+                new bootstrap.Modal(descriptionModalElement) : null;
+            const descriptionModalImage = document.getElementById('description-modal-image');
+            const descriptionModalName = document.getElementById('description-modal-name');
+            const descriptionModalDescription = document.getElementById('description-modal-description');
+            const descriptionModalPrice = document.getElementById('description-modal-price');
+
+            document.querySelectorAll('.product-description-more').forEach(button => {
+                button.addEventListener('click', function(event) {
+                    event.stopPropagation();
+
+                    if (!descriptionModal) return;
+
+                    descriptionModalName.textContent = this.dataset.productName || '';
+                    descriptionModalDescription.textContent = this.dataset.productDescription || '';
+                    descriptionModalPrice.textContent = this.dataset.productPrice || '';
+                    descriptionModalImage.textContent = '';
+
+                    if (this.dataset.productImage) {
+                        const image = document.createElement('img');
+                        image.src = this.dataset.productImage;
+                        image.alt = this.dataset.productName || '';
+                        descriptionModalImage.appendChild(image);
+                    } else {
+                        const icon = document.createElement('i');
+                        icon.className = 'fas fa-utensils';
+                        icon.style.cssText =
+                            'display:flex;align-items:center;justify-content:center;height:100%;color:#ccc;font-size:3rem;';
+                        descriptionModalImage.appendChild(icon);
+                    }
+
+                    descriptionModal.show();
+                });
+            });
+
             // Fechar painel
             closePanel?.addEventListener('click', closeProductDetail);
             panelOverlay?.addEventListener('click', closeProductDetail);
@@ -2073,21 +2261,28 @@
                     cartItemsContainer.innerHTML = '<p class="text-muted text-center mb-0">Carrinho vazio</p>';
                 } else {
                     cartItemsContainer.innerHTML = cart.map((item, index) => {
-                        const addedHtml = (item.addedIngredients || []).length ?
+                        // Avoid duplicating observations: if the item's `notes` already contains
+                        // the summary text (Adicionados/Removidos), skip rendering the separate block.
+                        const notesText = (item.notes || '').toString();
+                        const notesContainsAdded = notesText.includes('Adicionados:');
+                        const notesContainsRemoved = notesText.includes('Removidos:');
+
+                        const addedHtml = (item.addedIngredients || []).length && !notesContainsAdded ?
                             `<div class="small text-success">Adicionados: ${item.addedIngredients.map(a => `${a.name} x${a.diff || 1}`).join('; ')}</div>` :
                             '';
-                        const removedHtml = (item.removedIngredients || []).length ?
+                        const removedHtml = (item.removedIngredients || []).length && !
+                            notesContainsRemoved ?
                             `<div class="small text-danger">Removidos: ${item.removedIngredients.map(r => `${r.name} x${r.diff || 1}`).join('; ')}</div>` :
                             '';
                         return `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                                                                                                                            <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                                                                                                                                            ` : `
-                                                                                                                                                            <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                                                                                                            <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                                                                                                                                            </div>
-                                                                                                                                                            `}
+                                                                                                                                                                                        <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                                                                                                                                                                                        ` : `
+                                                                                                                                                                                        <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                                                                                                                                                        <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
+                                                                                                                                                                                        </div>
+                                                                                                                                                                                        `}
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
@@ -2277,22 +2472,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                                                                                                                                    <small class="text-muted">
-                                                                                                                                                                                    <i class="fas fa-user me-1"></i>
-                                                                                                                                                                                    <strong>${order.participant_name}</strong>
-                                                                                                                                                                                    </small>
-                                                                                                                                                                                    ` : ''}
+                                                                                                                                                                                                                <small class="text-muted">
+                                                                                                                                                                                                                <i class="fas fa-user me-1"></i>
+                                                                                                                                                                                                                <strong>${order.participant_name}</strong>
+                                                                                                                                                                                                                </small>
+                                                                                                                                                                                                                ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                                                                                                                                    <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                    <i class="fas fa-check-circle me-1"></i>Pago
-                                                                                                                                                                                    </span>
-                                                                                                                                                                                    ` : `
-                                                                                                                                                                                    <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                    <i class="fas fa-clock me-1"></i>Pendente
-                                                                                                                                                                                    </span>
-                                                                                                                                                                                    `}
+                                                                                                                                                                                                                <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                                                                                                                                                </span>
+                                                                                                                                                                                                                ` : `
+                                                                                                                                                                                                                <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                <i class="fas fa-clock me-1"></i>Pendente
+                                                                                                                                                                                                                </span>
+                                                                                                                                                                                                                `}
                                         <span class="badge" style="background: ${
                                             order.status === 'Finalizado' ? '#10b981' : 
                                             order.status === 'Em produção' ? '#f59e0b' : 
@@ -2305,11 +2500,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                                                                                                                                <div class="d-flex justify-content-between py-1">
-                                                                                                                                                                                <span>${item.quantity}x ${item.product_name}</span>
-                                                                                                                                                                                <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                                                                                                                                </div>
-                                                                                                                                                                                `).join('')}
+                                                                                                                                                                                                            <div class="d-flex justify-content-between py-1">
+                                                                                                                                                                                                            <span>${item.quantity}x ${item.product_name}</span>
+                                                                                                                                                                                                            <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                            `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">

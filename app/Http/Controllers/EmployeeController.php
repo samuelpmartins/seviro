@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Table;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
@@ -150,7 +152,7 @@ class EmployeeController extends Controller
         }
 
         $orders = Order::where('store_id', $store->id)
-            ->whereIn('status', ['Aguardando pagamento', 'Em produção'])
+            ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção'])
             ->with(['table', 'items.product', 'participant'])
             ->orderBy('created_at', 'asc')
             ->get();
@@ -171,7 +173,7 @@ class EmployeeController extends Controller
         }
 
         $orders = Order::where('store_id', $store->id)
-            ->whereIn('status', ['Aguardando pagamento', 'Em produção'])
+            ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção'])
             ->with(['table', 'items.product', 'participant'])
             ->orderBy('created_at', 'asc')
             ->get();
@@ -193,8 +195,16 @@ class EmployeeController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|in:Em produção,Finalizado'
+            'status' => 'required|in:Aguardando produção,Em produção,Finalizado'
         ]);
+
+        if ($request->status === 'Em produção' && !in_array($order->status, ['Aguardando pagamento', 'Aguardando produção'])) {
+            return redirect()->back()->withErrors(['status' => 'Este pedido não está aguardando o início da produção.']);
+        }
+
+        if ($request->status === 'Finalizado' && $order->status !== 'Em produção') {
+            return redirect()->back()->withErrors(['status' => 'O pedido precisa estar em produção antes de ser finalizado.']);
+        }
 
         $oldStatus = $order->status;
         $order->update(['status' => $request->status]);
@@ -207,6 +217,124 @@ class EmployeeController extends Controller
         }
 
         return redirect()->back()->with('success', 'Status do pedido atualizado!');
+    }
+
+    /**
+     * Atualiza os itens de um pedido enquanto a cozinha ainda não iniciou a produção.
+     */
+    public function waiterUpdateOrder(Request $request, Order $order)
+    {
+        $store = auth()->user()->workplace;
+
+        if (!$store || $order->store_id !== $store->id) {
+            abort(403);
+        }
+
+        if ($order->status !== 'Aguardando produção') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este pedido não pode mais ser editado porque a produção já foi iniciada.'
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.notes' => 'nullable|string',
+            'notes' => 'nullable|string',
+            'items.*.selected_ingredients' => 'nullable|array',
+            'items.*.selected_ingredients.*.id' => 'required_with:items.*.selected_ingredients|integer|exists:product_ingredients,id',
+            'items.*.selected_ingredients.*.selected_amount' => 'required_with:items.*.selected_ingredients|integer|min:0',
+        ]);
+
+        $products = Product::where('store_id', $store->id)
+            ->where('active', true)
+            ->with('additionalIngredients')
+            ->whereIn('id', collect($validated['items'])->pluck('product_id'))
+            ->get()
+            ->keyBy('id');
+
+        $hasUnavailableProduct = collect($validated['items'])
+            ->contains(fn($item) => !$products->has($item['product_id']));
+
+        if ($hasUnavailableProduct) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Um ou mais produtos não estão disponíveis nesta loja.'
+            ], 422);
+        }
+
+        DB::transaction(function () use ($order, $validated, $products) {
+            $total = 0;
+
+            $order->items()->get()->each->delete();
+            foreach ($validated['items'] as $item) {
+                $product = $products->get($item['product_id']);
+                $unitPrice = (float) $product->price;
+                $selectedIngredients = [];
+
+                foreach ($item['selected_ingredients'] ?? [] as $selectedIngredient) {
+                    $ingredient = $product->additionalIngredients->firstWhere('id', $selectedIngredient['id']);
+                    if (!$ingredient) {
+                        continue;
+                    }
+
+                    $baseAmount = (int) $ingredient->amount_item;
+                    $selectedAmount = (int) $selectedIngredient['selected_amount'];
+                    $difference = $selectedAmount - $baseAmount;
+                    if ($difference > 0) {
+                        $unitPrice += $difference * (float) $ingredient->additional_price;
+                    }
+
+                    $selectedIngredients[] = [
+                        'id' => $ingredient->id,
+                        'name' => $ingredient->name,
+                        'baseAmount' => $baseAmount,
+                        'selectedAmount' => $selectedAmount,
+                        'diff' => $difference,
+                    ];
+                }
+
+                $total += $unitPrice * $item['quantity'];
+
+                $itemNotes = $item['notes'] ?? null;
+                if ($selectedIngredients) {
+                    $added = collect($selectedIngredients)->filter(fn($ingredient) => $ingredient['diff'] > 0)
+                        ->map(fn($ingredient) => ['name' => $ingredient['name'], 'diff' => $ingredient['diff']])->all();
+                    $removed = collect($selectedIngredients)->filter(fn($ingredient) => $ingredient['diff'] < 0)
+                        ->map(fn($ingredient) => ['name' => $ingredient['name'], 'diff' => abs($ingredient['diff'])])->all();
+                    $summary = collect([
+                        $added ? 'Adicionados: ' . collect($added)->map(fn($ingredient) => $ingredient['name'] . ' x' . $ingredient['diff'])->implode('; ') : null,
+                        $removed ? 'Removidos: ' . collect($removed)->map(fn($ingredient) => $ingredient['name'] . ' x' . $ingredient['diff'])->implode('; ') : null,
+                    ])->filter()->implode(' | ');
+                    $itemNotes = collect([$itemNotes, $summary])->filter()->implode(' | ') ?: null;
+                }
+
+                $order->items()->create([
+                    'product_id' => $product->id,
+                    'quantity' => $item['quantity'],
+                    'price' => $unitPrice,
+                    'notes' => json_encode([
+                        'notes' => $itemNotes,
+                        'selected_ingredients' => collect($selectedIngredients)->map(fn($ingredient) => [
+                            'id' => $ingredient['id'],
+                            'selected_amount' => $ingredient['selectedAmount'],
+                        ])->values()->all(),
+                    ], JSON_UNESCAPED_UNICODE),
+                ]);
+            }
+
+            $order->update([
+                'total' => $total,
+                'notes' => $validated['notes'] ?? null,
+            ]);
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pedido atualizado com sucesso.'
+        ]);
     }
 
     // ========== TELAS DO GARÇOM ==========
@@ -237,12 +365,12 @@ class EmployeeController extends Controller
             // Se a mesa está desocupada (sem participantes), não mostrar pedidos
             if (!empty($activeParticipantIds)) {
                 $table->orders = Order::where('table_id', $table->id)
-                    ->whereIn('status', ['Aguardando pagamento', 'Em produção'])
+                    ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção'])
                     ->where(function ($query) use ($activeParticipantIds) {
                         $query->whereIn('participant_id', $activeParticipantIds)
                             ->orWhereNull('participant_id');
                     })
-                    ->with(['items.product', 'participant'])
+                    ->with(['table', 'items.product', 'participant'])
                     ->orderBy('created_at', 'desc')
                     ->get();
             } else {
@@ -253,7 +381,13 @@ class EmployeeController extends Controller
             $table->unpaid_total = $table->orders->where('payment_status', 'pending')->sum('total');
         }
 
-        return view('waiter.dashboard', compact('tables', 'store'));
+        $availableProducts = Product::where('store_id', $store->id)
+            ->where('active', true)
+            ->with('additionalIngredients')
+            ->orderBy('name')
+            ->get(['id', 'name', 'price', 'ingredients']);
+
+        return view('waiter.dashboard', compact('tables', 'store', 'availableProducts'));
     }
 
     /**
@@ -318,12 +452,12 @@ class EmployeeController extends Controller
         // Se não tem participantes, não mostrar pedidos
         if (!empty($activeParticipantIds)) {
             $orders = Order::where('table_id', $table->id)
-                ->whereIn('status', ['Aguardando pagamento', 'Em produção'])
+                ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção'])
                 ->where(function ($query) use ($activeParticipantIds) {
                     $query->whereIn('participant_id', $activeParticipantIds)
                         ->orWhereNull('participant_id');
                 })
-                ->with(['items.product', 'participant'])
+                ->with(['table', 'items.product', 'participant'])
                 ->orderBy('created_at', 'desc')
                 ->get();
         } else {

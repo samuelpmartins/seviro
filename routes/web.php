@@ -28,6 +28,19 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Fallback para servir arquivos do storage sem depender de symlink simbólico
+Route::get('/storage/{path}', function (string $path) {
+    $baseDir = realpath(storage_path('app/public'));
+
+    abort_if($baseDir === false, 404);
+
+    $filePath = realpath($baseDir . DIRECTORY_SEPARATOR . str_replace(['../', '..\\'], '', $path));
+
+    abort_if($filePath === false || !str_starts_with($filePath, $baseDir), 404);
+
+    return response()->file($filePath);
+})->where('path', '.*');
+
 // Rotas protegidas por autenticação
 Route::middleware(['auth'])->group(function () {
     // Rota home para usuários comuns
@@ -151,6 +164,7 @@ Route::middleware(['auth', 'role:waiter'])->prefix('waiter')->name('waiter.')->g
     Route::get('/dashboard', [EmployeeController::class, 'waiterDashboard'])->name('dashboard');
     Route::get('/history', [EmployeeController::class, 'waiterHistory'])->name('history');
     Route::get('/table/{table}', [EmployeeController::class, 'waiterTableDetails'])->name('table-details');
+    Route::put('/orders/{order}', [EmployeeController::class, 'waiterUpdateOrder'])->name('orders.update');
     Route::post('/table/{table}/clear', [EmployeeController::class, 'waiterClearTable'])->name('table.clear');
     Route::post('/employee/{order}/mark-paid-cash', [EmployeeController::class, 'markAsPaidCash'])->name('employee.mark-paid-cash');
 });

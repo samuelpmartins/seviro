@@ -637,19 +637,20 @@
                                         <div class="order-mini" onclick="showOrderDetails({{ $order->id }})"
                                             style="cursor: pointer; transition: transform 0.2s;">
                                             <div class="order-mini-header">
-                                                <span class="order-mini-number">#{{ $order->order_number }}</span>
+                                                <span class="order-mini-number">
+                                                    {{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}
+                                                    @if ($order->participant)
+                                                        - {{ $order->participant->name }}
+                                                    @endif
+                                                </span>
                                                 <span
-                                                    class="order-mini-status {{ $order->status === 'Aguardando pagamento' ? 'waiting' : ($order->status === 'Em produção' ? 'production' : 'done') }}">
+                                                    class="order-mini-status {{ in_array($order->status, ['Aguardando pagamento', 'Aguardando produção']) ? 'waiting' : ($order->status === 'Em produção' ? 'production' : 'done') }}">
                                                     {{ $order->status }}
                                                 </span>
                                             </div>
                                             <div class="text-muted">
                                                 {{ $order->items->sum('quantity') }} itens - R$
                                                 {{ number_format($order->total, 2, ',', '.') }}
-                                                @if ($order->participant)
-                                                    <br><small><i
-                                                            class="fas fa-user me-1"></i>{{ $order->participant->name }}</small>
-                                                @endif
                                             </div>
                                         </div>
                                     @endforeach
@@ -708,10 +709,24 @@
     </div>
 
     <script>
-        // Auto-refresh a cada 30 segundos
-        setTimeout(function() {
-            location.reload();
-        }, 30000);
+        const waiterProducts = @json($availableProducts);
+
+        // Atualiza a cada 30 segundos, mas preserva o modal aberto para não interromper a edição.
+        function scheduleDashboardRefresh() {
+            setTimeout(function() {
+                const orderModal = document.getElementById('orderDetailsModal');
+                const modalIsOpen = orderModal?.classList.contains('show');
+
+                if (modalIsOpen) {
+                    scheduleDashboardRefresh();
+                    return;
+                }
+
+                location.reload();
+            }, 30000);
+        }
+
+        scheduleDashboardRefresh();
 
         // Função para mostrar detalhes do pedido
         async function showOrderDetails(orderId) {
@@ -843,11 +858,180 @@
             </div>
             
             <div class="order-details-footer">
+                ${order.status === 'Aguardando produção' ? `
+                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
+                                        <i class="fas fa-edit me-2"></i>Editar Pedido
+                                    </button>
+                                ` : ''}
                 <button class="btn-close-modal" onclick="closeOrderDetails()">
                     <i class="fas fa-times me-2"></i>Fechar
                 </button>
             </div>
         `;
+        }
+
+        function getEditProductIngredients(product) {
+            let ingredients = product.additional_ingredients || product.additionalIngredients || product.ingredients;
+            if (typeof ingredients === 'string') {
+                try {
+                    ingredients = JSON.parse(ingredients);
+                } catch (error) {
+                    ingredients = ingredients.split(',').map(name => ({
+                        name: name.trim(),
+                        amount_item: 0,
+                        additional_price: 0
+                    }));
+                }
+            }
+            if (!Array.isArray(ingredients)) return [];
+            return ingredients.map((ingredient, index) => ({
+                id: ingredient.id ?? ingredient.name ?? index,
+                name: ingredient.name ?? String(ingredient),
+                amount_item: Number(ingredient.amount_item) || 0,
+                additional_price: Number(ingredient.additional_price) || 0
+            })).filter(ingredient => Number.isInteger(Number(ingredient.id)) && Number(ingredient.id) > 0);
+        }
+
+        function renderEditIngredientControls(row, selectedValues = []) {
+            const product = waiterProducts.find(item => String(item.id) === String(row.querySelector('.edit-item-product')
+                .value));
+            const container = row.querySelector('.edit-item-ingredients');
+            if (!container || !product) return;
+
+            const selectedMap = new Map(selectedValues.map(item => [String(item.id), Number(item.selected_amount)]));
+            const ingredients = getEditProductIngredients(product);
+            container.innerHTML = ingredients.length ? ingredients.map(ingredient => `
+                <div class="edit-ingredient" data-ingredient-id="${ingredient.id}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;">
+                    <span style="font-size:.8rem;color:#666;">${ingredient.name} (+R$ ${ingredient.additional_price.toFixed(2).replace('.', ',')})</span>
+                    <input class="form-control form-control-sm edit-ingredient-quantity" type="number" min="0" value="${selectedMap.has(String(ingredient.id)) ? selectedMap.get(String(ingredient.id)) : ingredient.amount_item}" style="width:70px;">
+                </div>
+            `).join('') : '<small class="text-muted">Sem ingredientes configuráveis.</small>';
+        }
+
+        function setupEditItemRow(row, selectedValues = []) {
+            renderEditIngredientControls(row, selectedValues);
+            row.querySelector('.edit-item-product').addEventListener('change', () => renderEditIngredientControls(row));
+        }
+
+        function getEditSelectedIngredients(row) {
+            return [...row.querySelectorAll('.edit-ingredient')].map(ingredient => ({
+                id: Number(ingredient.dataset.ingredientId),
+                selected_amount: Number(ingredient.querySelector('.edit-ingredient-quantity').value) || 0
+            })).filter(ingredient => Number.isInteger(ingredient.id) && ingredient.id > 0);
+        }
+
+        function renderOrderEditForm(orderId) {
+            fetch(`/api/orders/${orderId}`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const order = data.order || data;
+                    const modal = document.querySelector('.order-details-content');
+                    const productOptions = waiterProducts.map(product =>
+                        `<option value="${product.id}">${product.name} - R$ ${parseFloat(product.price).toFixed(2).replace('.', ',')}</option>`
+                    ).join('');
+                    const itemRows = order.items.map((item, index) => `
+                        <div class="edit-order-item" data-item-index="${index}" style="display:grid;grid-template-columns:1fr 70px 34px;gap:8px;align-items:center;margin-bottom:10px;">
+                            <select class="form-select edit-item-product">${productOptions}</select>
+                            <input class="form-control edit-item-quantity" type="number" min="1" value="${item.quantity}">
+                            <button type="button" class="btn btn-outline-danger edit-remove-item" title="Remover item"><i class="fas fa-trash"></i></button>
+                            <textarea class="form-control edit-item-notes" rows="1" placeholder="Observação do item" style="grid-column:1 / -1;">${item.notes || ''}</textarea>
+                            <div class="edit-item-ingredients" style="grid-column:1 / -1;"></div>
+                        </div>
+                    `).join('');
+
+                    modal.innerHTML = `
+                        <div class="order-details-header">
+                            <h3>Editar Pedido #${order.order_number}</h3>
+                            <p style="margin:0;">Disponível somente enquanto estiver aguardando produção.</p>
+                        </div>
+                        <div class="order-details-body">
+                            <div class="order-info-section">
+                                <h4><i class="fas fa-receipt"></i> Itens do Pedido</h4>
+                                <div id="edit-order-items">${itemRows}</div>
+                                <button type="button" id="edit-add-item" class="btn btn-outline-primary w-100 mt-2">
+                                    <i class="fas fa-plus me-2"></i>Adicionar item
+                                </button>
+                            </div>
+                            <div class="order-info-section">
+                                <h4><i class="fas fa-sticky-note"></i> Observações do Pedido</h4>
+                                <textarea id="edit-order-notes" class="form-control" rows="3">${order.notes || ''}</textarea>
+                            </div>
+                        </div>
+                        <div class="order-details-footer">
+                            <button class="btn btn-success" onclick="saveOrderEdit(${order.id})">
+                                <i class="fas fa-save me-2"></i>Salvar
+                            </button>
+                            <button class="btn-close-modal" onclick="showOrderDetails(${order.id})">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </button>
+                        </div>
+                    `;
+
+                    modal.querySelectorAll('.edit-order-item').forEach((row, index) => {
+                        const item = order.items[index];
+                        row.querySelector('.edit-item-product').value = item.product_id;
+                        setupEditItemRow(row, item.selected_ingredients || []);
+                    });
+                    modal.querySelectorAll('.edit-remove-item').forEach(button => {
+                        button.addEventListener('click', () => button.closest('.edit-order-item').remove());
+                    });
+                    document.getElementById('edit-add-item').addEventListener('click', () => {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'edit-order-item';
+                        wrapper.style.cssText =
+                            'display:grid;grid-template-columns:1fr 70px 34px;gap:8px;align-items:center;margin-bottom:10px;';
+                        wrapper.innerHTML =
+                            `<select class="form-select edit-item-product">${productOptions}</select><input class="form-control edit-item-quantity" type="number" min="1" value="1"><button type="button" class="btn btn-outline-danger edit-remove-item" title="Remover item"><i class="fas fa-trash"></i></button><textarea class="form-control edit-item-notes" rows="1" placeholder="Observação do item" style="grid-column:1 / -1;"></textarea><div class="edit-item-ingredients" style="grid-column:1 / -1;"></div>`;
+                        setupEditItemRow(wrapper);
+                        wrapper.querySelector('.edit-remove-item').addEventListener('click', () => wrapper
+                            .remove());
+                        document.getElementById('edit-order-items').appendChild(wrapper);
+                    });
+                })
+                .catch(() => alert('Erro ao carregar o pedido para edição.'));
+        }
+
+        async function saveOrderEdit(orderId) {
+            const rows = [...document.querySelectorAll('.edit-order-item')];
+            if (!rows.length) {
+                alert('O pedido precisa ter ao menos um item.');
+                return;
+            }
+
+            const items = rows.map(row => ({
+                product_id: Number(row.querySelector('.edit-item-product').value),
+                quantity: Number(row.querySelector('.edit-item-quantity').value),
+                notes: row.querySelector('.edit-item-notes').value || null,
+                selected_ingredients: getEditSelectedIngredients(row)
+            }));
+            const response = await fetch(`/waiter/orders/${orderId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    items,
+                    notes: document.getElementById('edit-order-notes').value || null
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                alert(data.message || 'Não foi possível atualizar o pedido.');
+                return;
+            }
+
+            alert(data.message);
+            closeOrderDetails();
+            location.reload();
         }
 
         // Função para fechar o modal

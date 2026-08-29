@@ -266,9 +266,7 @@
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>Pedido</th>
-                                <th>Mesa</th>
-                                <th>Cliente</th>
+                                <th>Mesa / Participante</th>
                                 <th>Itens</th>
                                 <th>Total</th>
                                 <th>Status</th>
@@ -279,19 +277,14 @@
                         <tbody>
                             @foreach($orders as $order)
                                 <tr>
-                                    <td><strong>#{{ $order->order_number }}</strong></td>
                                     <td>
                                         @if($order->table)
-                                            Mesa {{ $order->table->number }}
+                                            <strong>Mesa {{ $order->table->number }}</strong>
                                         @else
-                                            <span class="badge bg-secondary">Balcão</span>
+                                            <strong>Balcão</strong>
                                         @endif
-                                    </td>
-                                    <td>
                                         @if($order->participant)
-                                            {{ $order->participant->name }}
-                                        @else
-                                            <span class="text-muted">-</span>
+                                            - {{ $order->participant->name }}
                                         @endif
                                     </td>
                                     <td>{{ $order->items->count() }} itens</td>
@@ -317,7 +310,12 @@
                                     <div class="modal-dialog">
                                         <div class="modal-content">
                                             <div class="modal-header">
-                                                <h5 class="modal-title">Pedido #{{ $order->order_number }}</h5>
+                                                <h5 class="modal-title">
+                                                    {{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}
+                                                    @if($order->participant)
+                                                        - {{ $order->participant->name }}
+                                                    @endif
+                                                </h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                             </div>
                                             <div class="modal-body">

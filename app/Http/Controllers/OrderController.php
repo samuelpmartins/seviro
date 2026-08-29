@@ -73,7 +73,7 @@ class OrderController extends Controller
             }
 
             // Definir status inicial baseado em ter garçons ou não
-            $initialStatus = $store->hasWaiters() ? 'Em produção' : 'Aguardando pagamento';
+            $initialStatus = $store->hasWaiters() ? 'Aguardando produção' : 'Aguardando pagamento';
 
             // Criar o pedido com retry em caso de colisão no campo único
             $order = \App\Models\Order::createWithRetry([
@@ -117,7 +117,7 @@ class OrderController extends Controller
         $this->authorize('update', $order);
 
         $request->validate([
-            'status' => 'required|in:Aguardando pagamento,Em produção,Finalizado,Cancelado'
+            'status' => 'required|in:Aguardando pagamento,Aguardando produção,Em produção,Finalizado,Cancelado'
         ]);
 
         $oldStatus = $order->status;

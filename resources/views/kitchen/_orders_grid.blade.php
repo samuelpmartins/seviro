@@ -1,7 +1,7 @@
 @if ($orders->count() > 0)
     <div class="orders-grid">
         @foreach ($orders as $order)
-            <div class="order-card {{ $order->status === 'Aguardando pagamento' ? 'waiting' : 'in-production' }}"
+            <div class="order-card {{ in_array($order->status, ['Aguardando pagamento', 'Aguardando produção']) ? 'waiting' : 'in-production' }}"
                 data-order-id="{{ $order->id }}" data-order-status="{{ $order->status }}">
                 <div class="order-card-header">
                     <div>
@@ -21,7 +21,7 @@
                         </span>
                         <div class="mt-2">
                             <span
-                                class="status-badge {{ $order->status === 'Aguardando pagamento' ? 'waiting' : 'in-production' }}">
+                                class="status-badge {{ in_array($order->status, ['Aguardando pagamento', 'Aguardando produção']) ? 'waiting' : 'in-production' }}">
                                 {{ $order->status }}
                             </span>
                             <!-- printed badge placeholder -->
@@ -52,9 +52,16 @@
                                             </span>
                                         @endif
                                     </div>
-                                    @if ($item->notes)
+                                    @php
+                                        $itemNotesPayload = json_decode($item->notes, true);
+                                        $displayItemNotes =
+                                            is_array($itemNotesPayload) && array_key_exists('notes', $itemNotesPayload)
+                                                ? $itemNotesPayload['notes']
+                                                : $item->notes;
+                                    @endphp
+                                    @if ($displayItemNotes)
                                         <div class="item-notes">
-                                            <i class="fas fa-comment me-1"></i>{{ $item->notes }}
+                                            <i class="fas fa-comment me-1"></i>{{ $displayItemNotes }}
                                         </div>
                                     @endif
                                 </div>
@@ -83,24 +90,26 @@
                 </div>
 
                 <div class="order-card-footer">
-                    @if ($order->status === 'Aguardando pagamento')
+                    @if (in_array($order->status, ['Aguardando pagamento', 'Aguardando produção']))
                         <form action="{{ route('kitchen.update-status', $order) }}" method="POST">
                             @csrf
                             @method('PUT')
                             <input type="hidden" name="status" value="Em produção">
                             <button type="submit" class="btn btn-production w-100">
-                                <i class="fas fa-fire me-2"></i>Iniciar Produção
+                                <i class="fas fa-play me-2"></i>Iniciar
                             </button>
                         </form>
                     @endif
-                    <form action="{{ route('kitchen.update-status', $order) }}" method="POST">
-                        @csrf
-                        @method('PUT')
-                        <input type="hidden" name="status" value="Finalizado">
-                        <button type="submit" class="btn btn-done w-100">
-                            <i class="fas fa-check me-2"></i>Finalizar
-                        </button>
-                    </form>
+                    @if ($order->status === 'Em produção')
+                        <form action="{{ route('kitchen.update-status', $order) }}" method="POST">
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="status" value="Finalizado">
+                            <button type="submit" class="btn btn-done w-100">
+                                <i class="fas fa-check me-2"></i>Finalizar
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         @endforeach
