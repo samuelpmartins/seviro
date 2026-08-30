@@ -194,6 +194,14 @@
 
                                         <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                                             @if (auth()->check())
+                                                @if (auth()->user() && auth()->user()->hasRole('waiter'))
+                                                    <a class="dropdown-item d-flex align-items-center"
+                                                        href="{{ route('waiter.dashboard') }}">
+                                                        <i class="fas fa-house me-2"></i>
+                                                        Dashboard
+                                                    </a>
+                                                @endif
+
                                                 <a class="dropdown-item d-flex align-items-center"
                                                     href="{{ route('orders.history') }}">
                                                     <i class="fas fa-history me-2"></i>
