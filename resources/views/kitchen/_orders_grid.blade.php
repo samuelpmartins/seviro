@@ -32,12 +32,17 @@
                 </div>
 
                 <div class="order-card-body">
-                    @if ($order->participant)
-                        <div class="order-customer">
-                            <i class="fas fa-user me-2"></i>
-                            <strong>{{ $order->participant->name }}</strong>
-                        </div>
-                    @endif
+                    @php
+                        $orderLabel = sprintf(
+                            '%s - %s',
+                            $order->table ? 'Mesa ' . $order->table->number : 'Balcão',
+                            $order->participant?->name ?? ($order->user?->name ?? 'Sem participante'),
+                        );
+                    @endphp
+                    <div class="order-customer">
+                        <i class="fas fa-user me-2"></i>
+                        <strong>{{ $orderLabel }}</strong>
+                    </div>
 
                     <ul class="order-items">
                         @foreach ($order->items as $item)

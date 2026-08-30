@@ -169,4 +169,11 @@ Route::middleware(['auth', 'role:waiter'])->prefix('waiter')->name('waiter.')->g
     Route::post('/employee/{order}/mark-paid-cash', [EmployeeController::class, 'markAsPaidCash'])->name('employee.mark-paid-cash');
 });
 
+// Downloads de APK da impressora
+Route::middleware(['auth'])->group(function () {
+    Route::get('/printer-apks/latest', [\App\Http\Controllers\PrinterApkController::class, 'latest'])->name('printer-apks.latest');
+    Route::get('/printer-apks/versions', [\App\Http\Controllers\PrinterApkController::class, 'versions'])->name('printer-apks.versions');
+    Route::get('/printer-apks/download/{folder}/{file}', [\App\Http\Controllers\PrinterApkController::class, 'download'])->name('printer-apks.download');
+});
+
 require __DIR__ . '/auth.php';

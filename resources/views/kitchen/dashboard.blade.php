@@ -411,9 +411,14 @@
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header align-items-center">
                     <h5 class="modal-title" id="printerConfigModalLabel">Configuração de Impressora</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    <div class="d-flex align-items-center gap-2 ms-auto">
+                        <button type="button" id="printer-apk-trigger-btn" class="btn btn-outline-dark btn-sm">
+                            Baixar APK
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     @php
@@ -451,6 +456,50 @@
                     <div id="printer-selected-info" class="alert alert-info d-none"></div>
 
                     <!-- (removed per-order failed list from printer modal) -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade printer-modal" id="printerApkModal" tabindex="-1" aria-labelledby="printerApkModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="printerApkModalLabel">Baixar APK</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="printer-apk-current" class="alert alert-light border mb-2">
+                        Carregando versão...
+                    </div>
+
+                    <div class="d-grid gap-2 mb-2">
+                        <a id="printer-apk-download" href="#" class="btn btn-success" download>
+                            <i class="fas fa-download me-2"></i>Baixar APK atual
+                        </a>
+                    </div>
+
+                    <div class="accordion accordion-flush" id="printerApkAccordion">
+                        <div class="accordion-item border-0">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed px-0" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#printerApkOldVersions" aria-expanded="false"
+                                    aria-controls="printerApkOldVersions" style="font-size: 0.95rem;">
+                                    Versões anteriores
+                                </button>
+                            </h2>
+                            <div id="printerApkOldVersions" class="accordion-collapse collapse"
+                                data-bs-parent="#printerApkAccordion">
+                                <div class="accordion-body px-0 pb-0">
+                                    <div id="printer-apk-old-list" class="list-group list-group-flush"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
@@ -640,6 +689,80 @@
             }
         }
 
+        async function loadPrinterApkVersions() {
+            const currentEl = document.getElementById('printer-apk-current');
+            const downloadLink = document.getElementById('printer-apk-download');
+            const oldList = document.getElementById('printer-apk-old-list');
+
+            if (!currentEl || !downloadLink || !oldList) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/printer-apks/versions', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    currentEl.textContent = 'Nenhum APK disponível no momento.';
+                    downloadLink.href = '#';
+                    downloadLink.classList.add('disabled');
+                    downloadLink.setAttribute('aria-disabled', 'true');
+                    oldList.innerHTML = '<div class="list-group-item text-muted">Sem versões antigas.</div>';
+                    return;
+                }
+
+                const data = await response.json();
+                const latest = data.latest;
+                const versions = Array.isArray(data.versions) ? data.versions : [];
+
+                if (!latest) {
+                    currentEl.textContent = 'Nenhum APK disponível.';
+                    downloadLink.href = '#';
+                    downloadLink.classList.add('disabled');
+                    downloadLink.setAttribute('aria-disabled', 'true');
+                    oldList.innerHTML = '<div class="list-group-item text-muted">Sem versões antigas.</div>';
+                    return;
+                }
+
+                currentEl.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span><strong>Versão atual:</strong> ${latest.version}</span>
+                        <small class="text-muted">${latest.name}</small>
+                    </div>
+                `;
+
+                downloadLink.href = latest.url;
+                downloadLink.classList.remove('disabled');
+                downloadLink.removeAttribute('aria-disabled');
+
+                const oldVersions = versions.filter(item => item.folder === 'olds');
+                if (oldVersions.length === 0) {
+                    oldList.innerHTML = '<div class="list-group-item text-muted">Sem versões antigas.</div>';
+                    return;
+                }
+
+                oldList.innerHTML = oldVersions.map(item => `
+                    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="${item.url}">
+                        <span>${item.version}</span>
+                        <small class="text-muted">${item.name}</small>
+                    </a>
+                `).join('');
+            } catch (error) {
+                console.error('Erro ao carregar APKs da impressora:', error);
+                currentEl.textContent = 'Não foi possível carregar as versões disponíveis.';
+                downloadLink.href = '#';
+                downloadLink.classList.add('disabled');
+                downloadLink.setAttribute('aria-disabled', 'true');
+                oldList.innerHTML = '<div class="list-group-item text-muted">Erro ao listar versões.</div>';
+            }
+        }
+
         function loadPrinterConfig() {
             const config = getPrinterConfig();
 
@@ -661,7 +784,7 @@
                 hidePrinterStatus();
             }
 
-            // pending prints list rendering removed from modal; indicators are per-order in grid
+            loadPrinterApkVersions();
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -673,6 +796,17 @@
             const printerModal = document.getElementById('printerConfigModal');
             if (printerModal) {
                 printerModal.addEventListener('shown.bs.modal', loadPrinterConfig);
+            }
+
+            const apkTriggerBtn = document.getElementById('printer-apk-trigger-btn');
+            const apkModalEl = document.getElementById('printerApkModal');
+
+            if (apkTriggerBtn && apkModalEl) {
+                apkTriggerBtn.addEventListener('click', function() {
+                    const apkModal = bootstrap.Modal.getOrCreateInstance(apkModalEl);
+                    apkModal.show();
+                });
+                apkModalEl.addEventListener('shown.bs.modal', loadPrinterApkVersions);
             }
 
             // Expose getFailedPrints globally for other scripts
@@ -774,9 +908,21 @@
 
                 if (retryBtn) {
                     retryBtn.onclick = async () => {
+                        if (window.notificationSystem && typeof window.notificationSystem.retryClicked ===
+                            'function' &&
+                            window.notificationSystem.retryClicked(oid)) {
+                            retryBtn.disabled = true;
+                            retryBtn.textContent = 'Falha';
+                            return;
+                        }
+
+                        if (window.notificationSystem && typeof window.notificationSystem
+                            .markRetryClicked === 'function') {
+                            window.notificationSystem.markRetryClicked(oid);
+                        }
+
                         // disable button after single click to avoid duplicates
                         retryBtn.disabled = true;
-
                         const original = retryBtn.textContent;
                         retryBtn.textContent = 'Enviando...';
                         try {
@@ -785,7 +931,11 @@
                                 const res = await window.notificationSystem.printOrder(oid);
 
                                 if (res && res.status === 200) {
-
+                                    retryBtn.textContent = 'Enviado';
+                                    if (window.notificationSystem && typeof window.notificationSystem
+                                        .clearRetryClicked === 'function') {
+                                        window.notificationSystem.clearRetryClicked(oid);
+                                    }
                                 } else {
                                     retryBtn.disabled = true;
                                     retryBtn.textContent = 'Falha';

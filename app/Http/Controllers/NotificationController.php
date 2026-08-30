@@ -70,7 +70,7 @@ class NotificationController extends Controller
         /** @var Order $order */
         $order = Order::with(['items.product', 'table', 'participant' => function ($query) {
             $query->withTrashed();
-        }, 'user'])->findOrFail($data['order_id']);
+        }, 'user', 'store'])->findOrFail($data['order_id']);
 
         if ($user->store_id !== $order->store_id) {
             return response()->json([
@@ -122,33 +122,34 @@ class NotificationController extends Controller
         // Garantir índices contíguos (0..n-1) antes de usar count()-1 para obter último índice.
         $items = array_values($items);
 
-        // If the user supplied general order notes, append them to the last item's
-        // `Observations` array (after items were mapped) so printing API remains unchanged.
+        $orderOBS = [];
         if (!empty($order->notes)) {
             $note = $this->normalizeText($order->notes);
 
-            if (!empty($items)) {
-                $lastIndex = count($items) - 1;
-                if (isset($items[$lastIndex]['Observations']) && is_array($items[$lastIndex]['Observations'])) {
-                    $items[$lastIndex]['Observations'][] = $note;
-                } else {
-                    $items[$lastIndex]['Observations'] = [$note];
-                }
+            if (!empty($note)) {
+                $orderOBS = [
+                    "Title" => "Observações do pedido",
+                    "Description" => $note
+                ];
             } else {
-                // No items: create a dedicated item containing the order notes so the
-                // print API still receives Observations inside an item.
-                $items[] = [
-                    'Quantity' => 1,
-                    'Description' => $this->normalizeText('Observações do pedido'),
-                    'Observations' => [$note],
+                $orderOBS = [
+                    "Title" => "Observações do pedido",
+                    "Description" => "Sem observações"
                 ];
             }
+        } else {
+            $orderOBS = [
+                "Title" => "Observações do pedido",
+                "Description" => "Sem observações"
+            ];
         }
 
         $printOrder = [
+            'NameRestaurant' => $order->store?->name ?? 'Restaurante',
             'OrderNumber' => $orderLabel,
             'CreatedAt' => $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
             'Items' => $items,
+            'Observations' => $orderOBS,
         ];
 
         $printRequest = [
