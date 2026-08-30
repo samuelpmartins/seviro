@@ -108,124 +108,127 @@
 
 <body>
     <div id="app">
-        <nav class="navbar navbar-expand-md shadow-sm">
-            <div class="container">
-                @if (isset($logoClickable) && !$logoClickable)
-                    <span class="navbar-brand" style="cursor: default;">
-                        @auth
-                            @role('store')
-                                <img src="{{ asset('storage/img/logo.png') }}" alt="{{ auth()->user()->store->name }}"
-                                    style="height: 36px; width: auto; object-fit: contain;">
+        @if (!Route::is('menu.show'))
+            <nav class="navbar navbar-expand-md shadow-sm">
+                <div class="container">
+                    @if (isset($logoClickable) && !$logoClickable)
+                        <span class="navbar-brand" style="cursor: default;">
+                            @auth
+                                @role('store')
+                                    <img src="{{ asset('storage/img/logo.png') }}" alt="{{ auth()->user()->store->name }}"
+                                        style="height: 36px; width: auto; object-fit: contain;">
+                                @else
+                                    <img src="{{ asset('storage/img/logo.png') }}" alt="{{ config('app.name', 'Laravel') }}"
+                                        style="height: 36px; width: auto; object-fit: contain;">
+                                @endrole
                             @else
                                 <img src="{{ asset('storage/img/logo.png') }}" alt="{{ config('app.name', 'Laravel') }}"
                                     style="height: 36px; width: auto; object-fit: contain;">
-                            @endrole
-                        @else
-                            <img src="{{ asset('storage/img/logo.png') }}" alt="{{ config('app.name', 'Laravel') }}"
-                                style="height: 36px; width: auto; object-fit: contain;">
-                        @endauth
-                    </span>
-                @else
-                    <a class="navbar-brand"
-                        href="@auth @role('store') {{ route('store.manage') }} @else {{ url('/') }} @endrole @else {{ url('/') }} @endauth">
-                        @auth
-                            @role('store')
-                                <img src="{{ asset('storage/img/logo.png') }}" alt="{{ auth()->user()->store->name }}"
-                                    style="height: 36px; width: auto; object-fit: contain;">
+                            @endauth
+                        </span>
+                    @else
+                        <a class="navbar-brand"
+                            href="@auth @role('store') {{ route('store.manage') }} @else {{ url('/') }} @endrole @else {{ url('/') }} @endauth">
+                            @auth
+                                @role('store')
+                                    <img src="{{ asset('storage/img/logo.png') }}" alt="{{ auth()->user()->store->name }}"
+                                        style="height: 36px; width: auto; object-fit: contain;">
+                                @else
+                                    <img src="{{ asset('storage/img/logo.png') }}" alt="{{ config('app.name', 'Laravel') }}"
+                                        style="height: 36px; width: auto; object-fit: contain;">
+                                @endrole
                             @else
                                 <img src="{{ asset('storage/img/logo.png') }}" alt="{{ config('app.name', 'Laravel') }}"
                                     style="height: 36px; width: auto; object-fit: contain;">
-                            @endrole
-                        @else
-                            <img src="{{ asset('storage/img/logo.png') }}" alt="{{ config('app.name', 'Laravel') }}"
-                                style="height: 36px; width: auto; object-fit: contain;">
-                        @endauth
-                    </a>
-                @endif
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
-                    aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+                            @endauth
+                        </a>
+                    @endif
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
 
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <!-- Left Side Of Navbar -->
-                    <ul class="navbar-nav me-auto">
-                        @auth('admin')
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ route('admin.dashboard') }}">Painel</a>
-                            </li>
-                        @endauth
-
-                        @auth
-                            @role('store')
+                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                        <!-- Left Side Of Navbar -->
+                        <ul class="navbar-nav me-auto">
+                            @auth('admin')
                                 <li class="nav-item">
-                                    <a class="nav-link" href="{{ route('store.manage') }}">Dashboard</a>
+                                    <a class="nav-link" href="{{ route('admin.dashboard') }}">Painel</a>
                                 </li>
-                            @endrole
-                        @endauth
-                    </ul>
+                            @endauth
 
-                    <!-- Right Side Of Navbar -->
-                    <ul class="navbar-nav ms-auto">
-                        <!-- Authentication Links -->
-                        @if (!Route::is('admin.login') && !Route::is('admin.first-access'))
-                            @if (!auth('admin')->check() && !auth()->check())
-                                @if (Route::has('login'))
+                            @auth
+                                @role('store')
                                     <li class="nav-item">
-                                        <a class="nav-link" href="{{ route('login') }}">{{ __('Login') }}</a>
+                                        <a class="nav-link" href="{{ route('store.manage') }}">Dashboard</a>
                                     </li>
-                                @endif
+                                @endrole
+                            @endauth
+                        </ul>
 
-                                @if (Route::has('register'))
-                                    <li class="nav-item">
-                                        <a class="nav-link" href="{{ route('register') }}">{{ __('Register') }}</a>
-                                    </li>
-                                @endif
-                            @else
-                                <li class="nav-item dropdown">
-                                    <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#"
-                                        role="button" data-bs-toggle="dropdown" aria-haspopup="true"
-                                        aria-expanded="false">
-                                        {{ auth('admin')->check() ? auth('admin')->user()->name : auth()->user()->name }}
-                                    </a>
+                        <!-- Right Side Of Navbar -->
+                        <ul class="navbar-nav ms-auto">
+                            <!-- Authentication Links -->
+                            @if (!Route::is('admin.login') && !Route::is('admin.first-access'))
+                                @if (!auth('admin')->check() && !auth()->check())
+                                    @if (Route::has('login'))
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{{ route('login') }}">{{ __('Login') }}</a>
+                                        </li>
+                                    @endif
 
-                                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                        @if (auth()->check())
-                                            <a class="dropdown-item d-flex align-items-center"
-                                                href="{{ route('orders.history') }}">
-                                                <i class="fas fa-history me-2"></i>
-                                                Meus Pedidos
-                                            </a>
-
-                                            <a class="dropdown-item d-flex align-items-center"
-                                                href="{{ route('profile.edit') }}">
-                                                <i class="fas fa-user me-2"></i>
-                                                Perfil
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                        @endif
-
-                                        <a class="dropdown-item"
-                                            href="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
-                                            onclick="event.preventDefault();
-                                                         document.getElementById('logout-form').submit();">
-                                            {{ __('Logout') }}
+                                    @if (Route::has('register'))
+                                        <li class="nav-item">
+                                            <a class="nav-link"
+                                                href="{{ route('register') }}">{{ __('Register') }}</a>
+                                        </li>
+                                    @endif
+                                @else
+                                    <li class="nav-item dropdown">
+                                        <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#"
+                                            role="button" data-bs-toggle="dropdown" aria-haspopup="true"
+                                            aria-expanded="false">
+                                            {{ auth('admin')->check() ? auth('admin')->user()->name : auth()->user()->name }}
                                         </a>
 
-                                        <form id="logout-form"
-                                            action="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
-                                            method="POST" class="d-none">
-                                            @csrf
-                                        </form>
-                                    </div>
-                                </li>
+                                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                                            @if (auth()->check())
+                                                <a class="dropdown-item d-flex align-items-center"
+                                                    href="{{ route('orders.history') }}">
+                                                    <i class="fas fa-history me-2"></i>
+                                                    Meus Pedidos
+                                                </a>
+
+                                                <a class="dropdown-item d-flex align-items-center"
+                                                    href="{{ route('profile.edit') }}">
+                                                    <i class="fas fa-user me-2"></i>
+                                                    Perfil
+                                                </a>
+                                                <div class="dropdown-divider"></div>
+                                            @endif
+
+                                            <a class="dropdown-item"
+                                                href="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
+                                                onclick="event.preventDefault();
+                                                         document.getElementById('logout-form').submit();">
+                                                {{ __('Logout') }}
+                                            </a>
+
+                                            <form id="logout-form"
+                                                action="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
+                                                method="POST" class="d-none">
+                                                @csrf
+                                            </form>
+                                        </div>
+                                    </li>
+                                @endif
                             @endif
-                        @endif
-                    </ul>
+                        </ul>
+                    </div>
                 </div>
-            </div>
-        </nav>
+            </nav>
+        @endif
 
         <main style="padding: 0;">
             @yield('content')
