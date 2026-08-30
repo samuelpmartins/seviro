@@ -30,8 +30,8 @@ class StoreController extends Controller
             'phone' => 'required|string|max:20',
             'address' => 'required|string|max:255',
             'document' => 'required|string|max:20|unique:stores,document',
-            'cover_image' => 'nullable|image|max:2048',
-            'logo' => 'nullable|image|max:2048',
+            'cover_image' => 'nullable|image|max:10240',
+            'logo' => 'nullable|image|max:10240',
         ]);
 
         // Criar usuário
@@ -175,8 +175,8 @@ class StoreController extends Controller
             'phone' => 'required|string|max:20',
             'address' => 'required|string|max:255',
             'document' => 'required|string|max:20|unique:stores,document,' . $store->id,
-            'cover_image' => 'nullable|image|max:2048',
-            'logo' => 'nullable|image|max:2048',
+            'cover_image' => 'nullable|image|max:10240',
+            'logo' => 'nullable|image|max:10240',
         ]);
 
         // Upload de imagens
@@ -257,8 +257,8 @@ class StoreController extends Controller
             'phone' => 'required|string|max:20',
             'address' => 'required|string|max:255',
             'document' => 'required|string|max:20|unique:stores,document,' . $store->id,
-            'cover_image' => 'nullable|image|max:2048',
-            'logo' => 'nullable|image|max:2048',
+            'cover_image' => 'nullable|image|max:10240',
+            'logo' => 'nullable|image|max:10240',
         ]);
 
         // Upload de imagens
