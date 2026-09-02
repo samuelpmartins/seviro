@@ -162,6 +162,8 @@ Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->name('kitchen.')
 // Rotas do Garçom
 Route::middleware(['auth', 'role:waiter'])->prefix('waiter')->name('waiter.')->group(function () {
     Route::get('/dashboard', [EmployeeController::class, 'waiterDashboard'])->name('dashboard');
+    Route::post('/start-attending', [EmployeeController::class, 'startAttending'])->name('start-attending');
+    Route::post('/stop-attending', [EmployeeController::class, 'stopAttending'])->name('stop-attending');
     Route::get('/history', [EmployeeController::class, 'waiterHistory'])->name('history');
     Route::get('/table/{table}', [EmployeeController::class, 'waiterTableDetails'])->name('table-details');
     Route::put('/orders/{order}', [EmployeeController::class, 'waiterUpdateOrder'])->name('orders.update');

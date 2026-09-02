@@ -6,6 +6,7 @@ use App\Events\OrderStatusChanged;
 use App\Models\User;
 use App\Notifications\OrderReadyForWaiter;
 use App\Notifications\OrderReadyForClient;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,32 +28,35 @@ class NotifyOrderFinished
 
         $order = $event->order;
         $store = $order->store;
+        // TableParticipant não possui relação "user"; o acesso abaixo sempre resulta em null.
+        $order->loadMissing('user.pushSubscriptions', 'participant');
 
         // Buscar garçons da loja
         $waiters = User::where('store_id', $store->id)
             ->whereHas('roles', function ($query) {
                 $query->where('name', 'waiter');
             })
+            ->with('pushSubscriptions')
             ->get();
 
         $hasWaiters = $waiters->isNotEmpty();
 
         if ($hasWaiters) {
             // REGRA: Pedido finalizado COM garçom → notificar garçom
-            Notification::send($waiters, new OrderReadyForWaiter($order));
+            $this->notifySafely($waiters, new OrderReadyForWaiter($order));
         } else {
             // REGRA: Pedido finalizado SEM garçom → notificar cliente
             $notificationSent = false;
 
             // Tentar notificar o usuário que fez o pedido
             if ($order->user) {
-                $order->user->notify(new OrderReadyForClient($order));
+                $this->notifySafely($order->user, new OrderReadyForClient($order));
                 $notificationSent = true;
             }
 
             // Também notificar o participante da mesa (se houver usuário associado)
             if ($order->participant && $order->participant->user) {
-                $order->participant->user->notify(new OrderReadyForClient($order));
+                $this->notifySafely($order->participant->user, new OrderReadyForClient($order));
                 $notificationSent = true;
             }
 
@@ -93,6 +97,21 @@ class NotifyOrderFinished
             }
         } catch (\Exception $e) {
             // silenciar erros de push
+        }
+    }
+
+    /**
+     * Envia a notificação sem deixar uma falha (ex.: push) reverter a transação do pedido.
+     */
+    private function notifySafely($notifiables, $notification): void
+    {
+        try {
+            Notification::send($notifiables, $notification);
+        } catch (\Throwable $e) {
+            Log::error('Falha ao enviar notificação de pedido', [
+                'notification' => get_class($notification),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

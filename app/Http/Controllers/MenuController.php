@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TableAssignmentType;
+use App\Enums\TableServiceStatus;
 use App\Models\Store;
 use App\Models\Table;
 use App\Models\TableParticipant;
 use App\Models\TableParticipantPin;
+use App\Models\TableUser;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class MenuController extends Controller
@@ -24,6 +28,7 @@ class MenuController extends Controller
             if ($table) {
                 // É uma mesa
                 $store = $table->store;
+                $table->load('activeTableUser');
 
                 // Verifica se o usuário está autenticado na mesa via session
                 $sessionKey = 'table_' . $table->id . '_authenticated';
@@ -159,6 +164,8 @@ class MenuController extends Controller
             'occupied_at' => now()
         ]);
 
+        $this->assignAvailableUser($table);
+
         // Autentica na sessão
         $sessionKey = 'table_' . $table->id . '_authenticated';
         $request->session()->put($sessionKey, true);
@@ -251,6 +258,34 @@ class MenuController extends Controller
     private function generateParticipantPin(): string
     {
         return str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+    }
+
+    private function assignAvailableUser(Table $table): void
+    {
+        $user = User::role('waiter')
+            ->where('store_id', $table->store_id)
+            ->where('is_attending', true)
+            ->withCount([
+                'tableUsers as active_table_count' => fn($query) => $query
+                    ->where('service_status', TableServiceStatus::Active->value),
+            ])
+            ->withMax('tableUsers as last_table_assignment_at', 'created_at')
+            ->orderBy('active_table_count')
+            ->orderBy('last_table_assignment_at')
+            ->orderBy('id')
+            ->first();
+
+        if (!$user) {
+            return;
+        }
+
+        TableUser::create([
+            'store_id' => $table->store_id,
+            'table_id' => $table->id,
+            'user_id' => $user->id,
+            'service_status' => TableServiceStatus::Active,
+            'assignment_type' => TableAssignmentType::Automatic,
+        ]);
     }
 
     public function addParticipant(Request $request)
@@ -430,6 +465,58 @@ class MenuController extends Controller
             'success' => true,
             'message' => 'Novo PIN gerado.',
             'pin' => $pin,
+        ]);
+    }
+
+    /**
+     * Chama o garçom atribuído à mesa (somente mesas com TableUser ativo).
+     */
+    public function callWaiter(Request $request)
+    {
+        $request->validate([
+            'qr_code' => 'required|string',
+        ]);
+
+        $table = Table::where('qr_code', $request->qr_code)
+            ->with('activeTableUser.user.pushSubscriptions')
+            ->firstOrFail();
+
+        $assignment = $table->activeTableUser;
+
+        if (!$assignment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nenhum garçom atribuído a esta mesa no momento.'
+            ], 404);
+        }
+
+        // Evita spam: limita uma chamada a cada 20 segundos por mesa.
+        $throttleKey = 'waiter-call-table-' . $table->id;
+        if (\Illuminate\Support\Facades\Cache::has($throttleKey)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aguarde alguns segundos antes de chamar novamente.'
+            ], 429);
+        }
+        \Illuminate\Support\Facades\Cache::put($throttleKey, true, 20);
+
+        $participantId = $request->session()->get('table_' . $table->id . '_participant_id');
+        $participantName = $participantId
+            ? (TableParticipant::find($participantId)->name ?? 'Cliente')
+            : 'Cliente';
+
+        try {
+            $assignment->user->notify(new \App\Notifications\WaiterCalled($table, $participantName));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Falha ao notificar chamada de garçom', [
+                'table_id' => $table->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Garçom chamado com sucesso!',
         ]);
     }
 }

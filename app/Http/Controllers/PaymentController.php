@@ -91,8 +91,14 @@ class PaymentController extends Controller
 
             // Buscar TODOS os pedidos pendentes da mesa
             // Incluindo pedidos dos participantes ativos E pedidos sem participante (antigos)
+            // Restringe à ocupação atual: pedidos de sessões anteriores (antes da mesa ser limpa)
+            // não devem ressurgir para os novos ocupantes.
             $ordersQuery = Order::where('table_id', $table->id)
                 ->where('payment_status', Order::PAYMENT_STATUS_PENDING);
+
+            if ($table->occupied_at) {
+                $ordersQuery->where('created_at', '>=', $table->occupied_at);
+            }
 
             // Se há participantes ativos, incluir seus pedidos E os pedidos sem participante
             if (!empty($activeParticipantIds)) {
@@ -153,6 +159,7 @@ class PaymentController extends Controller
                         return [
                             'id' => $order->id,
                             'order_number' => $order->order_number,
+                            'table_display' => $order->getTableDisplayName(),
                             'total' => $order->total,
                             'status' => $order->status,
                             'payment_status' => $order->payment_status,
@@ -231,6 +238,7 @@ class PaymentController extends Controller
                         return [
                             'id' => $order->id,
                             'order_number' => $order->order_number,
+                            'table_display' => $order->getTableDisplayName(),
                             'total' => $order->total,
                             'status' => $order->status,
                             'payment_status' => $order->payment_status,
@@ -289,6 +297,7 @@ class PaymentController extends Controller
                 $orders = Order::whereIn('id', $request->order_ids)
                     ->where('table_id', $table->id)
                     ->where('payment_status', Order::PAYMENT_STATUS_PENDING)
+                    ->when($table->occupied_at, fn($query) => $query->where('created_at', '>=', $table->occupied_at))
                     ->get();
 
                 $sessionKey = 'table_' . $table->id . '_authenticated';

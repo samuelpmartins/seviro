@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -19,26 +20,29 @@ return new class extends Migration
         }
 
         // Gera números para os pedidos existentes
-        $orders = \App\Models\Order::with('table')->get();
-        
+        $orders = DB::table('orders')->get();
+
         // Agrupa pedidos por mesa
         $ordersByTable = $orders->groupBy('table_id');
-        
+
         foreach ($ordersByTable as $tableId => $tableOrders) {
-            $table = \App\Models\Table::find($tableId);
+            $table = DB::table('tables')->where('id', $tableId)->first();
             if (!$table) continue;
-            
+
             $tableNumber = str_pad($table->number, 2, '0', STR_PAD_LEFT);
-            
+
             // Ordena por created_at para manter a ordem cronológica
             $sortedOrders = $tableOrders->sortBy('created_at');
-            
+
             $sequence = 1;
             foreach ($sortedOrders as $order) {
                 $orderSequence = str_pad($sequence, 2, '0', STR_PAD_LEFT);
                 $orderNumber = $tableNumber . 'A' . $orderSequence;
-                
-                $order->update(['order_number' => $orderNumber]);
+
+                DB::table('orders')->where('id', $order->id)->update([
+                    'order_number' => $orderNumber,
+                    'updated_at' => now(),
+                ]);
                 $sequence++;
             }
         }

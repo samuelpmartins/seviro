@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Table;
+use App\Models\TableUser;
 use App\Models\Product;
+use App\Enums\TableServiceStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -153,7 +155,7 @@ class EmployeeController extends Controller
 
         $orders = Order::where('store_id', $store->id)
             ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção'])
-            ->with(['table', 'items.product', 'participant'])
+            ->with(['table', 'items.product', 'participant', 'user'])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -174,7 +176,7 @@ class EmployeeController extends Controller
 
         $orders = Order::where('store_id', $store->id)
             ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção'])
-            ->with(['table', 'items.product', 'participant'])
+            ->with(['table', 'items.product', 'participant', 'user'])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -228,6 +230,10 @@ class EmployeeController extends Controller
 
         if (!$store || $order->store_id !== $store->id) {
             abort(403);
+        }
+
+        if ($order->table_id) {
+            $this->ensureWaiterCanManageTable(Table::findOrFail($order->table_id), auth()->user());
         }
 
         if ($order->status !== 'Aguardando produção') {
@@ -352,7 +358,12 @@ class EmployeeController extends Controller
         }
 
         $tables = Table::where('store_id', $store->id)
-            ->with(['participants'])
+            ->with([
+                'participants.pins' => fn($query) => $query
+                    ->where('status', 'active')
+                    ->latest(),
+                'activeTableUser.user',
+            ])
             ->orderBy('number')
             ->get();
 
@@ -379,7 +390,17 @@ class EmployeeController extends Controller
             }
 
             $table->unpaid_total = $table->orders->where('payment_status', 'pending')->sum('total');
+            $owner = $table->participants->firstWhere('is_owner', true);
+            $table->access_pin = $owner?->pins->first()?->pin;
         }
+
+        $myTables = $tables->filter(function ($table) use ($user) {
+            return $table->activeTableUser && $table->activeTableUser->user_id === $user->id;
+        })->values();
+
+        $otherTables = $tables->filter(function ($table) use ($user) {
+            return !$table->activeTableUser || $table->activeTableUser->user_id !== $user->id;
+        })->values();
 
         $availableProducts = Product::where('store_id', $store->id)
             ->where('active', true)
@@ -387,7 +408,27 @@ class EmployeeController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'price', 'ingredients']);
 
-        return view('waiter.dashboard', compact('tables', 'store', 'availableProducts'));
+        return view('waiter.dashboard', compact('myTables', 'otherTables', 'store', 'availableProducts'));
+    }
+
+    public function startAttending(Request $request)
+    {
+        $request->user()->update(['is_attending' => true]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Atendimento iniciado.',
+        ]);
+    }
+
+    public function stopAttending(Request $request)
+    {
+        $request->user()->update(['is_attending' => false]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Atendimento encerrado.',
+        ]);
     }
 
     /**
@@ -475,22 +516,8 @@ class EmployeeController extends Controller
         $user = auth()->user();
         $store = $user->workplace;
 
-        // Verificar se a mesa pertence à loja do funcionário
-        if ($table->store_id !== $store->id) {
-            abort(403);
-        }
-
-        // Remover todos os participantes da mesa
-        $table->participants()->get()->each->delete();
-
-        // Resetar a mesa (incluindo a senha)
-        $table->update([
-            'occupied' => false,
-            'current_user_id' => null,
-            'current_user_name' => null,
-            'occupied_at' => null,
-            'password' => null
-        ]);
+        $this->ensureWaiterCanManageTable($table, $user);
+        $table->clearTable();
 
         return redirect()->route('waiter.dashboard')
             ->with('success', 'Mesa ' . $table->number . ' desocupada com sucesso!');
@@ -499,6 +526,10 @@ class EmployeeController extends Controller
     public function markAsPaidCash(Request $request, Order $order)
     {
         $this->authorize('update', $order);
+
+        if ($order->table_id) {
+            $this->ensureWaiterCanManageTable(Table::findOrFail($order->table_id), $request->user());
+        }
 
         // Atualizar o pedido
         $order->update([
@@ -520,5 +551,22 @@ class EmployeeController extends Controller
         // Se for um formulário normal, redireciona com mensagem
         return redirect()->back()
             ->with('success', 'Pedido marcado como pago em dinheiro!');
+    }
+
+    private function ensureWaiterCanManageTable(Table $table, User $user): void
+    {
+        $store = $user->workplace;
+
+        if (!$store || $table->store_id !== $store->id) {
+            abort(403);
+        }
+
+        $assignment = TableUser::where('table_id', $table->id)
+            ->where('service_status', TableServiceStatus::Active->value)
+            ->first();
+
+        if (!$assignment || $assignment->user_id !== $user->id) {
+            abort(403);
+        }
     }
 }

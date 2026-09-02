@@ -50,7 +50,7 @@ class LoginController extends Controller
         } elseif ($user->hasRole('kitchen')) {
             return redirect()->route('kitchen.dashboard');
         }
-        
+
         return redirect()->intended($this->redirectPath());
     }
 }

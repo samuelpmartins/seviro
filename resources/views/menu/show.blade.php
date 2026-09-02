@@ -24,13 +24,6 @@
                     </div>
                 @endif
 
-                @if (isset($table) || (isset($isCounter) && $isCounter))
-                    <!-- Botão para visualizar pedidos da mesa ou balcão -->
-                    <button type="button" class="btn position-absolute top-0 end-0 m-3" id="viewOrdersBtn"
-                        style="background: rgba(0,0,0,0.5); border: none; color: white; border-radius: 20px; padding: 0.5rem 1rem; z-index: 10;">
-                        <i class="fas fa-receipt me-1"></i> Pedido
-                    </button>
-                @endif
             </div>
 
             <!-- Header do Cardápio -->
@@ -48,6 +41,20 @@
                 <p id="accessCodeLabel" class="mb-1"
                     style="color: #555; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em; display: none;">Código
                     de Acesso: <span id="accessCodeValue"></span></p>
+                @if (isset($table) || (isset($isCounter) && $isCounter))
+                    <div class="position-absolute top-50 end-0 translate-middle-y me-3 d-flex gap-2">
+                        @if (isset($table) && $table->activeTableUser)
+                            <button type="button" class="btn" id="callWaiterBtn"
+                                style="background: #e67e22; border: none; color: white; border-radius: 20px; padding: 0.5rem 1rem; z-index: 10; white-space: nowrap;">
+                                <i class="fas fa-concierge-bell me-1"></i> Chamar Garçom
+                            </button>
+                        @endif
+                        <button type="button" class="btn" id="viewOrdersBtn"
+                            style="background: #241642; border: none; color: white; border-radius: 20px; padding: 0.5rem 1rem; z-index: 10; white-space: nowrap;">
+                            <i class="fas fa-receipt me-1"></i> Pedidos
+                        </button>
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -2301,12 +2308,12 @@
                         return `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                                                                                                                                                                <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                                                                                                                                                                                ` : `
-                                                                                                                                                                                                <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                                                                                                                                                <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                                                                                                                                                                                </div>
-                                                                                                                                                                                                `}
+                                                                                                                                                                                                                    <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                                                                                                                                                                                                                    ` : `
+                                                                                                                                                                                                                    <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                                                                                                                                                                                    <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
+                                                                                                                                                                                                                    </div>
+                                                                                                                                                                                                                    `}
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
@@ -2473,6 +2480,41 @@
                     modal.show();
                 });
 
+                document.getElementById('callWaiterBtn')?.addEventListener('click', function() {
+                    const button = this;
+                    button.disabled = true;
+
+                    fetch('/api/table/call-waiter', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    .content
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                qr_code: qrCode
+                            })
+                        })
+                        .then(response => response.json().then(data => ({
+                            ok: response.ok,
+                            data
+                        })))
+                        .then(({
+                            ok,
+                            data
+                        }) => {
+                            showToast(data.message, ok ? 'success' : 'error');
+                        })
+                        .catch(() => showToast('Erro ao chamar o garçom. Tente novamente.', 'error'))
+                        .finally(() => {
+                            setTimeout(() => {
+                                button.disabled = false;
+                            }, 5000);
+                        });
+                });
+
                 function loadOrders() {
                     const modalBody = document.getElementById('ordersModalBody');
                     modalBody.innerHTML =
@@ -2496,22 +2538,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                                                                                                                                                                        <small class="text-muted">
-                                                                                                                                                                                                                        <i class="fas fa-user me-1"></i>
-                                                                                                                                                                                                                        <strong>${order.participant_name}</strong>
-                                                                                                                                                                                                                        </small>
-                                                                                                                                                                                                                        ` : ''}
+                                                                                                                                                                                                                                            <small class="text-muted">
+                                                                                                                                                                                                                                            <i class="fas fa-user me-1"></i>
+                                                                                                                                                                                                                                            <strong>${order.participant_name}</strong>
+                                                                                                                                                                                                                                            </small>
+                                                                                                                                                                                                                                            ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                                                                                                                                                                        <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                                                        <i class="fas fa-check-circle me-1"></i>Pago
-                                                                                                                                                                                                                        </span>
-                                                                                                                                                                                                                        ` : `
-                                                                                                                                                                                                                        <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                                                        <i class="fas fa-clock me-1"></i>Pendente
-                                                                                                                                                                                                                        </span>
-                                                                                                                                                                                                                        `}
+                                                                                                                                                                                                                                            <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                            <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                                                                                                                                                                            </span>
+                                                                                                                                                                                                                                            ` : `
+                                                                                                                                                                                                                                            <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                            <i class="fas fa-clock me-1"></i>Pendente
+                                                                                                                                                                                                                                            </span>
+                                                                                                                                                                                                                                            `}
                                         <span class="badge" style="background: ${
                                             order.status === 'Finalizado' ? '#10b981' : 
                                             order.status === 'Em produção' ? '#f59e0b' : 
@@ -2524,11 +2566,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                                                                                                                                                                    <div class="d-flex justify-content-between py-1">
-                                                                                                                                                                                                                    <span>${item.quantity}x ${item.product_name}</span>
-                                                                                                                                                                                                                    <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                                    `).join('')}
+                                                                                                                                                                                                                                        <div class="d-flex justify-content-between py-1">
+                                                                                                                                                                                                                                        <span>${item.quantity}x ${item.product_name}</span>
+                                                                                                                                                                                                                                        <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                                                                                                                                                                        </div>
+                                                                                                                                                                                                                                        `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">

@@ -19,10 +19,11 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Traits\HasRoles;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes, HasPushSubscriptions;
 
     const DELETED_AT = 'DeletionDate';
 
@@ -37,6 +38,7 @@ class User extends Authenticatable
         'password',
         'store_id',
         'first_access',
+        'is_attending',
     ];
 
     /**
@@ -58,6 +60,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_attending' => 'boolean',
     ];
 
     /**
@@ -79,6 +82,11 @@ class User extends Authenticatable
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function tableUsers(): HasMany
+    {
+        return $this->hasMany(TableUser::class);
     }
 
     /**

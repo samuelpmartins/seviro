@@ -87,6 +87,7 @@ Route::middleware(['web'])->group(function () {
     Route::post('/table/add-participant', [MenuController::class, 'addParticipant']);
     Route::get('/table/{qrCode}/participants', [MenuController::class, 'getParticipants']);
     Route::get('/table/{qrCode}/status', [MenuController::class, 'checkTableStatus']);
+    Route::post('/table/call-waiter', [MenuController::class, 'callWaiter']);
 
     // Rota para criar pedido (precisa de sessão para capturar participant_id)
     Route::post('/orders', function (Request $request) {
@@ -214,6 +215,12 @@ Route::middleware(['web'])->group(function () {
     Route::post('/push/register', [NotificationController::class, 'registerDeviceToken']);
     Route::post('/push/unregister', [NotificationController::class, 'unregisterDeviceToken']);
     Route::post('/push/test', [NotificationController::class, 'sendTestPush']);
+
+    // Web Push (VAPID) - exige usuário autenticado via sessão web
+    Route::middleware('auth')->group(function () {
+        Route::post('/push/webpush-subscribe', [NotificationController::class, 'subscribeWebPush']);
+        Route::post('/push/webpush-unsubscribe', [NotificationController::class, 'unsubscribeWebPush']);
+    });
 
     // Rotas de pedidos (com suporte a sessão)
     Route::get('/tables/{id}/orders', function ($id, Request $request) {

@@ -5,6 +5,8 @@ namespace App\Notifications;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use NotificationChannels\WebPush\WebPushChannel;
+use NotificationChannels\WebPush\WebPushMessage;
 
 class NewOrderForKitchen extends Notification
 {
@@ -27,7 +29,7 @@ class NewOrderForKitchen extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', WebPushChannel::class];
     }
 
     /**
@@ -47,5 +49,19 @@ class NewOrderForKitchen extends Notification
             'message' => "Novo pedido #{$this->order->order_number} - {$this->order->getTableDisplayName()}",
             'created_at' => $this->order->created_at->toIso8601String(),
         ];
+    }
+
+    /**
+     * Payload exibido pela notificação nativa do sistema operacional.
+     */
+    public function toWebPush(object $notifiable): WebPushMessage
+    {
+        return (new WebPushMessage())
+            ->title("Novo pedido #{$this->order->order_number}")
+            ->body($this->order->getTableDisplayName() . ' - ' . ($this->order->participant->name ?? 'Sem participante'))
+            ->tag('order-' . $this->order->id)
+            ->requireInteraction()
+            ->vibrate([200, 100, 200])
+            ->data(['url' => route('kitchen.dashboard')]);
     }
 }

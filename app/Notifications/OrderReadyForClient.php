@@ -5,6 +5,8 @@ namespace App\Notifications;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use NotificationChannels\WebPush\WebPushChannel;
+use NotificationChannels\WebPush\WebPushMessage;
 
 class OrderReadyForClient extends Notification
 {
@@ -27,7 +29,7 @@ class OrderReadyForClient extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', WebPushChannel::class];
     }
 
     /**
@@ -46,5 +48,19 @@ class OrderReadyForClient extends Notification
             'message' => "Seu pedido #{$this->order->order_number} está pronto! Retire no balcão.",
             'created_at' => now()->toIso8601String(),
         ];
+    }
+
+    /**
+     * Payload exibido pela notificação nativa do sistema operacional.
+     */
+    public function toWebPush(object $notifiable): WebPushMessage
+    {
+        return (new WebPushMessage())
+            ->title('Seu pedido está pronto!')
+            ->body("#{$this->order->order_number} - retire no balcão")
+            ->tag('order-' . $this->order->id)
+            ->requireInteraction()
+            ->vibrate([200, 100, 200])
+            ->data(['url' => route('orders.history')]);
     }
 }

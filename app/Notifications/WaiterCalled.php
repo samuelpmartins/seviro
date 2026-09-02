@@ -2,24 +2,23 @@
 
 namespace App\Notifications;
 
-use App\Models\Order;
+use App\Models\Table;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
-class OrderReadyForWaiter extends Notification
+class WaiterCalled extends Notification
 {
     use Queueable;
 
-    protected Order $order;
+    protected Table $table;
+    protected string $participantName;
 
-    /**
-     * Create a new notification instance.
-     */
-    public function __construct(Order $order)
+    public function __construct(Table $table, string $participantName)
     {
-        $this->order = $order;
+        $this->table = $table;
+        $this->participantName = $participantName;
     }
 
     /**
@@ -40,12 +39,11 @@ class OrderReadyForWaiter extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'type' => 'order_ready_waiter',
-            'order_id' => $this->order->id,
-            'order_number' => $this->order->order_number,
-            'table_display' => $this->order->getTableDisplayName(),
-            'total' => $this->order->total,
-            'message' => "Pedido #{$this->order->order_number} pronto para servir - {$this->order->getTableDisplayName()}",
+            'type' => 'waiter_called',
+            'table_id' => $this->table->id,
+            'table_display' => 'Mesa ' . $this->table->number,
+            'participant_name' => $this->participantName,
+            'message' => "Mesa {$this->table->number} - {$this->participantName} solicita o garçom",
             'created_at' => now()->toIso8601String(),
         ];
     }
@@ -56,11 +54,11 @@ class OrderReadyForWaiter extends Notification
     public function toWebPush(object $notifiable): WebPushMessage
     {
         return (new WebPushMessage())
-            ->title("Pedido #{$this->order->order_number} pronto para servir")
-            ->body($this->order->getTableDisplayName() . ' - ' . ($this->order->participant->name ?? 'Sem participante'))
-            ->tag('order-' . $this->order->id)
+            ->title('Chamando garçom')
+            ->body("Mesa {$this->table->number} - {$this->participantName} solicita o garçom")
+            ->tag('waiter-call-table-' . $this->table->id)
             ->requireInteraction()
-            ->vibrate([200, 100, 200])
+            ->vibrate([300, 100, 300, 100, 300])
             ->data(['url' => route('waiter.dashboard')]);
     }
 }

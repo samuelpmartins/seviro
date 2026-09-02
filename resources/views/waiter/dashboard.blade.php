@@ -62,6 +62,21 @@
             gap: 20px;
         }
 
+        .tables-section {
+            margin-bottom: 36px;
+        }
+
+        .tables-section-title {
+            margin: 0 0 16px;
+            color: #e8e8e9 !important;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .read-only-card {
+            opacity: 0.92;
+        }
+
         /* Card de mesa */
         .table-card {
             background: white;
@@ -143,6 +158,20 @@
         .table-info-item strong {
             color: #2c3e50;
             margin-left: 5px;
+        }
+
+        .table-access-pin {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #eaf5ff;
+            border: 1px solid #b9ddf7;
+            border-radius: 8px;
+            color: #2471a3;
+            font-weight: 700;
+            letter-spacing: 1px;
         }
 
         /* Participantes */
@@ -516,6 +545,71 @@
             background: #bdc3c7;
         }
 
+        .attending-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 15, 35, 0.78);
+            z-index: 10002;
+        }
+
+        .attending-modal.show {
+            display: flex;
+        }
+
+        .attending-modal-content {
+            width: min(100%, 420px);
+            overflow: hidden;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+            animation: slideUp 0.3s ease;
+        }
+
+        .attending-modal-header {
+            padding: 24px;
+            color: #fff;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+
+        .attending-modal-header h2 {
+            margin: 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+
+        .attending-modal-body {
+            padding: 24px;
+            color: #34495e;
+            font-size: 1rem;
+        }
+
+        .attending-modal-actions {
+            display: flex;
+            gap: 12px;
+            padding: 0 24px 24px;
+        }
+
+        .attending-modal-actions .btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+
+        .attending-modal-actions .btn-primary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border: none;
+        }
+
+        .attending-modal-actions .btn-outline-secondary {
+            color: #34495e;
+            border-color: #bdc3c7;
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -556,7 +650,7 @@
                             <i class="fas fa-history me-2"></i>Histórico
                         </a>
                     </nav>
-                    <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                    <form id="waiterLogoutForm" action="{{ route('logout') }}" method="POST" class="d-inline">
                         @csrf
                         <button type="submit" class="btn btn-logout">
                             <i class="fas fa-sign-out-alt me-2"></i>Sair
@@ -571,134 +665,200 @@
         <!-- Contadores -->
         <div class="tables-counter">
             <div class="counter-card available">
-                <h3>{{ $tables->where('occupied', false)->count() }}</h3>
+                <h3>{{ $myTables->where('occupied', false)->count() }}</h3>
                 <p>Disponíveis</p>
             </div>
             <div class="counter-card occupied">
-                <h3>{{ $tables->where('occupied', true)->count() }}</h3>
+                <h3>{{ $myTables->where('occupied', true)->count() }}</h3>
                 <p>Ocupadas</p>
             </div>
         </div>
 
-        <div class="tables-grid">
-            @foreach ($tables as $table)
-                <div class="table-card {{ $table->occupied ? 'occupied' : 'available' }}">
-                    <div class="table-card-header">
-                        <span class="table-number">Mesa {{ $table->number }}</span>
-                        <span class="table-status {{ $table->occupied ? 'occupied' : 'available' }}">
-                            {{ $table->occupied ? 'Ocupada' : 'Disponível' }}
-                        </span>
-                    </div>
+        <section class="tables-section">
+            <h2 class="tables-section-title">Minhas Mesas</h2>
+            <div class="tables-grid">
+                @forelse ($myTables as $table)
+                    <div class="table-card {{ $table->occupied ? 'occupied' : 'available' }}">
+                        <div class="table-card-header">
+                            <span class="table-number">Mesa {{ $table->number }}</span>
+                            <span class="table-status {{ $table->occupied ? 'occupied' : 'available' }}">
+                                {{ $table->occupied ? 'Ocupada' : 'Disponível' }}
+                            </span>
+                        </div>
 
-                    <div class="table-card-body">
+                        <div class="table-card-body">
+                            @if ($table->occupied)
+                                <div class="table-info">
+                                    @if ($table->current_user_name)
+                                        <div class="table-info-item">
+                                            <i class="fas fa-user"></i>
+                                            Responsável: <strong>{{ $table->current_user_name }}</strong>
+                                        </div>
+                                    @endif
+                                    @if ($table->occupied_at)
+                                        <div class="table-info-item">
+                                            <i class="fas fa-clock"></i>
+                                            Ocupada há: <strong>{{ $table->occupied_at->diffForHumans() }}</strong>
+                                        </div>
+                                    @endif
+                                    @if ($table->access_pin)
+                                        <div class="table-access-pin">
+                                            <i class="fas fa-key"></i>
+                                            PIN: {{ $table->access_pin }}
+                                        </div>
+                                    @endif
+                                </div>
+
+                                @if ($table->participants && $table->participants->count() > 0)
+                                    <div class="participants-list">
+                                        <div class="participants-title">
+                                            <i class="fas fa-users me-1"></i> Participantes
+                                            ({{ $table->participants->count() }})
+                                        </div>
+                                        @foreach ($table->participants->take(5) as $participant)
+                                            <div class="participant-item">
+                                                <i class="fas fa-user-circle"></i>
+                                                {{ $participant->name }}
+                                            </div>
+                                        @endforeach
+                                        @if ($table->participants->count() > 5)
+                                            <div class="participant-item text-muted">
+                                                <i class="fas fa-ellipsis-h"></i>
+                                                +{{ $table->participants->count() - 5 }} mais
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+
+                                @if ($table->orders && $table->orders->count() > 0)
+                                    <div class="orders-summary">
+                                        <div class="orders-summary-title">
+                                            <i class="fas fa-receipt me-1"></i> Pedidos ({{ $table->orders->count() }})
+                                        </div>
+                                        @foreach ($table->orders->take(3) as $order)
+                                            <div class="order-mini" onclick="showOrderDetails({{ $order->id }})"
+                                                style="cursor: pointer; transition: transform 0.2s;">
+                                                <div class="order-mini-header">
+                                                    <span class="order-mini-number">
+                                                        {{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}
+                                                        @if ($order->participant)
+                                                            - {{ $order->participant->name }}
+                                                        @endif
+                                                    </span>
+                                                    <span
+                                                        class="order-mini-status {{ in_array($order->status, ['Aguardando pagamento', 'Aguardando produção']) ? 'waiting' : ($order->status === 'Em produção' ? 'production' : 'done') }}">
+                                                        {{ $order->status }}
+                                                    </span>
+                                                </div>
+                                                <div class="text-muted">
+                                                    {{ $order->items->sum('quantity') }} itens - R$
+                                                    {{ number_format($order->total, 2, ',', '.') }}
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                        @if ($table->orders->count() > 3)
+                                            <div class="text-center text-muted mt-2" style="font-size: 0.85rem;">
+                                                +{{ $table->orders->count() - 3 }} pedidos
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+
+                                @if ($table->unpaid_total > 0)
+                                    <div class="pending-total mt-3">
+                                        <div class="label">Total Pendente</div>
+                                        <div class="amount">R$ {{ number_format($table->unpaid_total, 2, ',', '.') }}</div>
+                                    </div>
+                                @endif
+                            @else
+                                <div class="empty-table">
+                                    <i class="fas fa-chair"></i>
+                                    <p>Mesa disponível</p>
+                                </div>
+                            @endif
+                        </div>
+
                         @if ($table->occupied)
-                            <div class="table-info">
-                                @if ($table->current_user_name)
-                                    <div class="table-info-item">
-                                        <i class="fas fa-user"></i>
-                                        Responsável: <strong>{{ $table->current_user_name }}</strong>
-                                    </div>
+                            <div class="table-card-footer">
+                                <a href="{{ route('waiter.table-details', $table) }}" class="btn btn-primary">
+                                    <i class="fas fa-eye me-2"></i>Ver Detalhes
+                                </a>
+                                @if ($table->unpaid_total > 0)
+                                    <button type="button" class="btn btn-success"
+                                        onclick="markTableAsPaid(this, {{ $table->id }})">
+                                        <i class="fas fa-dollar-sign me-1"></i>Marcar Pago
+                                    </button>
                                 @endif
-                                @if ($table->occupied_at)
-                                    <div class="table-info-item">
-                                        <i class="fas fa-clock"></i>
-                                        Ocupada há: <strong>{{ $table->occupied_at->diffForHumans() }}</strong>
-                                    </div>
-                                @endif
-                            </div>
-
-                            @if ($table->participants && $table->participants->count() > 0)
-                                <div class="participants-list">
-                                    <div class="participants-title">
-                                        <i class="fas fa-users me-1"></i> Participantes
-                                        ({{ $table->participants->count() }})
-                                    </div>
-                                    @foreach ($table->participants->take(5) as $participant)
-                                        <div class="participant-item">
-                                            <i class="fas fa-user-circle"></i>
-                                            {{ $participant->name }}
-                                        </div>
-                                    @endforeach
-                                    @if ($table->participants->count() > 5)
-                                        <div class="participant-item text-muted">
-                                            <i class="fas fa-ellipsis-h"></i>
-                                            +{{ $table->participants->count() - 5 }} mais
-                                        </div>
-                                    @endif
-                                </div>
-                            @endif
-
-                            @if ($table->orders && $table->orders->count() > 0)
-                                <div class="orders-summary">
-                                    <div class="orders-summary-title">
-                                        <i class="fas fa-receipt me-1"></i> Pedidos ({{ $table->orders->count() }})
-                                    </div>
-                                    @foreach ($table->orders->take(3) as $order)
-                                        <div class="order-mini" onclick="showOrderDetails({{ $order->id }})"
-                                            style="cursor: pointer; transition: transform 0.2s;">
-                                            <div class="order-mini-header">
-                                                <span class="order-mini-number">
-                                                    {{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}
-                                                    @if ($order->participant)
-                                                        - {{ $order->participant->name }}
-                                                    @endif
-                                                </span>
-                                                <span
-                                                    class="order-mini-status {{ in_array($order->status, ['Aguardando pagamento', 'Aguardando produção']) ? 'waiting' : ($order->status === 'Em produção' ? 'production' : 'done') }}">
-                                                    {{ $order->status }}
-                                                </span>
-                                            </div>
-                                            <div class="text-muted">
-                                                {{ $order->items->sum('quantity') }} itens - R$
-                                                {{ number_format($order->total, 2, ',', '.') }}
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                    @if ($table->orders->count() > 3)
-                                        <div class="text-center text-muted mt-2" style="font-size: 0.85rem;">
-                                            +{{ $table->orders->count() - 3 }} pedidos
-                                        </div>
-                                    @endif
-                                </div>
-                            @endif
-
-                            @if ($table->unpaid_total > 0)
-                                <div class="pending-total mt-3">
-                                    <div class="label">Total Pendente</div>
-                                    <div class="amount">R$ {{ number_format($table->unpaid_total, 2, ',', '.') }}</div>
-                                </div>
-                            @endif
-                        @else
-                            <div class="empty-table">
-                                <i class="fas fa-chair"></i>
-                                <p>Mesa disponível</p>
+                                <form action="{{ route('waiter.table.clear', $table) }}" method="POST"
+                                    onsubmit="return confirm('Tem certeza que deseja desocupar a mesa {{ $table->number }}? Isso removerá todos os participantes.');">
+                                    @csrf
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="fas fa-broom me-2"></i>Desocupar
+                                    </button>
+                                </form>
                             </div>
                         @endif
                     </div>
+                @empty
+                    <div class="empty-table">
+                        <i class="fas fa-chair"></i>
+                        <p>Nenhuma mesa sob seu atendimento.</p>
+                    </div>
+                @endforelse
+            </div>
+        </section>
 
-                    @if ($table->occupied)
-                        <div class="table-card-footer">
-                            <a href="{{ route('waiter.table-details', $table) }}" class="btn btn-primary">
-                                <i class="fas fa-eye me-2"></i>Ver Detalhes
-                            </a>
-                            @if ($table->unpaid_total > 0)
-                                <button type="button" class="btn btn-success"
-                                    onclick="markTableAsPaid(this, {{ $table->id }})">
-                                    <i class="fas fa-dollar-sign me-1"></i>Marcar Pago
-                                </button>
-                            @endif
-                            <form action="{{ route('waiter.table.clear', $table) }}" method="POST"
-                                onsubmit="return confirm('Tem certeza que deseja desocupar a mesa {{ $table->number }}? Isso removerá todos os participantes.');">
-                                @csrf
-                                <button type="submit" class="btn btn-danger">
-                                    <i class="fas fa-broom me-2"></i>Desocupar
-                                </button>
-                            </form>
+        @if ($otherTables->isNotEmpty())
+            <section class="tables-section">
+                <h2 class="tables-section-title">Outras Mesas</h2>
+                <div class="tables-grid">
+                    @foreach ($otherTables as $table)
+                        <div class="table-card read-only-card {{ $table->occupied ? 'occupied' : 'available' }}">
+                            <div class="table-card-header">
+                                <span class="table-number">Mesa {{ $table->number }}</span>
+                                <span class="table-status {{ $table->occupied ? 'occupied' : 'available' }}">
+                                    {{ $table->occupied ? 'Ocupada' : 'Disponível' }}
+                                </span>
+                            </div>
+                            <div class="table-card-body">
+                                <div class="table-info">
+                                    <div class="table-info-item">
+                                        <i class="fas fa-concierge-bell"></i>
+                                        Garçom responsável:
+                                        <strong>{{ $table->activeTableUser?->user?->name ?? 'Sem garçom atribuído' }}</strong>
+                                    </div>
+                                    @if ($table->occupied_at)
+                                        <div class="table-info-item">
+                                            <i class="fas fa-clock"></i>
+                                            Ocupada há: <strong>{{ $table->occupied_at->diffForHumans() }}</strong>
+                                        </div>
+                                    @endif
+                                    @if ($table->access_pin)
+                                        <div class="table-access-pin">
+                                            <i class="fas fa-key"></i>
+                                            PIN: {{ $table->access_pin }}
+                                        </div>
+                                    @endif
+                                </div>
+                                @if ($table->participants->isNotEmpty())
+                                    <div class="participants-list mb-0">
+                                        <div class="participants-title">
+                                            <i class="fas fa-users me-1"></i> Participantes
+                                            ({{ $table->participants->count() }})
+                                        </div>
+                                        @foreach ($table->participants->take(5) as $participant)
+                                            <div class="participant-item">
+                                                <i class="fas fa-user-circle"></i>{{ $participant->name }}
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
                         </div>
-                    @endif
+                    @endforeach
                 </div>
-            @endforeach
-        </div>
+            </section>
+        @endif
     </div>
 
     <!-- Modal de Detalhes do Pedido -->
@@ -708,14 +868,156 @@
         </div>
     </div>
 
+    <div id="attendingModal" class="attending-modal" role="dialog" aria-modal="true"
+        aria-labelledby="attendingModalTitle">
+        <div class="attending-modal-content">
+            <div class="attending-modal-header">
+                <h2 id="attendingModalTitle"><i class="fas fa-concierge-bell me-2"></i>Iniciar atendimento?</h2>
+            </div>
+            <div class="attending-modal-body">
+                Ao iniciar, novas mesas poderão ser direcionadas para você.
+                <div id="attendingModalError" class="text-danger small mt-3 d-none"></div>
+            </div>
+            <div class="attending-modal-actions">
+                <button type="button" id="deferAttendingButton" class="btn btn-outline-secondary">Depois</button>
+                <button type="button" id="startAttendingButton" class="btn btn-primary">Sim</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="stopAttendingModal" class="attending-modal" role="dialog" aria-modal="true"
+        aria-labelledby="stopAttendingModalTitle">
+        <div class="attending-modal-content">
+            <div class="attending-modal-header">
+                <h2 id="stopAttendingModalTitle"><i class="fas fa-concierge-bell me-2"></i>Encerrar atendimento?</h2>
+            </div>
+            <div class="attending-modal-body">
+                Você deixará de receber novas mesas e será desconectado.
+                <div id="stopAttendingModalError" class="text-danger small mt-3 d-none"></div>
+            </div>
+            <div class="attending-modal-actions">
+                <button type="button" id="cancelStopAttendingButton" class="btn btn-outline-secondary">Cancelar</button>
+                <button type="button" id="confirmStopAttendingButton" class="btn btn-primary">Sim</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const waiterProducts = @json($availableProducts);
+        let isAttending = @json(auth()->user()->is_attending);
+        const attendingModal = document.getElementById('attendingModal');
+        const stopAttendingModal = document.getElementById('stopAttendingModal');
+        const attendingReminderKey = 'waiter-attending-reminder-{{ auth()->id() }}';
+        let attendingReminderTimer;
+
+        function showAttendingModal() {
+            if (!isAttending) {
+                attendingModal.classList.add('show');
+            }
+        }
+
+        document.getElementById('openAttendingModalButton')?.addEventListener('click', function() {
+            showAttendingModal();
+        });
+
+        function showStopAttendingModal() {
+            stopAttendingModal.classList.add('show');
+        }
+
+        document.getElementById('requestWaiterLogoutButton')?.addEventListener('click', showStopAttendingModal);
+        document.getElementById('waiterLogoutForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            showStopAttendingModal();
+        });
+
+        document.getElementById('cancelStopAttendingButton').addEventListener('click', function() {
+            stopAttendingModal.classList.remove('show');
+        });
+
+        document.getElementById('confirmStopAttendingButton').addEventListener('click', async function() {
+            const button = this;
+            const error = document.getElementById('stopAttendingModalError');
+            button.disabled = true;
+            error.classList.add('d-none');
+
+            try {
+                const response = await fetch('{{ route('waiter.stop-attending') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Não foi possível encerrar o atendimento.');
+                }
+
+                document.getElementById('logout-form').submit();
+            } catch (exception) {
+                error.textContent = exception.message;
+                error.classList.remove('d-none');
+                button.disabled = false;
+            }
+        });
+
+        function scheduleAttendingReminder() {
+            if (isAttending) {
+                return;
+            }
+
+            const nextReminderAt = Number(sessionStorage.getItem(attendingReminderKey)) || 0;
+            const delay = Math.max(0, nextReminderAt - Date.now());
+
+            window.clearTimeout(attendingReminderTimer);
+            attendingReminderTimer = window.setTimeout(showAttendingModal, delay);
+        }
+
+        document.getElementById('deferAttendingButton').addEventListener('click', function() {
+            attendingModal.classList.remove('show');
+            sessionStorage.setItem(attendingReminderKey, String(Date.now() + 5 * 60 * 1000));
+            scheduleAttendingReminder();
+        });
+
+        document.getElementById('startAttendingButton').addEventListener('click', async function() {
+            const button = this;
+            const error = document.getElementById('attendingModalError');
+            button.disabled = true;
+            error.classList.add('d-none');
+
+            try {
+                const response = await fetch('{{ route('waiter.start-attending') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Não foi possível iniciar o atendimento.');
+                }
+
+                isAttending = true;
+                sessionStorage.removeItem(attendingReminderKey);
+                attendingModal.classList.remove('show');
+            } catch (exception) {
+                error.textContent = exception.message;
+                error.classList.remove('d-none');
+                button.disabled = false;
+            }
+        });
+
+        scheduleAttendingReminder();
 
         // Atualiza a cada 30 segundos, mas preserva o modal aberto para não interromper a edição.
         function scheduleDashboardRefresh() {
             setTimeout(function() {
                 const orderModal = document.getElementById('orderDetailsModal');
-                const modalIsOpen = orderModal?.classList.contains('show');
+                const modalIsOpen = orderModal?.classList.contains('show') || attendingModal.classList.contains(
+                    'show') || stopAttendingModal.classList.contains('show');
 
                 if (modalIsOpen) {
                     scheduleDashboardRefresh();
@@ -859,10 +1161,10 @@
             
             <div class="order-details-footer">
                 ${order.status === 'Aguardando produção' ? `
-                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
-                                        <i class="fas fa-edit me-2"></i>Editar Pedido
-                                    </button>
-                                ` : ''}
+                                                                <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
+                                                                    <i class="fas fa-edit me-2"></i>Editar Pedido
+                                                                </button>
+                                                            ` : ''}
                 <button class="btn-close-modal" onclick="closeOrderDetails()">
                     <i class="fas fa-times me-2"></i>Fechar
                 </button>
@@ -964,7 +1266,7 @@
                         </div>
                         <div class="order-details-footer">
                             <button class="btn btn-success" onclick="saveOrderEdit(${order.id})">
-                                <i class="fas fa-save me-2"></i>Salvar
+                                <i class="fas fa-save me-2"></i>Salvar 
                             </button>
                             <button class="btn-close-modal" onclick="showOrderDetails(${order.id})">
                                 <i class="fas fa-times me-2"></i>Cancelar

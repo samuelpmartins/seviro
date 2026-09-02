@@ -5,6 +5,8 @@ namespace App\Notifications;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use NotificationChannels\WebPush\WebPushChannel;
+use NotificationChannels\WebPush\WebPushMessage;
 
 class QuickItemForWaiter extends Notification
 {
@@ -29,7 +31,7 @@ class QuickItemForWaiter extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', WebPushChannel::class];
     }
 
     /**
@@ -50,5 +52,21 @@ class QuickItemForWaiter extends Notification
             'message' => "Pedido #{$this->order->order_number} com item rápido: {$itemNames}",
             'created_at' => $this->order->created_at->toIso8601String(),
         ];
+    }
+
+    /**
+     * Payload exibido pela notificação nativa do sistema operacional.
+     */
+    public function toWebPush(object $notifiable): WebPushMessage
+    {
+        $itemNames = implode(', ', array_column($this->quickItems, 'name'));
+
+        return (new WebPushMessage())
+            ->title("Item rápido - #{$this->order->order_number}")
+            ->body($this->order->getTableDisplayName() . ' - ' . ($this->order->participant->name ?? 'Sem participante') . ': ' . $itemNames)
+            ->tag('order-' . $this->order->id)
+            ->requireInteraction()
+            ->vibrate([200, 100, 200])
+            ->data(['url' => route('waiter.dashboard')]);
     }
 }

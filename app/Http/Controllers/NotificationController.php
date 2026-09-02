@@ -540,4 +540,39 @@ class NotificationController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Registra (ou atualiza) a inscrição Web Push do navegador do usuário autenticado.
+     */
+    public function subscribeWebPush(Request $request)
+    {
+        $data = $request->validate([
+            'endpoint' => 'required|string',
+            'keys.p256dh' => 'required|string',
+            'keys.auth' => 'required|string',
+            'contentEncoding' => 'nullable|string',
+        ]);
+
+        $request->user()->updatePushSubscription(
+            $data['endpoint'],
+            $data['keys']['p256dh'],
+            $data['keys']['auth'],
+            // Navegadores atuais só suportam aes128gcm; "aesgcm" (padrão da lib) já foi descontinuado.
+            $data['contentEncoding'] ?? 'aes128gcm'
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Remove a inscrição Web Push do navegador do usuário autenticado.
+     */
+    public function unsubscribeWebPush(Request $request)
+    {
+        $data = $request->validate(['endpoint' => 'required|string']);
+
+        $request->user()->deletePushSubscription($data['endpoint']);
+
+        return response()->json(['success' => true]);
+    }
 }

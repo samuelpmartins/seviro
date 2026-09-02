@@ -8,6 +8,10 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    @auth
+        <meta name="vapid-public-key" content="{{ config('webpush.vapid.public_key') }}">
+    @endauth
+
     <title>
         @auth
             @role('store')
@@ -200,6 +204,13 @@
                                                         <i class="fas fa-house me-2"></i>
                                                         Dashboard
                                                     </a>
+                                                    @if (!auth()->user()->is_attending)
+                                                        <button type="button" id="openAttendingModalButton"
+                                                            class="dropdown-item d-flex align-items-center">
+                                                            <i class="fas fa-concierge-bell me-2"></i>
+                                                            Iniciar atendimento
+                                                        </button>
+                                                    @endif
                                                 @endif
 
                                                 <a class="dropdown-item d-flex align-items-center"
@@ -216,12 +227,19 @@
                                                 <div class="dropdown-divider"></div>
                                             @endif
 
-                                            <a class="dropdown-item"
-                                                href="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
-                                                onclick="event.preventDefault();
-                                                         document.getElementById('logout-form').submit();">
-                                                {{ __('Logout') }}
-                                            </a>
+                                            @if (auth()->check() && auth()->user()->hasRole('waiter'))
+                                                <button type="button" id="requestWaiterLogoutButton"
+                                                    class="dropdown-item">
+                                                    {{ __('Logout') }}
+                                                </button>
+                                            @else
+                                                <a class="dropdown-item"
+                                                    href="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
+                                                    onclick="event.preventDefault();
+                                                             document.getElementById('logout-form').submit();">
+                                                    {{ __('Logout') }}
+                                                </a>
+                                            @endif
 
                                             <form id="logout-form"
                                                 action="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\TableServiceStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Table extends Model
@@ -50,6 +52,17 @@ class Table extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function tableUsers(): HasMany
+    {
+        return $this->hasMany(TableUser::class);
+    }
+
+    public function activeTableUser(): HasOne
+    {
+        return $this->hasOne(TableUser::class)
+            ->where('service_status', TableServiceStatus::Active->value);
     }
 
     /**
@@ -115,6 +128,12 @@ class Table extends Model
      */
     public function clearTable(): void
     {
+        // Encerra a atribuição ativa e a soft-deleta, liberando a mesa do garçom por completo.
+        $this->activeTableUser()->get()->each(function ($assignment) {
+            $assignment->update(['service_status' => TableServiceStatus::Finished]);
+            $assignment->delete();
+        });
+
         // Remover todos os participantes
         $this->participants()->get()->each->delete();
 
