@@ -39,6 +39,21 @@ class LoginController extends Controller
         $this->middleware('auth')->only('logout');
     }
 
+    public function logout(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user) {
+            $user->pushSubscriptions()->delete();
+        }
+
+        $this->guard()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/');
+    }
+
     protected function authenticated(Request $request, $user)
     {
         if ($user->hasRole('admin')) {

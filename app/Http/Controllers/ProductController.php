@@ -59,11 +59,25 @@ class ProductController extends Controller
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $store = auth()->user()->store;
         $categories = $store->categories()->orderBy('order')->get();
-        $products = $store->products()->with('category')->orderBy('order')->paginate(10);
+        $productsQuery = $store->products()->with('category')->orderBy('order');
+
+        if ($request->filled('name')) {
+            $productsQuery->where('name', 'like', '%' . $request->string('name') . '%');
+        }
+
+        if ($request->filled('category_id')) {
+            $productsQuery->where('category_id', $request->input('category_id'));
+        }
+
+        if ($request->filled('status')) {
+            $productsQuery->where('active', $request->input('status') === 'active');
+        }
+
+        $products = $productsQuery->paginate(10)->withQueryString();
 
         return view('store.products.index', compact('categories', 'products'));
     }

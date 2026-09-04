@@ -214,12 +214,6 @@
                                                 @endif
 
                                                 <a class="dropdown-item d-flex align-items-center"
-                                                    href="{{ route('orders.history') }}">
-                                                    <i class="fas fa-history me-2"></i>
-                                                    Meus Pedidos
-                                                </a>
-
-                                                <a class="dropdown-item d-flex align-items-center"
                                                     href="{{ route('profile.edit') }}">
                                                     <i class="fas fa-user me-2"></i>
                                                     Perfil

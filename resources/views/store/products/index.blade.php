@@ -88,6 +88,48 @@
             </a>
         </div>
 
+        <div class="card products-card mb-4">
+            <div class="card-body">
+                <form action="{{ route('store.products.index') }}" method="GET" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="product-filter-name" class="form-label text-dark">Nome do produto</label>
+                        <input type="search" id="product-filter-name" name="name" class="form-control"
+                            value="{{ request('name') }}" placeholder="Buscar por nome">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="product-filter-category" class="form-label text-dark">Categoria</label>
+                        <select id="product-filter-category" name="category_id" class="form-select">
+                            <option value="">Todas as categorias</option>
+                            @foreach ($categories as $category)
+                                <option value="{{ $category->id }}"
+                                    {{ request('category_id') == $category->id ? 'selected' : '' }}>
+                                    {{ $category->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="product-filter-status" class="form-label text-dark">Status</label>
+                        <select id="product-filter-status" name="status" class="form-select">
+                            <option value="">Todos os status</option>
+                            <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Ativos</option>
+                            <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inativos
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="fas fa-filter me-1"></i>Filtrar
+                        </button>
+                        <a href="{{ route('store.products.index') }}" class="btn btn-outline-secondary"
+                            title="Limpar filtros">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="card products-card">
             <div class="card-body">
                 @if ($categories->isEmpty())

@@ -10,15 +10,14 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        // Criar roles
-        $adminRole = Role::create(['name' => 'admin']);
-        $storeRole = Role::create(['name' => 'store']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $storeRole = Role::firstOrCreate(['name' => 'store', 'guard_name' => 'web']);
 
         // Criar permissões
         $permissions = [
             // Permissões de administrador
             'manage stores',
-            
+
             // Permissões de loja
             'manage store',
             'manage categories',
@@ -27,12 +26,12 @@ class RoleSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
         // Atribuir permissões aos roles
         $adminRole->givePermissionTo('manage stores');
-        
+
         $storeRole->givePermissionTo([
             'manage store',
             'manage categories',
@@ -40,4 +39,4 @@ class RoleSeeder extends Seeder
             'manage tables'
         ]);
     }
-} 
+}

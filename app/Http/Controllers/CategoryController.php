@@ -26,6 +26,7 @@ class CategoryController extends Controller
             'name' => 'required|string|max:255',
             'icon' => 'nullable|string|max:50',
             'description' => 'nullable|string|max:255',
+            'suspended' => 'nullable|boolean',
         ]);
 
         $store = auth()->user()->store;
@@ -65,12 +66,14 @@ class CategoryController extends Controller
             'name' => 'required|string|max:255',
             'icon' => 'nullable|string|max:50',
             'description' => 'nullable|string|max:255',
+            'suspended' => 'nullable|boolean',
         ]);
 
         $category->update([
             'name' => $request->name,
             'icon' => $request->icon,
             'description' => $request->description,
+            'suspended' => $request->boolean('suspended'),
         ]);
 
         // Verificar de onde veio a requisição para redirecionar corretamente

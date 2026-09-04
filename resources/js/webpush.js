@@ -29,6 +29,27 @@ async function sendSubscriptionToServer(url, subscription) {
     });
 }
 
+async function unsubscribeFromWebPush() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+
+    const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (!registration) {
+        return;
+    }
+
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+        return;
+    }
+
+    const endpoint = subscription.endpoint;
+    await subscription.unsubscribe();
+
+    await sendSubscriptionToServer('/api/push/webpush-unsubscribe', { endpoint });
+}
+
 async function subscribeToWebPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         console.warn('Este navegador não suporta Web Push.');
@@ -64,5 +85,28 @@ async function subscribeToWebPush() {
 document.addEventListener('DOMContentLoaded', function () {
     subscribeToWebPush().catch(function (error) {
         console.error('Falha ao inscrever para Web Push:', error);
+    });
+
+    document.querySelectorAll('form').forEach(function (form) {
+        if (new URL(form.action, window.location.origin).pathname !== '/logout') {
+            return;
+        }
+
+        form.addEventListener('submit', async function (event) {
+            if (form.dataset.pushLogoutHandled === 'true') {
+                return;
+            }
+
+            event.preventDefault();
+            form.dataset.pushLogoutHandled = 'true';
+
+            try {
+                await unsubscribeFromWebPush();
+            } catch (error) {
+                console.error('Falha ao remover inscrição Web Push:', error);
+            } finally {
+                form.submit();
+            }
+        });
     });
 });

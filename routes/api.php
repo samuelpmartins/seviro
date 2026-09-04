@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Models\Table;
 use App\Models\Order;
+use App\Models\TableUser;
+use App\Enums\TableServiceStatus;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\NotificationController;
@@ -115,11 +117,21 @@ Route::middleware(['web'])->group(function () {
             // Obter a store para verificar se tem garçons
             $store = \App\Models\Store::findOrFail($validated['store_id']);
 
+            $table = null;
+            if (!empty($validated['table_id'])) {
+                $table = Table::where('id', $validated['table_id'])
+                    ->where('store_id', $store->id)
+                    ->firstOrFail();
+            }
+
             // Verificar se o pedido contém APENAS itens rápidos
             $onlyQuickItems = true;
             $allProducts = [];
             foreach ($validated['items'] as $item) {
                 $product = \App\Models\Product::find($item['product_id']);
+                if (!$product || $product->store_id !== $store->id) {
+                    throw new \InvalidArgumentException('Produto não pertence à loja informada.');
+                }
                 $allProducts[] = ['item' => $item, 'product' => $product];
                 if (!$product->is_quick_item) {
                     $onlyQuickItems = false;
@@ -194,6 +206,23 @@ Route::middleware(['web'])->group(function () {
                         'price' => $unitPrice,
                         'notes' => json_encode($notesPayload, JSON_UNESCAPED_UNICODE),
                     ]);
+                }
+
+                if ($order->table_id) {
+                    $assignment = TableUser::where('table_id', $order->table_id)
+                        ->where('service_status', TableServiceStatus::Active->value)
+                        ->latest('id')
+                        ->first();
+
+                    if ($assignment) {
+                        \App\Models\OrderAttendance::create([
+                            'store_id' => $order->store_id,
+                            'order_id' => $order->id,
+                            'table_id' => $order->table_id,
+                            'participant_id' => $order->participant_id,
+                            'waiter_id' => $assignment->user_id,
+                        ]);
+                    }
                 }
 
                 // Armazenar ID do pedido na sessão para rastreamento de notificações

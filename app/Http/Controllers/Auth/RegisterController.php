@@ -8,6 +8,7 @@ use App\Models\Store;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Role;
 
 class RegisterController extends Controller
 {
@@ -74,8 +75,8 @@ class RegisterController extends Controller
             'password' => Hash::make($data['password']),
         ]);
 
-        // Atribuir role de loja
-        $user->assignRole('store');
+        $storeRole = Role::firstOrCreate(['name' => 'store', 'guard_name' => 'web']);
+        $user->assignRole($storeRole);
 
         // Criar loja associada ao usuário
         Store::create([

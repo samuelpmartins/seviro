@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Table;
+use App\Models\TableUser;
+use App\Models\User;
+use App\Enums\TableServiceStatus;
 use App\Events\OrderCreated;
 use App\Events\OrderStatusChanged;
 use Illuminate\Http\Request;
@@ -89,6 +92,23 @@ class OrderController extends Controller
                 // Criar itens dentro da mesma transação
                 foreach ($items as $item) {
                     $order->items()->create($item);
+                }
+
+                if ($order->table_id) {
+                    $assignment = TableUser::where('table_id', $order->table_id)
+                        ->where('service_status', TableServiceStatus::Active->value)
+                        ->latest('id')
+                        ->first();
+
+                    if ($assignment) {
+                        \App\Models\OrderAttendance::create([
+                            'store_id' => $order->store_id,
+                            'order_id' => $order->id,
+                            'table_id' => $order->table_id,
+                            'participant_id' => $order->participant_id,
+                            'waiter_id' => $assignment->user_id,
+                        ]);
+                    }
                 }
 
                 // Armazenar ID do pedido na sessão para rastreamento de notificações
@@ -180,9 +200,13 @@ class OrderController extends Controller
     {
         $store = auth()->user()->store;
         $tables = $store->tables;
+        $waiters = User::where('store_id', $store->id)
+            ->whereHas('roles', fn($query) => $query->where('name', 'waiter')->where('guard_name', 'web'))
+            ->orderBy('name')
+            ->get();
 
         $ordersQuery = $store->orders()
-            ->with(['table', 'items.product']);
+            ->with(['table', 'items.product', 'participant', 'attendance.waiter', 'attendance.participant']);
 
         // Filtros
         if ($request->filled('status')) {
@@ -191,6 +215,12 @@ class OrderController extends Controller
 
         if ($request->filled('table_id')) {
             $ordersQuery->where('table_id', $request->table_id);
+        }
+
+        if ($request->filled('waiter_id')) {
+            $ordersQuery->whereHas('attendance', function ($query) use ($request) {
+                $query->where('waiter_id', $request->waiter_id);
+            });
         }
 
         if ($request->filled('start_date')) {
@@ -204,7 +234,7 @@ class OrderController extends Controller
         $orders = $ordersQuery->orderBy('created_at', 'desc')
             ->paginate(15);
 
-        return view('store.orders_history', compact('orders', 'tables'));
+        return view('store.orders_history', compact('orders', 'tables', 'waiters'));
     }
 
     /**

@@ -104,6 +104,7 @@ class MenuController extends Controller
 
         // Carrega as categorias com seus produtos
         $categories = $store->categories()
+            ->where('suspended', false)
             ->with(['products' => function ($query) {
                 $query->where('active', true)
                     ->with('additionalIngredients')
@@ -123,6 +124,7 @@ class MenuController extends Controller
 
         // Carrega as categorias com seus produtos
         $categories = $store->categories()
+            ->where('suspended', false)
             ->with(['products' => function ($query) {
                 $query->where('active', true)
                     ->with('additionalIngredients')

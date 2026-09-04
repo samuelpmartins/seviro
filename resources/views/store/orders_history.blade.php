@@ -270,6 +270,32 @@
 
         .modal-body {
             padding: 30px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .order-summary-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            color: #2c3e50;
+        }
+
+        .order-item-image {
+            width: 72px;
+            height: 72px;
+            flex: 0 0 72px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .order-item-image-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eef1f3;
+            color: #9aa5ad;
         }
 
         .modal-footer {
@@ -445,17 +471,17 @@
             </div>
             <div class="card-body">
                 <form action="{{ route('store.orders.history') }}" method="GET" class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="start_date" class="form-label">Data Inicial</label>
                         <input type="date" class="form-control" id="start_date" name="start_date"
                             value="{{ request('start_date') }}">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="end_date" class="form-label">Data Final</label>
                         <input type="date" class="form-control" id="end_date" name="end_date"
                             value="{{ request('end_date') }}">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="status" class="form-label">Status</label>
                         <select class="form-select" id="status" name="status">
                             <option value="">Todos</option>
@@ -470,13 +496,25 @@
                             </option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="table_id" class="form-label">Mesa</label>
                         <select class="form-select" id="table_id" name="table_id">
                             <option value="">Todas</option>
                             @foreach ($tables as $table)
                                 <option value="{{ $table->id }}"
                                     {{ request('table_id') == $table->id ? 'selected' : '' }}>Mesa {{ $table->number }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="waiter_id" class="form-label">Garçom</label>
+                        <select class="form-select" id="waiter_id" name="waiter_id">
+                            <option value="">Todos</option>
+                            @foreach ($waiters as $waiter)
+                                <option value="{{ $waiter->id }}"
+                                    {{ request('waiter_id') == $waiter->id ? 'selected' : '' }}>
+                                    {{ $waiter->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -505,7 +543,7 @@
                                     <th>Itens</th>
                                     <th>Total</th>
                                     <th>Status</th>
-                                    <th>Pagamento</th>
+                                    <th>Garçom</th>
                                     <th>Data</th>
                                     <th>Ações</th>
                                 </tr>
@@ -537,25 +575,7 @@
                                             </span>
                                         </td>
                                         <td>
-                                            @if ($order->payment_status === 'paid')
-                                                <span class="badge bg-success mb-1">
-                                                    <i class="fas fa-check-circle me-1"></i>Pago
-                                                </span>
-                                                <br>
-                                                <small class="text-muted">
-                                                    @if ($order->payment_method === 'card')
-                                                        <i class="fas fa-credit-card me-1"></i>Crédito/Débito
-                                                    @elseif($order->payment_method === 'pix')
-                                                        <i class="fas fa-qrcode me-1"></i>PIX
-                                                    @elseif($order->payment_method === 'cash')
-                                                        <i class="fas fa-money-bill-wave me-1"></i>Dinheiro
-                                                    @endif
-                                                </small>
-                                            @else
-                                                <span class="badge bg-warning">
-                                                    <i class="fas fa-clock me-1"></i>Pendente
-                                                </span>
-                                            @endif
+                                            {{ $order->attendance?->waiter?->name ?? 'Não identificado' }}
                                         </td>
                                         <td>{{ $order->created_at->format('d/m/Y H:i') }}</td>
                                         <td>
@@ -577,7 +597,7 @@
                                     <!-- Modal de Detalhes do Pedido -->
                                     <div class="modal" id="orderModal{{ $order->id }}" tabindex="-1"
                                         data-bs-backdrop="static">
-                                        <div class="modal-dialog">
+                                        <div class="modal-dialog modal-dialog-centered">
                                             <div class="modal-content">
                                                 <div class="modal-header">
                                                     <h5 class="modal-title">Pedido {{ $order->order_number }}</h5>
@@ -605,6 +625,27 @@
                                                         </span>
                                                     </div>
                                                     <div class="mb-3">
+                                                        <strong>Garçom:</strong>
+                                                        {{ $order->attendance?->waiter?->name ?? 'Não identificado' }}
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <strong>Pagamento:</strong>
+                                                        @if ($order->payment_status === 'paid')
+                                                            <span class="badge bg-success">Pago</span>
+                                                        @else
+                                                            <span class="badge bg-warning">Pendente</span>
+                                                        @endif
+                                                        @if ($order->payment_method)
+                                                            <small class="text-muted ms-1">
+                                                                ({{ $order->payment_method === 'card' ? 'Crédito/Débito' : ($order->payment_method === 'pix' ? 'PIX' : ($order->payment_method === 'cash' ? 'Dinheiro' : $order->payment_method)) }})
+                                                            </small>
+                                                        @endif
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <strong>Participante:</strong>
+                                                        {{ $order->attendance?->participant?->name ?? ($order->participant?->name ?? 'Não identificado') }}
+                                                    </div>
+                                                    <div class="mb-3">
                                                         <strong>Data:</strong>
                                                         {{ $order->created_at->format('d/m/Y H:i') }}
                                                     </div>
@@ -618,50 +659,9 @@
                                                         <strong>Itens:</strong>
                                                         <ul class="list-group">
                                                             @foreach ($order->items as $item)
-                                                                <li class="list-group-item">
-                                                                    <div class="d-flex">
-                                                                        @if ($item->product->image)
-                                                                            <div class="me-3">
-                                                                                <img src="{{ asset('storage/' . $item->product->image) }}"
-                                                                                    alt="{{ $item->product->name }}"
-                                                                                    class="img-thumbnail"
-                                                                                    style="width: 70px; height: 70px; object-fit: cover;">
-                                                                            </div>
-                                                                        @endif
-                                                                        <div class="flex-grow-1">
-                                                                            <div
-                                                                                class="d-flex justify-content-between align-items-center">
-                                                                                <div>
-                                                                                    <strong>{{ $item->product->name }}</strong>
-                                                                                    @if ($item->product->is_quick_item)
-                                                                                        <span class="badge bg-info ms-1"
-                                                                                            title="Item rápido - entrega direta pelo garçom">
-                                                                                            <i class="fas fa-bolt"></i>
-                                                                                            Rápido
-                                                                                        </span>
-                                                                                    @endif
-                                                                                    <br>
-                                                                                    <small class="text-muted">
-                                                                                        {{ $item->quantity }}x R$
-                                                                                        {{ number_format($item->price, 2, ',', '.') }}
-                                                                                    </small>
-                                                                                    @if ($item->notes)
-                                                                                        <br>
-                                                                                        <small
-                                                                                            class="text-muted fst-italic">
-                                                                                            <strong>Obs.:</strong>
-                                                                                            {{ $item->notes }}
-                                                                                        </small>
-                                                                                    @endif
-                                                                                </div>
-                                                                                <span>
-                                                                                    R$
-                                                                                    {{ number_format($item->price * $item->quantity, 2, ',', '.') }}
-                                                                                </span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </li>
+                                                                @include('components.order-item-details', [
+                                                                    'item' => $item,
+                                                                ])
                                                             @endforeach
                                                         </ul>
                                                     </div>
@@ -744,7 +744,7 @@
             }
 
             /* While a modal is open, prevent hover effects and pointer events
-                                       on underlying page elements to avoid layout shifts/repaints. */
+                                                                               on underlying page elements to avoid layout shifts/repaints. */
             body.modal-open .history-card,
             body.modal-open .table tbody tr,
             body.modal-open .history-container,

@@ -17,9 +17,7 @@ class TestDataSeeder extends Seeder
     public function run(): void
     {
         // Criar roles se não existirem
-        if (!Role::where('name', 'store')->exists()) {
-            Role::create(['name' => 'store']);
-        }
+        $storeRole = Role::firstOrCreate(['name' => 'store', 'guard_name' => 'web']);
 
         // Criar usuário de teste
         $user = User::firstOrCreate(
@@ -32,7 +30,7 @@ class TestDataSeeder extends Seeder
 
         // Atribuir role de store
         if (!$user->hasRole('store')) {
-            $user->assignRole('store');
+            $user->assignRole($storeRole);
         }
 
         // Criar loja

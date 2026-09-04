@@ -176,17 +176,7 @@ class TableController extends Controller
     {
         $this->authorize('update', $table);
 
-        // Remover todos os participantes da mesa
-        $table->participants()->get()->each->delete();
-
-        // Resetar a mesa (incluindo a senha)
-        $table->update([
-            'occupied' => false,
-            'current_user_id' => null,
-            'current_user_name' => null,
-            'occupied_at' => null,
-            'password' => null
-        ]);
+        $table->clearTable();
 
         return redirect()->route('store.tables.index')
             ->with('success', 'Mesa desocupada com sucesso!');

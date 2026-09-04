@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Role;
 
 class StoreController extends Controller
 {
@@ -41,8 +42,8 @@ class StoreController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        // Atribuir role de loja
-        $user->assignRole('store');
+        $storeRole = Role::firstOrCreate(['name' => 'store', 'guard_name' => 'web']);
+        $user->assignRole($storeRole);
 
         // Upload de imagens
         $coverPath = null;

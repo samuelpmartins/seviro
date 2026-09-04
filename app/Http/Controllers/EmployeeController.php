@@ -63,12 +63,8 @@ class EmployeeController extends Controller
         ]);
 
         // Garantir que as roles existam
-        if (!Role::where('name', 'kitchen')->exists()) {
-            Role::create(['name' => 'kitchen', 'guard_name' => 'web']);
-        }
-        if (!Role::where('name', 'waiter')->exists()) {
-            Role::create(['name' => 'waiter', 'guard_name' => 'web']);
-        }
+        Role::firstOrCreate(['name' => 'kitchen', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'waiter', 'guard_name' => 'web']);
 
         // Atribuir a role
         $user->assignRole($request->role);
@@ -446,7 +442,10 @@ class EmployeeController extends Controller
         $tables = Table::where('store_id', $store->id)->orderBy('number')->get();
 
         $ordersQuery = Order::where('store_id', $store->id)
-            ->with(['table', 'items.product', 'participant']);
+            ->whereHas('attendance', function ($query) use ($user) {
+                $query->where('waiter_id', $user->id);
+            })
+            ->with(['table', 'items.product', 'participant', 'attendance.waiter']);
 
         // Filtros
         if ($request->filled('status')) {

@@ -18,8 +18,13 @@ class Category extends Model
         'name',
         'icon',
         'description',
+        'suspended',
         'store_id',
         'order'
+    ];
+
+    protected $casts = [
+        'suspended' => 'boolean',
     ];
 
     public function store(): BelongsTo

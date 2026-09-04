@@ -142,6 +142,7 @@ class Table extends Model
             'occupied' => false,
             'current_user_id' => null,
             'current_user_name' => null,
+            'occupied_at' => null,
             'last_activity' => now(),
             'password' => null, // Remover senha ao desocupar
         ]);
