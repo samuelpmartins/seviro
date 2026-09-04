@@ -417,12 +417,25 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function stopAttending(Request $request)
+    public function attendanceStatus(Request $request)
     {
-        $request->user()->update(['is_attending' => false]);
+        $user = User::query()->findOrFail($request->user()->id);
 
         return response()->json([
             'success' => true,
+            'is_attending' => (bool) $user->is_attending,
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
+    public function stopAttending(Request $request)
+    {
+        $user = User::query()->findOrFail($request->user()->id);
+        $wasAttending = (bool) $user->is_attending;
+        $user->update(['is_attending' => false]);
+
+        return response()->json([
+            'success' => true,
+            'was_attending' => $wasAttending,
             'message' => 'Atendimento encerrado.',
         ]);
     }

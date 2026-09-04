@@ -909,6 +909,7 @@
         const stopAttendingModal = document.getElementById('stopAttendingModal');
         const attendingReminderKey = 'waiter-attending-reminder-{{ auth()->id() }}';
         let attendingReminderTimer;
+        let isLoggingOut = false;
 
         function showAttendingModal() {
             if (!isAttending) {
@@ -920,8 +921,42 @@
             showAttendingModal();
         });
 
-        function showStopAttendingModal() {
-            stopAttendingModal.classList.add('show');
+        async function showStopAttendingModal() {
+            const error = document.getElementById('stopAttendingModalError');
+            error.classList.add('d-none');
+
+            try {
+                const response = await fetch('{{ route('waiter.attendance-status') }}', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache',
+                    },
+                    cache: 'no-store',
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Não foi possível validar o atendimento.');
+                }
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Não foi possível validar o atendimento.');
+                }
+
+                isAttending = result.is_attending === true;
+                if (!isAttending) {
+                    document.getElementById('logout-form').submit();
+                    return;
+                }
+
+                stopAttendingModal.classList.add('show');
+            } catch (exception) {
+                error.textContent = exception.message;
+                error.classList.remove('d-none');
+                stopAttendingModal.classList.add('show');
+            }
         }
 
         document.getElementById('requestWaiterLogoutButton')?.addEventListener('click', showStopAttendingModal);
@@ -937,6 +972,11 @@
         document.getElementById('confirmStopAttendingButton').addEventListener('click', async function() {
             const button = this;
             const error = document.getElementById('stopAttendingModalError');
+            if (isLoggingOut) {
+                return;
+            }
+
+            isLoggingOut = true;
             button.disabled = true;
             error.classList.add('d-none');
 
@@ -954,11 +994,19 @@
                     throw new Error('Não foi possível encerrar o atendimento.');
                 }
 
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Não foi possível encerrar o atendimento.');
+                }
+
+                isAttending = false;
+                stopAttendingModal.classList.remove('show');
                 document.getElementById('logout-form').submit();
             } catch (exception) {
                 error.textContent = exception.message;
                 error.classList.remove('d-none');
                 button.disabled = false;
+                isLoggingOut = false;
             }
         });
 
@@ -1161,10 +1209,10 @@
             
             <div class="order-details-footer">
                 ${order.status === 'Aguardando produção' ? `
-                                                                <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
-                                                                    <i class="fas fa-edit me-2"></i>Editar Pedido
-                                                                </button>
-                                                            ` : ''}
+                                                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
+                                                                        <i class="fas fa-edit me-2"></i>Editar Pedido
+                                                                    </button>
+                                                                ` : ''}
                 <button class="btn-close-modal" onclick="closeOrderDetails()">
                     <i class="fas fa-times me-2"></i>Fechar
                 </button>
