@@ -44,6 +44,7 @@ class LoginController extends Controller
         $user = $request->user();
 
         if ($user) {
+            $user->update(['is_attending' => false]);
             $user->pushSubscriptions()->delete();
         }
 
