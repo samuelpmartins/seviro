@@ -88,6 +88,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.querySelectorAll('form').forEach(function (form) {
+        if (form.id === 'waiterLogoutForm') {
+            return;
+        }
+
         if (new URL(form.action, window.location.origin).pathname !== '/logout') {
             return;
         }
