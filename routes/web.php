@@ -130,6 +130,9 @@ Route::get('payment/{qrCode}/complete', [PaymentController::class, 'paymentCompl
 
 // Rotas de perfil
 Route::middleware('auth')->group(function () {
+    Route::get('/password/first-access', [\App\Http\Controllers\Auth\FirstAccessController::class, 'show'])->name('first-access');
+    Route::post('/password/first-access', [\App\Http\Controllers\Auth\FirstAccessController::class, 'update'])->name('first-access.update');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

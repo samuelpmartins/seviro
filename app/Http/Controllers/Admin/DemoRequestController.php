@@ -8,6 +8,7 @@ use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 use App\Events\DemoRequestApproved;
 
 class DemoRequestController extends Controller
@@ -87,6 +88,9 @@ class DemoRequestController extends Controller
                 'password' => $tempPassword,
                 'first_access' => true,
             ]);
+
+            $storeRole = Role::firstOrCreate(['name' => 'store', 'guard_name' => 'web']);
+            $user->assignRole($storeRole);
 
             $store = Store::create([
                 'name' => $demoRequest->name,

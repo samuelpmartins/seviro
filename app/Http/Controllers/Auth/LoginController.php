@@ -60,6 +60,10 @@ class LoginController extends Controller
         if ($user->hasRole('admin')) {
             return redirect()->route('stores.index');
         } elseif ($user->hasRole('store')) {
+            if ($user->first_access) {
+                return redirect()->route('first-access');
+            }
+
             return redirect()->route('store.manage');
         } elseif ($user->hasRole('waiter')) {
             return redirect()->route('waiter.dashboard');

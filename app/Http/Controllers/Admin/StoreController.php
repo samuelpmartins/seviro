@@ -52,6 +52,7 @@ class StoreController extends Controller
         if (!empty($validated['password']) && $store->user) {
             $store->user->update([
                 'password' => Hash::make($validated['password']),
+                'first_access' => true,
             ]);
         }
 
