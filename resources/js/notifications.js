@@ -100,6 +100,19 @@ class NotificationSystem {
         localStorage.setItem('kitchenFailedPrints', JSON.stringify(list));
     }
 
+    markOrderPrinted(orderId) {
+        try {
+            const printed = JSON.parse(localStorage.getItem('kitchenPrintedOrders') || '{}');
+            printed[orderId] = new Date().toISOString();
+            localStorage.setItem('kitchenPrintedOrders', JSON.stringify(printed));
+            if (typeof window.applyKitchenPrintedBadges === 'function') {
+                window.applyKitchenPrintedBadges();
+            }
+        } catch (e) {
+            console.warn('Não foi possível registrar o pedido como impresso:', orderId, e);
+        }
+    }
+
 
     async printOrder(orderId) {
         const printerConfig = this.getPrinterConfig();
@@ -195,7 +208,8 @@ class NotificationSystem {
                         const res = await this.printOrder(data.order_id);
 
                         if (res && res.status === 200) {
-                            // success on initial notification: do nothing (no UI change, no cache)
+                            this.removeFailedPrint(data.order_id);
+                            this.markOrderPrinted(data.order_id);
 
                         } else {
                             // backend informou falha

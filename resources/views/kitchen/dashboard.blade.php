@@ -865,6 +865,8 @@
             });
         }
 
+        window.applyKitchenPrintedBadges = applyPrintedBadges;
+
         function updateKitchenCounters() {
             const waitingCount = document.querySelectorAll(
                 '.order-card[data-order-status="Aguardando pagamento"], .order-card[data-order-status="Aguardando produção"]'
@@ -932,6 +934,9 @@
 
                                 if (res && res.status === 200) {
                                     retryBtn.textContent = 'Enviado';
+                                    window.notificationSystem.removeFailedPrint(oid);
+                                    window.notificationSystem.markOrderPrinted(oid);
+                                    indicator.classList.add('d-none');
                                     if (window.notificationSystem && typeof window.notificationSystem
                                         .clearRetryClicked === 'function') {
                                         window.notificationSystem.clearRetryClicked(oid);
