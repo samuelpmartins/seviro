@@ -152,8 +152,14 @@
                 </div>
 
                 <h5 class="section-title">Acesso do restaurante</h5>
+                <div class="mb-3">
+                    <label for="email" class="form-label">E-mail de acesso</label>
+                    <input type="email" id="email" class="form-control"
+                        value="{{ $store->user?->email ?? 'Não informado' }}" readonly>
+                </div>
                 <p class="text-muted small">Preencha os dois campos somente se quiser alterar a senha do usuário
-                    responsável.</p>
+                    responsável. Ao alterar, o usuário deverá criar uma nova senha no próximo acesso e receberá um e-mail
+                    com a nova senha.</p>
 
                 <div class="row g-3">
                     <div class="col-md-6">

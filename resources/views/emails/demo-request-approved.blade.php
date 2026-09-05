@@ -1,15 +1,19 @@
-<h2>Olá {{ $demoRequest->name }}!</h2>
+@extends('emails.layout')
 
-<p>Sua solicitação de demonstração foi aprovada e sua conta foi criada com sucesso!</p>
+@section('content')
+    <h2 style="margin:0 0 18px; color:#2c3e50;">Olá {{ $demoRequest->name }}!</h2>
 
-<p><strong>Dados de acesso:</strong></p>
-<ul>
-    <li><strong>Email:</strong> {{ $demoRequest->email }}</li>
-    <li><strong>Senha temporária:</strong> {{ $tempPassword }}</li>
-</ul>
+    <p>Sua solicitação de demonstração foi aprovada e sua conta foi criada com sucesso.</p>
 
-<p>Acesse a plataforma em: <a href="{{ route('login') }}">{{ route('login') }}</a></p>
+    <p><strong>Dados de acesso:</strong></p>
+    <ul>
+        <li><strong>Email:</strong> {{ $demoRequest->email }}</li>
+        <li><strong>Senha temporária:</strong> {{ $tempPassword }}</li>
+    </ul>
 
-<p>⚠️ <strong>Importante:</strong> Na sua primeira vez, você deverá redefinir sua senha.</p>
+    <p>Acesse a plataforma em: <a href="{{ route('login') }}">{{ route('login') }}</a></p>
 
-<p>Obrigado e bem-vindo!</p>
+    <p><strong>Importante:</strong> no primeiro acesso, você deverá redefinir sua senha.</p>
+
+    <p>Obrigado e bem-vindo!</p>
+@endsection

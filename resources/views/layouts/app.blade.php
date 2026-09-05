@@ -147,98 +147,102 @@
                             @endauth
                         </a>
                     @endif
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
-                        <span class="navbar-toggler-icon"></span>
-                    </button>
+                    @if (!Route::is('first-access'))
+                        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                            aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
+                            <span class="navbar-toggler-icon"></span>
+                        </button>
 
-                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                        <!-- Left Side Of Navbar -->
-                        <ul class="navbar-nav me-auto">
-                            @auth('admin')
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{{ route('admin.dashboard') }}">Painel</a>
-                                </li>
-                            @endauth
-
-                            @auth
-                                @role('store')
+                        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                            <!-- Left Side Of Navbar -->
+                            <ul class="navbar-nav me-auto">
+                                @auth('admin')
                                     <li class="nav-item">
-                                        <a class="nav-link" href="{{ route('store.manage') }}">Dashboard</a>
+                                        <a class="nav-link" href="{{ route('admin.dashboard') }}">Painel</a>
                                     </li>
-                                @endrole
-                            @endauth
-                        </ul>
+                                @endauth
 
-                        <!-- Right Side Of Navbar -->
-                        <ul class="navbar-nav ms-auto">
-                            <!-- Authentication Links -->
-                            @if (!Route::is('admin.login') && !Route::is('admin.first-access'))
-                                @if (!auth('admin')->check() && !auth()->check())
-                                    @if (Route::has('login'))
+                                @auth
+                                    @role('store')
                                         <li class="nav-item">
-                                            <a class="nav-link" href="{{ route('login') }}">{{ __('Login') }}</a>
+                                            <a class="nav-link" href="{{ route('store.manage') }}">Dashboard</a>
                                         </li>
-                                    @endif
-                                @else
-                                    <li class="nav-item dropdown">
-                                        <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#"
-                                            role="button" data-bs-toggle="dropdown" aria-haspopup="true"
-                                            aria-expanded="false">
-                                            {{ auth('admin')->check() ? auth('admin')->user()->name : auth()->user()->name }}
-                                        </a>
+                                    @endrole
+                                @endauth
+                            </ul>
 
-                                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                            @if (auth()->check())
-                                                @if (auth()->user() && auth()->user()->hasRole('waiter'))
-                                                    <a class="dropdown-item d-flex align-items-center"
-                                                        href="{{ route('waiter.dashboard') }}">
-                                                        <i class="fas fa-house me-2"></i>
-                                                        Dashboard
-                                                    </a>
-                                                    @if (!auth()->user()->is_attending)
-                                                        <button type="button" id="openAttendingModalButton"
-                                                            class="dropdown-item d-flex align-items-center">
-                                                            <i class="fas fa-concierge-bell me-2"></i>
-                                                            Iniciar atendimento
-                                                        </button>
+                            <!-- Right Side Of Navbar -->
+                            <ul class="navbar-nav ms-auto">
+                                <!-- Authentication Links -->
+                                @if (!Route::is('admin.login') && !Route::is('admin.first-access'))
+                                    @if (!auth('admin')->check() && !auth()->check())
+                                        @if (Route::has('login'))
+                                            <li class="nav-item">
+                                                <a class="nav-link"
+                                                    href="{{ route('login') }}">{{ __('Login') }}</a>
+                                            </li>
+                                        @endif
+                                    @else
+                                        <li class="nav-item dropdown">
+                                            <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#"
+                                                role="button" data-bs-toggle="dropdown" aria-haspopup="true"
+                                                aria-expanded="false">
+                                                {{ auth('admin')->check() ? auth('admin')->user()->name : auth()->user()->name }}
+                                            </a>
+
+                                            <div class="dropdown-menu dropdown-menu-end"
+                                                aria-labelledby="navbarDropdown">
+                                                @if (auth()->check())
+                                                    @if (auth()->user() && auth()->user()->hasRole('waiter'))
+                                                        <a class="dropdown-item d-flex align-items-center"
+                                                            href="{{ route('waiter.dashboard') }}">
+                                                            <i class="fas fa-house me-2"></i>
+                                                            Dashboard
+                                                        </a>
+                                                        @if (!auth()->user()->is_attending)
+                                                            <button type="button" id="openAttendingModalButton"
+                                                                class="dropdown-item d-flex align-items-center">
+                                                                <i class="fas fa-concierge-bell me-2"></i>
+                                                                Iniciar atendimento
+                                                            </button>
+                                                        @endif
                                                     @endif
+
+                                                    <a class="dropdown-item d-flex align-items-center"
+                                                        href="{{ route('profile.edit') }}">
+                                                        <i class="fas fa-user me-2"></i>
+                                                        Perfil
+                                                    </a>
+                                                    <div class="dropdown-divider"></div>
                                                 @endif
 
-                                                <a class="dropdown-item d-flex align-items-center"
-                                                    href="{{ route('profile.edit') }}">
-                                                    <i class="fas fa-user me-2"></i>
-                                                    Perfil
-                                                </a>
-                                                <div class="dropdown-divider"></div>
-                                            @endif
-
-                                            @if (auth()->check() && auth()->user()->hasRole('waiter'))
-                                                <button type="button" id="requestWaiterLogoutButton"
-                                                    class="dropdown-item">
-                                                    {{ __('Logout') }}
-                                                </button>
-                                            @else
-                                                <a class="dropdown-item"
-                                                    href="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
-                                                    onclick="event.preventDefault();
+                                                @if (auth()->check() && auth()->user()->hasRole('waiter'))
+                                                    <button type="button" id="requestWaiterLogoutButton"
+                                                        class="dropdown-item">
+                                                        {{ __('Logout') }}
+                                                    </button>
+                                                @else
+                                                    <a class="dropdown-item"
+                                                        href="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
+                                                        onclick="event.preventDefault();
                                                              document.getElementById('logout-form').submit();">
-                                                    {{ __('Logout') }}
-                                                </a>
-                                            @endif
+                                                        {{ __('Logout') }}
+                                                    </a>
+                                                @endif
 
-                                            <form id="logout-form"
-                                                action="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
-                                                method="POST" class="d-none">
-                                                @csrf
-                                            </form>
-                                        </div>
-                                    </li>
+                                                <form id="logout-form"
+                                                    action="{{ auth('admin')->check() ? route('admin.logout') : route('logout') }}"
+                                                    method="POST" class="d-none">
+                                                    @csrf
+                                                </form>
+                                            </div>
+                                        </li>
+                                    @endif
                                 @endif
-                            @endif
-                        </ul>
-                    </div>
+                            </ul>
+                        </div>
+                    @endif
                 </div>
             </nav>
         @endif

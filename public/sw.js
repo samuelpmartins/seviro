@@ -8,19 +8,31 @@ self.addEventListener('push', function (event) {
 
     const payload = event.data.json();
     const title = payload.title || 'SeviRo';
+    const notificationLifetime = Number(payload.notificationLifetime || 10000);
+    const notificationTag = payload.tag || title;
     const options = {
         body: payload.body || '',
         icon: payload.icon || '/storage/img/logo.png',
         badge: payload.badge || '/storage/img/logo.png',
         data: payload.data || {},
-        // Mantém visível até o usuário interagir e vibra no mobile, salvo a notificação dizer o contrário.
-        requireInteraction: payload.requireInteraction ?? true,
+        requireInteraction: payload.requireInteraction ?? false,
         vibrate: payload.vibrate || [200, 100, 200],
-        tag: payload.tag || title,
+        tag: notificationTag,
         renotify: payload.renotify ?? true,
     };
 
-    event.waitUntil(self.registration.showNotification(title, options));
+    event.waitUntil((async function () {
+        await self.registration.showNotification(title, options);
+
+        if (notificationLifetime > 0) {
+            setTimeout(async function () {
+                const notifications = await self.registration.getNotifications({ tag: notificationTag });
+                notifications.forEach(function (notification) {
+                    notification.close();
+                });
+            }, notificationLifetime);
+        }
+    })());
 });
 
 self.addEventListener('notificationclick', function (event) {

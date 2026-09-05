@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use App\Mail\StorePasswordChangedMail;
 
 class StoreController extends Controller
 {
@@ -50,10 +52,15 @@ class StoreController extends Controller
         $store->save();
 
         if (!empty($validated['password']) && $store->user) {
+            $newPassword = $validated['password'];
             $store->user->update([
-                'password' => Hash::make($validated['password']),
+                'password' => Hash::make($newPassword),
                 'first_access' => true,
             ]);
+
+            Mail::to($store->user->email)->send(
+                new StorePasswordChangedMail($store, $store->user->email, $newPassword)
+            );
         }
 
         return redirect()->route('admin.dashboard')
