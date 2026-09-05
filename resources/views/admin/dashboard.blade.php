@@ -1,20 +1,65 @@
 @extends('layouts.app')
 
 @section('content')
+    <nav class="navbar navbar-expand-md shadow-sm"
+        style="background-color: #000000 !important; border-bottom: 2px solid #9da1a1;">
+        <div class="container">
+            <a class="navbar-brand" href="{{ route('admin.dashboard') }}">
+                <img src="{{ asset('storage/img/logo.png') }}" alt="{{ config('app.name', 'Laravel') }}"
+                    style="height: 36px; width: auto; object-fit: contain;">
+            </a>
+            <div class="navbar-nav me-auto">
+                <a class="nav-link" href="{{ route('admin.dashboard') }}">Painel</a>
+            </div>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item dropdown">
+                    <a id="adminDashboardUserMenu" class="nav-link dropdown-toggle" href="#" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        {{ auth('admin')->user()->name }}
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDashboardUserMenu">
+                        <a class="dropdown-item d-flex align-items-center" href="{{ route('admin.demo-requests.index') }}">
+                            <i class="fas fa-list me-2"></i>
+                            Solicitações de Demonstração
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="{{ route('admin.logout') }}"
+                            onclick="event.preventDefault(); document.getElementById('admin-dashboard-logout-form').submit();">
+                            {{ __('Logout') }}
+                        </a>
+                        <form id="admin-dashboard-logout-form" action="{{ route('admin.logout') }}" method="POST"
+                            class="d-none">
+                            @csrf
+                        </form>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
     <div class="container-fluid py-5"
         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
         <!-- Header -->
-        <div class="container mb-5 d-flex align-items-center justify-content-between">
+        <div class="container mb-5">
             <div>
                 <h1 class="display-4 fw-bold text-white mb-2">
                     <i class="fas fa-chart-line me-3"></i>Painel Financeiro
                 </h1>
                 <p class="text-white-50 fs-5">Visão geral da receita e desempenho de seus restaurantes</p>
-            </div>
-            <div>
-                <a href="{{ route('admin.demo-requests.index') }}" class="btn btn-light btn-lg shadow-sm">
-                    <i class="fas fa-list me-2"></i>Solicitações de Demonstração
-                </a>
+                <form method="GET" action="{{ route('admin.dashboard') }}" class="d-flex align-items-center gap-2 mt-4">
+                    <label for="store_search" class="text-white mb-0">Restaurante:</label>
+                    <input type="search" id="store_search" name="store_search" value="{{ $storeSearch }}"
+                        class="form-control form-control-lg" style="width: 280px; min-width: 0; flex: 0 1 280px;"
+                        placeholder="Nome ou CPF/CNPJ" aria-label="Buscar restaurante por nome ou CPF/CNPJ">
+                    <button type="submit" class="btn btn-light btn-lg" title="Buscar restaurante">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    @if ($storeSearch !== '')
+                        <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-light btn-lg" title="Limpar busca">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    @endif
+                </form>
             </div>
         </div>
 
@@ -51,8 +96,8 @@
                             <h6 class="text-uppercase fw-bold"
                                 style="color: #6c757d; font-size: 0.75rem; letter-spacing: 0.5px;">Receita do Mês</h6>
                             <h2 class="fw-bold mb-2" style="color: #007bff;">R$
-                                {{ number_format($totalRevenue, 2, ',', '.') }}</h2>
-                            <p class="text-muted small mb-0">{{ $totalFinishedOrders }} pedido(s)</p>
+                                {{ number_format($monthlyRevenue, 2, ',', '.') }}</h2>
+                            <p class="text-muted small mb-0">{{ $monthlyFinishedOrders }} pedido(s) neste mês</p>
                         </div>
                     </div>
                 </div>
@@ -86,7 +131,8 @@
                             </div>
                             <h6 class="text-uppercase fw-bold"
                                 style="color: #6c757d; font-size: 0.75rem; letter-spacing: 0.5px;">Restaurantes</h6>
-                            <h2 class="fw-bold mb-2" style="color: #ffc107;">{{ number_format($totalStores, 0, ',', '.') }}
+                            <h2 class="fw-bold mb-2" style="color: #ffc107;">
+                                {{ number_format($totalStores, 0, ',', '.') }}
                             </h2>
                             <p class="text-muted small mb-0">Ativos na plataforma</p>
                         </div>

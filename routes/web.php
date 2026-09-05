@@ -107,8 +107,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/demo-requests/{demoRequest}/create-user', [\App\Http\Controllers\Admin\DemoRequestController::class, 'createUser'])->name('demo-requests.create-user');
         Route::post('/demo-requests/{demoRequest}/update-status', [\App\Http\Controllers\Admin\DemoRequestController::class, 'updateStatus'])->name('demo-requests.update-status');
         Route::post('/demo-requests/{demoRequest}/update-pending', [\App\Http\Controllers\Admin\DemoRequestController::class, 'updatePending'])->name('demo-requests.update-pending');
+        Route::post('/demo-requests/{demoRequest}/resend-access-email', [\App\Http\Controllers\Admin\DemoRequestController::class, 'resendAccessEmail'])->name('demo-requests.resend-access-email');
 
-        Route::resource('stores', StoreController::class);
+        Route::get('stores/{store}/edit', [\App\Http\Controllers\Admin\StoreController::class, 'edit'])->name('stores.edit');
+        Route::post('stores/{store}', [\App\Http\Controllers\Admin\StoreController::class, 'update'])->name('stores.update');
+        Route::resource('stores', StoreController::class)->except(['edit', 'update']);
 
         // Gerenciamento de Saques (Admin)
         Route::get('/withdrawals', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'index'])->name('withdrawals.index');

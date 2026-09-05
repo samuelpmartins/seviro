@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -82,7 +83,7 @@ class StoreController extends Controller
         return view('store.edit', compact('store'));
     }
 
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $store = auth()->user()->store;
 
@@ -92,14 +93,20 @@ class StoreController extends Controller
         $occupiedTables = $store->tables()->where('occupied', true)->count();
 
         $pendingOrders = $store->orders()
-            ->whereNotIn('status', ['Pago'])
+            ->where('payment_status', 'pending')
             ->with(['table', 'items.product'])
             ->orderBy('created_at', 'desc')
             ->get();
 
         // Dados financeiros
         $today = now()->startOfDay();
-        $thisMonth = now()->startOfMonth();
+        $selectedMonth = $request->input('financial_month', now()->format('Y-m'));
+        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $selectedMonth)) {
+            $selectedMonth = now()->format('Y-m');
+        }
+        $selectedMonthStart = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth();
+        $selectedMonthEnd = $selectedMonthStart->copy()->endOfMonth();
+        $selectedMonthLabel = $selectedMonthStart->locale('pt_BR')->translatedFormat('F Y');
 
         // Vendas de hoje
         $todaySales = $store->orders()
@@ -110,7 +117,7 @@ class StoreController extends Controller
         // Vendas do mês
         $monthSales = $store->orders()
             ->where('payment_status', 'paid')
-            ->whereDate('created_at', '>=', $thisMonth)
+            ->whereBetween('created_at', [$selectedMonthStart, $selectedMonthEnd])
             ->sum('total');
 
         // Total de vendas (todos os tempos)
@@ -127,11 +134,8 @@ class StoreController extends Controller
         // Pedidos pagos no mês
         $monthOrders = $store->orders()
             ->where('payment_status', 'paid')
-            ->whereDate('created_at', '>=', $thisMonth)
+            ->whereBetween('created_at', [$selectedMonthStart, $selectedMonthEnd])
             ->count();
-
-        // Ticket médio
-        $averageTicket = $monthOrders > 0 ? $monthSales / $monthOrders : 0;
 
         // Pedidos pendentes de pagamento
         $unpaidOrders = $store->orders()
@@ -141,14 +145,6 @@ class StoreController extends Controller
         $unpaidTotal = $store->orders()
             ->where('payment_status', 'pending')
             ->sum('total');
-
-        // Métodos de pagamento (últimos 30 dias)
-        $paymentMethods = $store->orders()
-            ->where('payment_status', 'paid')
-            ->whereDate('created_at', '>=', now()->subDays(30))
-            ->selectRaw('payment_method, COUNT(*) as count, SUM(total) as total')
-            ->groupBy('payment_method')
-            ->get();
 
         return view('store.dashboard', compact(
             'store',
@@ -162,10 +158,10 @@ class StoreController extends Controller
             'totalSales',
             'todayOrders',
             'monthOrders',
-            'averageTicket',
+            'selectedMonth',
+            'selectedMonthLabel',
             'unpaidOrders',
-            'unpaidTotal',
-            'paymentMethods'
+            'unpaidTotal'
         ));
     }
 

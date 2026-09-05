@@ -112,7 +112,7 @@
 
 <body>
     <div id="app">
-        @if (!Route::is('menu.show'))
+        @if (!Route::is('menu.show') && !Route::is('admin.dashboard'))
             <nav class="navbar navbar-expand-md shadow-sm">
                 <div class="container">
                     @if (isset($logoClickable) && !$logoClickable)
@@ -179,13 +179,6 @@
                                     @if (Route::has('login'))
                                         <li class="nav-item">
                                             <a class="nav-link" href="{{ route('login') }}">{{ __('Login') }}</a>
-                                        </li>
-                                    @endif
-
-                                    @if (Route::has('register'))
-                                        <li class="nav-item">
-                                            <a class="nav-link"
-                                                href="{{ route('register') }}">{{ __('Register') }}</a>
                                         </li>
                                     @endif
                                 @else

@@ -529,50 +529,6 @@
                 </div>
             </div>
 
-            <!-- Card de Saldo para Saque -->
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card content-card"
-                        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-md-6">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="financial-icon me-3"
-                                            style="background: rgba(255,255,255,0.2); color: white; width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                                            <i class="fas fa-wallet fs-4"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="mb-0" style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">
-                                                Saldo Disponível para Saque</h6>
-                                        </div>
-                                    </div>
-                                    <h2 class="mb-3" style="font-size: 2.5rem; font-weight: 700;" id="availableBalance">
-                                        <i class="fas fa-spinner fa-spin"></i>
-                                    </h2>
-                                    <p class="mb-0" style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">
-                                        Total recebido em vendas menos saques realizados
-                                    </p>
-                                </div>
-                                <div class="col-md-6 text-md-end">
-                                    <a href="{{ route('store.bank-account') }}" class="btn btn-light btn-lg mb-2 me-2">
-                                        <i class="fas fa-university me-2"></i>Dados Bancários
-                                    </a>
-                                    <a href="{{ route('store.withdrawals.create') }}" class="btn btn-warning btn-lg mb-2"
-                                        style="background: #fbbf24; border: none; color: #000;">
-                                        <i class="fas fa-hand-holding-usd me-2"></i>Solicitar Saque
-                                    </a>
-                                    <br>
-                                    <a href="{{ route('store.withdrawals.history') }}" class="btn btn-outline-light mt-2">
-                                        <i class="fas fa-history me-2"></i>Histórico de Saques
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Painel Financeiro -->
             <div class="row mt-4">
                 <div class="col-12">
@@ -581,8 +537,18 @@
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-chart-line me-2"></i>Painel Financeiro
                             </h5>
+                            <form method="GET" action="{{ route('store.dashboard') }}"
+                                class="d-flex align-items-center gap-2 mt-3 mt-md-0">
+                                <label for="financial_month" class="text-muted small mb-0">Período:</label>
+                                <input type="month" id="financial_month" name="financial_month"
+                                    value="{{ $selectedMonth }}" class="form-control form-control-sm"
+                                    style="max-width: 170px;" onchange="this.form.submit()">
+                            </form>
                         </div>
                         <div class="card-body">
+                            <p class="text-muted small mb-4">
+                                Indicadores de {{ $selectedMonthLabel }}. Vendas consideradas somente após o pagamento.
+                            </p>
                             <div class="row g-4">
                                 <!-- Vendas de Hoje -->
                                 <div class="col-md-4">
@@ -609,7 +575,7 @@
                                                 <i class="fas fa-calendar-alt"></i>
                                             </div>
                                             <div>
-                                                <h6 class="text-muted mb-1">Vendas do Mês</h6>
+                                                <h6 class="text-muted mb-1">Vendas de {{ $selectedMonthLabel }}</h6>
                                                 <h3 class="mb-0 text-primary">R$
                                                     {{ number_format($monthSales, 2, ',', '.') }}</h3>
                                                 <small class="text-muted">{{ $monthOrders }} pedido(s)</small>
@@ -635,23 +601,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Ticket Médio -->
-                                <div class="col-md-4">
-                                    <div class="financial-card h-100">
-                                        <div class="d-flex align-items-center mb-3">
-                                            <div class="financial-icon bg-warning bg-opacity-10 text-warning me-3">
-                                                <i class="fas fa-receipt"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="text-muted mb-1">Ticket Médio (Mês)</h6>
-                                                <h3 class="mb-0 text-warning">R$
-                                                    {{ number_format($averageTicket, 2, ',', '.') }}</h3>
-                                                <small class="text-muted">Por pedido</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <!-- Pedidos Pendentes de Pagamento -->
                                 <div class="col-md-4">
                                     <div class="financial-card h-100">
@@ -669,49 +618,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Métodos de Pagamento -->
-                                <div class="col-md-4">
-                                    <div class="financial-card h-100">
-                                        <div class="financial-icon bg-secondary bg-opacity-10 text-secondary me-3 mb-3">
-                                            <i class="fas fa-credit-card"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="text-muted mb-2">Métodos de Pagamento (30 dias)</h6>
-                                            @if ($paymentMethods && $paymentMethods->count() > 0)
-                                                @foreach ($paymentMethods as $method)
-                                                    @php
-                                                        $methodIcon = 'fa-money-bill';
-                                                        $methodName = 'Dinheiro';
-                                                        $methodColor = 'success';
-
-                                                        if ($method->payment_method === 'card') {
-                                                            $methodIcon = 'fa-credit-card';
-                                                            $methodName = 'Crédito/Débito';
-                                                            $methodColor = 'primary';
-                                                        } elseif ($method->payment_method === 'pix') {
-                                                            $methodIcon = 'fa-qrcode';
-                                                            $methodName = 'PIX';
-                                                            $methodColor = 'info';
-                                                        }
-                                                    @endphp
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <span>
-                                                            <i
-                                                                class="fas {{ $methodIcon }} text-{{ $methodColor }} me-2"></i>
-                                                            {{ $methodName }}
-                                                        </span>
-                                                        <span class="badge bg-{{ $methodColor }}">
-                                                            {{ $method->count }} (R$
-                                                            {{ number_format($method->total, 2, ',', '.') }})
-                                                        </span>
-                                                    </div>
-                                                @endforeach
-                                            @else
-                                                <small class="text-muted">Nenhum pagamento registrado</small>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>

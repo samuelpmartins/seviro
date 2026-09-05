@@ -12,7 +12,7 @@ use App\Events\DemoRequestApproved;
 
 class DemoRequestController extends Controller
 {
-    public function __contruct()
+    public function __construct()
     {
         $this->middleware('auth.admin');
     }
@@ -96,7 +96,7 @@ class DemoRequestController extends Controller
                 'user_id' => $user->id,
             ]);
 
-            $user->updated(['store_id' => $store->id]);
+            $user->update(['store_id' => $store->id]);
 
             $demoRequest->update([
                 'status' => 'approved',
@@ -133,6 +133,38 @@ class DemoRequestController extends Controller
         $demoRequest->update(['status' => 'pending']);
 
         return response()->json(['success' => true, 'message' => 'Status atualizado para "Em validação" com sucesso.']);
+    }
+
+    public function resendAccessEmail(DemoRequest $demoRequest)
+    {
+        if (!$demoRequest->isApproved() || !$demoRequest->user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta solicitação ainda não possui um usuário aprovado.',
+            ], 422, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        try {
+            $tempPassword = Str::random(12);
+            $demoRequest->user->update([
+                'password' => $tempPassword,
+                'first_access' => true,
+            ]);
+
+            event(new DemoRequestApproved($demoRequest, $tempPassword));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Uma nova senha temporária foi gerada e o e-mail foi reenviado.',
+            ], 200, [], JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Não foi possível reenviar o e-mail. Verifique o SMTP e tente novamente.',
+            ], 422, [], JSON_UNESCAPED_UNICODE);
+        }
     }
 
     public function updateStatus(Request $request, DemoRequest $demoRequest)

@@ -51,6 +51,11 @@
                                                     onclick="createUser({{ $request->id }})">
                                                     Criar Usuário
                                                 </button>
+                                            @elseif($request->isApproved())
+                                                <button class="btn btn-sm btn-info text-white"
+                                                    onclick="resendAccessEmail({{ $request->id }})">
+                                                    <i class="fas fa-paper-plane me-1"></i>Reenviar acesso
+                                                </button>
                                             @endif
 
                                             <button class="btn btn-sm btn-danger"
@@ -120,6 +125,24 @@
                     }
 
                 });
+        }
+
+        function resendAccessEmail(requestId) {
+            if (!confirm('Uma nova senha temporária será gerada. Deseja reenviar o acesso?')) {
+                return;
+            }
+
+            fetch(`/admin/demo-requests/${requestId}/resend-access-email`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    showToast(data.message, data.success ? 'success' : 'error');
+                })
+                .catch(() => showToast('Não foi possível concluir o reenvio.', 'error'));
         }
 
         function deleteRequest(requestId) {
