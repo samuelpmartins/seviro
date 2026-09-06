@@ -90,7 +90,7 @@ class DemoRequestController extends Controller
             ]);
 
             $storeRole = Role::firstOrCreate(['name' => 'store', 'guard_name' => 'web']);
-            $user->assignRole($storeRole);
+            $user->syncRoles([$storeRole]);
 
             $store = Store::create([
                 'name' => $demoRequest->name,

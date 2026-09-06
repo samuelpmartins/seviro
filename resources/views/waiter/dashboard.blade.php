@@ -58,7 +58,7 @@
         /* Grid de mesas */
         .tables-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 20px;
         }
 
@@ -225,17 +225,33 @@
         .table-card-footer {
             padding: 15px 20px;
             background: #f8f9fa;
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
         }
 
+        .table-card-footer.has-payment {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
         .table-card-footer .btn {
-            flex: 1;
-            padding: 12px;
+            min-width: 0;
+            min-height: 84px;
+            padding: 10px 6px;
+            font-size: 0.82rem;
             font-weight: 600;
             border-radius: 10px;
             border: none;
             transition: all 0.3s ease;
+            line-height: 1.25;
+            white-space: normal;
+            overflow-wrap: normal;
+            word-break: normal;
+        }
+
+        .table-card-footer .btn i {
+            display: block;
+            margin: 0 0 6px !important;
         }
 
         .table-card-footer .btn-primary {
@@ -263,6 +279,147 @@
         .table-card-footer .btn-success {
             background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
             color: white;
+        }
+
+        .table-card-footer form {
+            display: contents;
+        }
+
+        .table-card-footer form .btn {
+            width: 100%;
+        }
+
+        .transfer-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 15, 35, 0.72);
+            z-index: 10002;
+        }
+
+        .transfer-modal.show {
+            display: flex;
+        }
+
+        .transfer-modal-content {
+            width: min(680px, 100%);
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 28px;
+            background: #fff;
+            border-radius: 16px;
+            color: #2c3e50;
+            box-shadow: 0 12px 45px rgba(0, 0, 0, 0.45);
+        }
+
+        .transfer-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .transfer-modal-header h3 {
+            margin: 0;
+            font-size: 1.35rem;
+        }
+
+        .transfer-close {
+            border: 0;
+            background: transparent;
+            color: #7f8c8d;
+            font-size: 1.6rem;
+            line-height: 1;
+        }
+
+        .transfer-table-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 16px;
+        }
+
+        .transfer-table-option {
+            min-height: 96px;
+            border: 3px solid #f39c12;
+            border-radius: 14px;
+            background: #fff1dc;
+            color: #202a35;
+            font-size: 1.15rem;
+            font-weight: 700;
+            line-height: 1.2;
+            overflow-wrap: normal;
+            word-break: normal;
+            transition: all 0.2s ease;
+        }
+
+        .transfer-table-option:hover {
+            background: #ffe1b5;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 14px rgba(243, 156, 18, 0.25);
+        }
+
+        .transfer-empty {
+            padding: 24px;
+            border-radius: 10px;
+            background: #f8f9fa;
+            color: #7f8c8d;
+            text-align: center;
+        }
+
+        @media (max-width: 576px) {
+            .tables-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .table-card-footer {
+                padding: 12px;
+                gap: 8px;
+            }
+
+            .table-card-footer.has-payment {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .table-card-footer .btn {
+                min-height: 78px;
+                font-size: 0.8rem;
+            }
+
+            .transfer-modal {
+                padding: 12px;
+            }
+
+            .transfer-modal-content {
+                padding: 20px;
+            }
+
+            .transfer-table-grid {
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 360px) {
+
+            .table-card-footer,
+            .table-card-footer.has-payment {
+                grid-template-columns: 1fr;
+            }
+
+            .table-card-footer .btn {
+                min-height: 62px;
+            }
+
+            .table-card-footer .btn i {
+                display: inline-block;
+                margin: 0 6px 0 0 !important;
+            }
+
+            .transfer-table-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .table-card-footer .btn-success:hover {
@@ -419,6 +576,165 @@
             overflow-y: auto;
             box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
             animation: slideUp 0.3s ease;
+        }
+
+        .edit-product-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(15, 15, 35, 0.78);
+            z-index: 10003;
+        }
+
+        .edit-product-modal.show {
+            display: flex;
+        }
+
+        .edit-product-content {
+            width: min(760px, 100%);
+            max-height: 92vh;
+            overflow-y: auto;
+            background: #fff;
+            border-radius: 18px;
+            color: #2c3e50;
+            box-shadow: 0 12px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .edit-product-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .edit-product-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .edit-product-close {
+            border: 0;
+            background: transparent;
+            color: #7f8c8d;
+            font-size: 1.35rem;
+        }
+
+        .edit-product-body {
+            padding: 20px;
+        }
+
+        .edit-product-search {
+            margin-bottom: 16px;
+        }
+
+        .edit-product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 12px;
+        }
+
+        .edit-product-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 82px;
+            padding: 14px;
+            border: 1px solid #e5e9ec;
+            border-radius: 12px;
+            background: #f8f9fa;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .edit-product-card:hover {
+            border-color: #3498db;
+            background: #eef7fd;
+            transform: translateY(-2px);
+        }
+
+        .edit-product-card strong {
+            display: block;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .edit-product-card small {
+            color: #27ae60;
+            font-weight: 700;
+        }
+
+        .edit-product-card i {
+            color: #3498db;
+            font-size: 1.1rem;
+        }
+
+        .edit-product-customizer {
+            display: none;
+        }
+
+        .edit-product-customizer.show {
+            display: block;
+        }
+
+        .edit-product-customizer h4 {
+            margin: 0 0 5px;
+            color: #2c3e50;
+        }
+
+        .edit-product-price {
+            margin-bottom: 18px;
+            color: #27ae60;
+            font-weight: 700;
+        }
+
+        .edit-product-ingredients {
+            display: grid;
+            gap: 9px;
+            margin: 14px 0 18px;
+        }
+
+        .edit-product-ingredient {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 9px 11px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            font-size: 0.85rem;
+        }
+
+        .edit-product-ingredient input {
+            width: 64px;
+        }
+
+        .edit-product-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .edit-product-actions .btn {
+            flex: 1;
+        }
+
+        @media (max-width: 576px) {
+            .edit-product-modal {
+                padding: 10px;
+            }
+
+            .edit-product-body {
+                padding: 14px;
+            }
+
+            .edit-product-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .order-details-header {
@@ -779,7 +1095,7 @@
                         </div>
 
                         @if ($table->occupied)
-                            <div class="table-card-footer">
+                            <div class="table-card-footer {{ $table->unpaid_total > 0 ? 'has-payment' : '' }}">
                                 <a href="{{ route('waiter.table-details', $table) }}" class="btn btn-primary">
                                     <i class="fas fa-eye me-2"></i>Ver Detalhes
                                 </a>
@@ -789,6 +1105,10 @@
                                         <i class="fas fa-dollar-sign me-1"></i>Marcar Pago
                                     </button>
                                 @endif
+                                <button type="button" class="btn btn-warning"
+                                    onclick="openTransferModal({{ $table->id }}, '{{ addslashes($table->number) }}')">
+                                    <i class="fas fa-exchange-alt me-1"></i>Trocar Mesa
+                                </button>
                                 <form action="{{ route('waiter.table.clear', $table) }}" method="POST"
                                     onsubmit="return confirm('Tem certeza que deseja desocupar a mesa {{ $table->number }}? Isso removerá todos os participantes.');">
                                     @csrf
@@ -868,6 +1188,54 @@
         </div>
     </div>
 
+    <div id="editProductModal" class="edit-product-modal" role="dialog" aria-modal="true"
+        aria-labelledby="editProductModalTitle" onclick="closeEditProductMenu(event)">
+        <div class="edit-product-content" onclick="event.stopPropagation()">
+            <div class="edit-product-header">
+                <h3 id="editProductModalTitle"><i class="fas fa-utensils me-2"></i>Adicionar item</h3>
+                <button type="button" class="edit-product-close" aria-label="Fechar"
+                    onclick="closeEditProductMenu()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="edit-product-body">
+                <div id="editProductCatalogView">
+                    <input type="search" id="editProductSearch" class="form-control edit-product-search"
+                        placeholder="Buscar item no cardápio" aria-label="Buscar item no cardápio">
+                    <div id="editProductGrid" class="edit-product-grid"></div>
+                </div>
+                <div id="editProductCustomizer" class="edit-product-customizer"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="transferModal" class="transfer-modal" role="dialog" aria-modal="true"
+        aria-labelledby="transferModalTitle" onclick="closeTransferModal(event)">
+        <div class="transfer-modal-content" onclick="event.stopPropagation()">
+            <div class="transfer-modal-header">
+                <h3 id="transferModalTitle"><i class="fas fa-exchange-alt me-2"></i>Trocar Mesa</h3>
+                <button type="button" class="transfer-close" aria-label="Fechar" onclick="closeTransferModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <p class="text-muted mb-4">Escolha uma mesa disponível para transferir a ocupação da Mesa <strong
+                    id="transferSourceNumber"></strong>.</p>
+            @if ($availableTables->isNotEmpty())
+                <div class="transfer-table-grid">
+                    @foreach ($availableTables as $availableTable)
+                        <button type="button" class="transfer-table-option"
+                            onclick="confirmTableTransfer({{ $availableTable->id }}, '{{ addslashes($availableTable->number) }}')">
+                            Mesa {{ $availableTable->number }}
+                        </button>
+                    @endforeach
+                </div>
+            @else
+                <div class="transfer-empty">
+                    <i class="fas fa-chair mb-2"></i>
+                    <div>Nenhuma mesa disponível no momento.</div>
+                </div>
+            @endif
+        </div>
+    </div>
+
     <div id="attendingModal" class="attending-modal" role="dialog" aria-modal="true"
         aria-labelledby="attendingModalTitle">
         <div class="attending-modal-content">
@@ -907,9 +1275,12 @@
         let isAttending = @json(auth()->user()->is_attending);
         const attendingModal = document.getElementById('attendingModal');
         const stopAttendingModal = document.getElementById('stopAttendingModal');
+        const transferModal = document.getElementById('transferModal');
+        const transferRouteTemplate = @json(route('waiter.table.transfer', ['table' => '__TABLE__']));
         const attendingReminderKey = 'waiter-attending-reminder-{{ auth()->id() }}';
         let attendingReminderTimer;
         let isLoggingOut = false;
+        let transferSourceId = null;
 
         function showAttendingModal() {
             if (!isAttending) {
@@ -984,10 +1355,14 @@
                 const response = await fetch('{{ route('waiter.stop-attending') }}', {
                     method: 'POST',
                     headers: {
+                        'Content-Type': 'application/json',
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     },
                     credentials: 'same-origin',
+                    body: JSON.stringify({
+                        target_table_id: targetTableId,
+                    }),
                 });
 
                 if (!response.ok) {
@@ -1060,12 +1435,65 @@
 
         scheduleAttendingReminder();
 
+        function openTransferModal(tableId, tableNumber) {
+            transferSourceId = tableId;
+            document.getElementById('transferSourceNumber').textContent = tableNumber;
+            transferModal.classList.add('show');
+        }
+
+        function closeTransferModal(event) {
+            if (!event || event.target === event.currentTarget) {
+                transferModal.classList.remove('show');
+                transferSourceId = null;
+            }
+        }
+
+        async function confirmTableTransfer(targetTableId, targetTableNumber) {
+            if (!transferSourceId) {
+                return;
+            }
+
+            if (!confirm(
+                    `Confirma a troca para a Mesa ${targetTableNumber}? Todos os participantes, pedidos e dados da ocupação serão transferidos.`
+                )) {
+                return;
+            }
+
+            const sourceTableId = transferSourceId;
+            const transferUrl = transferRouteTemplate.replace('__TABLE__', sourceTableId);
+
+            try {
+                const response = await fetch(transferUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        target_table_id: targetTableId,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const result = await response.json().catch(() => ({}));
+                    throw new Error(result.message || 'Não foi possível trocar a mesa.');
+                }
+
+                location.reload();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
         // Atualiza a cada 30 segundos, mas preserva o modal aberto para não interromper a edição.
         function scheduleDashboardRefresh() {
             setTimeout(function() {
                 const orderModal = document.getElementById('orderDetailsModal');
                 const modalIsOpen = orderModal?.classList.contains('show') || attendingModal.classList.contains(
-                    'show') || stopAttendingModal.classList.contains('show');
+                        'show') || stopAttendingModal.classList.contains('show') || transferModal.classList
+                    .contains('show');
 
                 if (modalIsOpen) {
                     scheduleDashboardRefresh();
@@ -1209,10 +1637,10 @@
             
             <div class="order-details-footer">
                 ${order.status === 'Aguardando produção' ? `
-                                                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
-                                                                        <i class="fas fa-edit me-2"></i>Editar Pedido
-                                                                    </button>
-                                                                ` : ''}
+                                                                                                                <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
+                                                                                                                    <i class="fas fa-edit me-2"></i>Editar Pedido
+                                                                                                                </button>
+                                                                                                            ` : ''}
                 <button class="btn-close-modal" onclick="closeOrderDetails()">
                     <i class="fas fa-times me-2"></i>Fechar
                 </button>
@@ -1268,6 +1696,121 @@
                 id: Number(ingredient.dataset.ingredientId),
                 selected_amount: Number(ingredient.querySelector('.edit-ingredient-quantity').value) || 0
             })).filter(ingredient => Number.isInteger(ingredient.id) && ingredient.id > 0);
+        }
+
+        let editProductModalOrderItems;
+        let editProductSelected;
+
+        function escapeEditProductText(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#039;',
+                '"': '&quot;'
+            } [character]));
+        }
+
+        function openEditProductMenu() {
+            editProductModalOrderItems = document.getElementById('edit-order-items');
+            editProductSelected = null;
+            document.getElementById('editProductCatalogView').style.display = 'block';
+            document.getElementById('editProductCustomizer').classList.remove('show');
+            document.getElementById('editProductSearch').value = '';
+            renderEditProductCatalog();
+            document.getElementById('editProductModal').classList.add('show');
+        }
+
+        function closeEditProductMenu(event) {
+            if (!event || event.target === event.currentTarget) {
+                document.getElementById('editProductModal').classList.remove('show');
+            }
+        }
+
+        document.getElementById('editProductSearch')?.addEventListener('input', renderEditProductCatalog);
+
+        function renderEditProductCatalog() {
+            const search = document.getElementById('editProductSearch').value.trim().toLowerCase();
+            const products = waiterProducts.filter(product => product.name.toLowerCase().includes(search));
+            const grid = document.getElementById('editProductGrid');
+
+            grid.innerHTML = products.length ? products.map(product => `
+                <button type="button" class="edit-product-card" onclick="openEditProductCustomizer(${product.id})">
+                    <span>
+                        <strong>${escapeEditProductText(product.name)}</strong>
+                        <small>R$ ${Number(product.price).toFixed(2).replace('.', ',')}</small>
+                    </span>
+                    <i class="fas fa-plus-circle"></i>
+                </button>
+            `).join('') : '<div class="text-muted text-center py-4">Nenhum produto encontrado.</div>';
+        }
+
+        function openEditProductCustomizer(productId) {
+            editProductSelected = waiterProducts.find(product => Number(product.id) === Number(productId));
+            if (!editProductSelected) return;
+
+            const ingredients = getEditProductIngredients(editProductSelected);
+            document.getElementById('editProductCatalogView').style.display = 'none';
+            const customizer = document.getElementById('editProductCustomizer');
+            customizer.classList.add('show');
+            customizer.innerHTML = `
+                <button type="button" class="btn btn-link px-0" onclick="backToEditProductCatalog()">
+                    <i class="fas fa-arrow-left me-1"></i>Voltar ao cardápio
+                </button>
+                <h4>${escapeEditProductText(editProductSelected.name)}</h4>
+                <div class="edit-product-price">R$ ${Number(editProductSelected.price).toFixed(2).replace('.', ',')} cada</div>
+                <label class="form-label">Quantidade</label>
+                <input id="editProductQuantity" class="form-control" type="number" min="1" value="1">
+                ${ingredients.length ? `
+                            <label class="form-label mt-3">Personalize os ingredientes</label>
+                            <div class="edit-product-ingredients">
+                                ${ingredients.map(ingredient => `
+                            <div class="edit-product-ingredient">
+                                <span>${escapeEditProductText(ingredient.name)} (+R$ ${ingredient.additional_price.toFixed(2).replace('.', ',')} cada)</span>
+                                <input class="form-control form-control-sm edit-product-ingredient-quantity" type="number" min="0" value="${ingredient.amount_item}" data-ingredient-id="${ingredient.id}" data-base-amount="${ingredient.amount_item}">
+                            </div>
+                        `).join('')}
+                            </div>
+                        ` : '<p class="text-muted mt-3">Este produto não possui ingredientes personalizáveis.</p>'}
+                <label class="form-label mt-3">Observação</label>
+                <textarea id="editProductNotes" class="form-control" rows="2" placeholder="Observação do item"></textarea>
+                <div class="edit-product-actions">
+                    <button type="button" class="btn btn-outline-secondary" onclick="backToEditProductCatalog()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="addSelectedEditProduct()">
+                        <i class="fas fa-plus me-1"></i>Adicionar ao pedido
+                    </button>
+                </div>
+            `;
+        }
+
+        function backToEditProductCatalog() {
+            editProductSelected = null;
+            document.getElementById('editProductCatalogView').style.display = 'block';
+            document.getElementById('editProductCustomizer').classList.remove('show');
+        }
+
+        function addSelectedEditProduct() {
+            if (!editProductSelected || !editProductModalOrderItems) return;
+
+            const quantity = Math.max(1, Number(document.getElementById('editProductQuantity').value) || 1);
+            const notes = document.getElementById('editProductNotes').value || '';
+            const selectedIngredients = [...document.querySelectorAll('.edit-product-ingredient-quantity')].map(input => ({
+                id: Number(input.dataset.ingredientId),
+                selected_amount: Math.max(0, Number(input.value) || 0)
+            }));
+            const wrapper = document.createElement('div');
+            wrapper.className = 'edit-order-item';
+            wrapper.style.cssText =
+                'display:grid;grid-template-columns:1fr 70px 34px;gap:8px;align-items:center;margin-bottom:10px;';
+            wrapper.innerHTML =
+                `<select class="form-select edit-item-product">${waiterProducts.map(product =>
+                `<option value="${product.id}">${escapeEditProductText(product.name)} - R$ ${Number(product.price).toFixed(2).replace('.', ',')}</option>`).join('')}</select><input class="form-control edit-item-quantity" type="number" min="1" value="${quantity}"><button type="button" class="btn btn-outline-danger edit-remove-item" title="Remover item"><i class="fas fa-trash"></i></button><textarea class="form-control edit-item-notes" rows="1" placeholder="Observação do item" style="grid-column:1 / -1;"></textarea><div class="edit-item-ingredients" style="grid-column:1 / -1;"></div>`;
+            wrapper.querySelector('.edit-item-product').value = editProductSelected.id;
+            wrapper.querySelector('.edit-item-notes').value = notes;
+            setupEditItemRow(wrapper, selectedIngredients);
+            wrapper.querySelector('.edit-remove-item').addEventListener('click', () => wrapper.remove());
+            editProductModalOrderItems.appendChild(wrapper);
+            closeEditProductMenu();
         }
 
         function renderOrderEditForm(orderId) {
@@ -1330,18 +1873,7 @@
                     modal.querySelectorAll('.edit-remove-item').forEach(button => {
                         button.addEventListener('click', () => button.closest('.edit-order-item').remove());
                     });
-                    document.getElementById('edit-add-item').addEventListener('click', () => {
-                        const wrapper = document.createElement('div');
-                        wrapper.className = 'edit-order-item';
-                        wrapper.style.cssText =
-                            'display:grid;grid-template-columns:1fr 70px 34px;gap:8px;align-items:center;margin-bottom:10px;';
-                        wrapper.innerHTML =
-                            `<select class="form-select edit-item-product">${productOptions}</select><input class="form-control edit-item-quantity" type="number" min="1" value="1"><button type="button" class="btn btn-outline-danger edit-remove-item" title="Remover item"><i class="fas fa-trash"></i></button><textarea class="form-control edit-item-notes" rows="1" placeholder="Observação do item" style="grid-column:1 / -1;"></textarea><div class="edit-item-ingredients" style="grid-column:1 / -1;"></div>`;
-                        setupEditItemRow(wrapper);
-                        wrapper.querySelector('.edit-remove-item').addEventListener('click', () => wrapper
-                            .remove());
-                        document.getElementById('edit-order-items').appendChild(wrapper);
-                    });
+                    document.getElementById('edit-add-item').addEventListener('click', openEditProductMenu);
                 })
                 .catch(() => alert('Erro ao carregar o pedido para edição.'));
         }
@@ -1416,6 +1948,8 @@
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closeOrderDetails();
+                closeTransferModal();
+                closeEditProductMenu();
             }
         });
 

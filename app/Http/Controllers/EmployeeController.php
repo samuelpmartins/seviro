@@ -7,6 +7,9 @@ use App\Models\Order;
 use App\Models\Table;
 use App\Models\TableUser;
 use App\Models\Product;
+use App\Models\Payment;
+use App\Models\OrderAttendance;
+use App\Enums\TableAssignmentType;
 use App\Enums\TableServiceStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +26,10 @@ class EmployeeController extends Controller
         $store = auth()->user()->store;
 
         $employees = User::where('store_id', $store->id)
+            ->whereHas('roles', function ($query) {
+                $query->whereIn('name', ['kitchen', 'waiter'])
+                    ->where('guard_name', 'web');
+            })
             ->with('roles')
             ->orderBy('name')
             ->get();
@@ -81,7 +88,7 @@ class EmployeeController extends Controller
         $store = auth()->user()->store;
 
         // Verificar se o funcionário pertence à loja
-        if ($employee->store_id !== $store->id) {
+        if ($employee->store_id !== $store->id || !$employee->hasAnyRole(['kitchen', 'waiter'])) {
             abort(403);
         }
 
@@ -125,7 +132,7 @@ class EmployeeController extends Controller
         $store = auth()->user()->store;
 
         // Verificar se o funcionário pertence à loja
-        if ($employee->store_id !== $store->id) {
+        if ($employee->store_id !== $store->id || !$employee->hasAnyRole(['kitchen', 'waiter'])) {
             abort(403);
         }
 
@@ -398,13 +405,19 @@ class EmployeeController extends Controller
             return !$table->activeTableUser || $table->activeTableUser->user_id !== $user->id;
         })->values();
 
+        $availableTables = $tables->filter(function ($table) {
+            return !$table->occupied
+                && $table->participants->isEmpty()
+                && !$table->activeTableUser;
+        })->values();
+
         $availableProducts = Product::where('store_id', $store->id)
             ->where('active', true)
             ->with('additionalIngredients')
             ->orderBy('name')
             ->get(['id', 'name', 'price', 'ingredients']);
 
-        return view('waiter.dashboard', compact('myTables', 'otherTables', 'store', 'availableProducts'));
+        return view('waiter.dashboard', compact('myTables', 'otherTables', 'availableTables', 'store', 'availableProducts'));
     }
 
     public function startAttending(Request $request)
@@ -505,7 +518,7 @@ class EmployeeController extends Controller
         // Se não tem participantes, não mostrar pedidos
         if (!empty($activeParticipantIds)) {
             $orders = Order::where('table_id', $table->id)
-                ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção'])
+                ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção', 'Finalizado'])
                 ->where(function ($query) use ($activeParticipantIds) {
                     $query->whereIn('participant_id', $activeParticipantIds)
                         ->orWhereNull('participant_id');
@@ -533,6 +546,114 @@ class EmployeeController extends Controller
 
         return redirect()->route('waiter.dashboard')
             ->with('success', 'Mesa ' . $table->number . ' desocupada com sucesso!');
+    }
+
+    /**
+     * Transfere a ocupação atual para uma mesa livre.
+     */
+    public function waiterTransferTable(Request $request, Table $table)
+    {
+        $validated = $request->validate([
+            'target_table_id' => ['required', 'integer'],
+        ]);
+        $user = $request->user();
+
+        $this->ensureWaiterCanManageTable($table, $user);
+
+        DB::transaction(function () use ($table, $validated, $user) {
+            $source = Table::whereKey($table->id)->lockForUpdate()->firstOrFail();
+            $target = Table::whereKey($validated['target_table_id'])
+                ->where('store_id', $source->store_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (!$source->occupied) {
+                abort(422, 'A mesa atual já está desocupada.');
+            }
+
+            if ($source->id === $target->id) {
+                abort(422, 'A mesa de destino deve ser diferente da mesa atual.');
+            }
+
+            $sourceAssignment = TableUser::where('table_id', $source->id)
+                ->where('service_status', TableServiceStatus::Active->value)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$sourceAssignment || $sourceAssignment->user_id !== $user->id) {
+                abort(403);
+            }
+
+            $targetHasParticipants = $target->participants()->exists();
+            $targetHasAssignment = TableUser::where('table_id', $target->id)
+                ->where('service_status', TableServiceStatus::Active->value)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($target->occupied || $targetHasParticipants || $targetHasAssignment) {
+                abort(422, 'A mesa selecionada não está disponível.');
+            }
+
+            $occupiedAt = $source->occupied_at;
+            $participantIds = $source->participants()->pluck('id');
+            $orderQuery = Order::where('table_id', $source->id)
+                ->where(function ($query) use ($participantIds) {
+                    $query->whereIn('participant_id', $participantIds)
+                        ->orWhereNull('participant_id');
+                });
+
+            if ($occupiedAt) {
+                $orderQuery->where('created_at', '>=', $occupiedAt);
+            }
+
+            $orderIds = $orderQuery->pluck('id');
+
+            $source->participants()->update(['table_id' => $target->id]);
+            $orderQuery->update(['table_id' => $target->id]);
+
+            $paymentQuery = Payment::where('table_id', $source->id);
+            if ($occupiedAt) {
+                $paymentQuery->where('created_at', '>=', $occupiedAt);
+            }
+            $paymentQuery->update(['table_id' => $target->id]);
+
+            if ($orderIds->isNotEmpty()) {
+                OrderAttendance::whereIn('order_id', $orderIds)
+                    ->update(['table_id' => $target->id]);
+            }
+
+            $sourceAssignment->update(['service_status' => TableServiceStatus::Transferred]);
+            $sourceAssignment->delete();
+
+            TableUser::create([
+                'store_id' => $source->store_id,
+                'table_id' => $target->id,
+                'user_id' => $user->id,
+                'service_status' => TableServiceStatus::Active,
+                'assignment_type' => TableAssignmentType::Transfer,
+            ]);
+
+            $target->update([
+                'occupied' => true,
+                'current_user_id' => $source->current_user_id,
+                'current_user_name' => $source->current_user_name,
+                'occupied_at' => $source->occupied_at,
+                'last_activity' => now(),
+                'password' => $source->password,
+            ]);
+
+            $source->update([
+                'occupied' => false,
+                'current_user_id' => null,
+                'current_user_name' => null,
+                'occupied_at' => null,
+                'last_activity' => now(),
+                'password' => null,
+            ]);
+        });
+
+        return redirect()->route('waiter.dashboard')
+            ->with('success', 'Ocupação transferida para a mesa selecionada com sucesso!');
     }
 
     public function markAsPaidCash(Request $request, Order $order)

@@ -175,6 +175,7 @@ Route::middleware(['auth', 'role:waiter'])->prefix('waiter')->name('waiter.')->g
     Route::get('/table/{table}', [EmployeeController::class, 'waiterTableDetails'])->name('table-details');
     Route::put('/orders/{order}', [EmployeeController::class, 'waiterUpdateOrder'])->name('orders.update');
     Route::post('/table/{table}/clear', [EmployeeController::class, 'waiterClearTable'])->name('table.clear');
+    Route::post('/table/{table}/transfer', [EmployeeController::class, 'waiterTransferTable'])->name('table.transfer');
     Route::post('/employee/{order}/mark-paid-cash', [EmployeeController::class, 'markAsPaidCash'])->name('employee.mark-paid-cash');
 });
 
