@@ -1497,7 +1497,7 @@
                 }
 
                 location.reload();
-            }, 30000);
+            }, 15000);
         }
 
         scheduleDashboardRefresh();
