@@ -1355,14 +1355,10 @@
                 const response = await fetch('{{ route('waiter.stop-attending') }}', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({
-                        target_table_id: targetTableId,
-                    }),
+                    credentials: 'same-origin'
                 });
 
                 if (!response.ok) {
@@ -1637,10 +1633,10 @@
             
             <div class="order-details-footer">
                 ${order.status === 'Aguardando produção' ? `
-                                                                                                                <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
-                                                                                                                    <i class="fas fa-edit me-2"></i>Editar Pedido
-                                                                                                                </button>
-                                                                                                            ` : ''}
+                                                                                                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
+                                                                                                                        <i class="fas fa-edit me-2"></i>Editar Pedido
+                                                                                                                    </button>
+                                                                                                                ` : ''}
                 <button class="btn-close-modal" onclick="closeOrderDetails()">
                     <i class="fas fa-times me-2"></i>Fechar
                 </button>
@@ -1762,16 +1758,16 @@
                 <label class="form-label">Quantidade</label>
                 <input id="editProductQuantity" class="form-control" type="number" min="1" value="1">
                 ${ingredients.length ? `
-                            <label class="form-label mt-3">Personalize os ingredientes</label>
-                            <div class="edit-product-ingredients">
-                                ${ingredients.map(ingredient => `
+                                <label class="form-label mt-3">Personalize os ingredientes</label>
+                                <div class="edit-product-ingredients">
+                                    ${ingredients.map(ingredient => `
                             <div class="edit-product-ingredient">
                                 <span>${escapeEditProductText(ingredient.name)} (+R$ ${ingredient.additional_price.toFixed(2).replace('.', ',')} cada)</span>
                                 <input class="form-control form-control-sm edit-product-ingredient-quantity" type="number" min="0" value="${ingredient.amount_item}" data-ingredient-id="${ingredient.id}" data-base-amount="${ingredient.amount_item}">
                             </div>
                         `).join('')}
-                            </div>
-                        ` : '<p class="text-muted mt-3">Este produto não possui ingredientes personalizáveis.</p>'}
+                                </div>
+                            ` : '<p class="text-muted mt-3">Este produto não possui ingredientes personalizáveis.</p>'}
                 <label class="form-label mt-3">Observação</label>
                 <textarea id="editProductNotes" class="form-control" rows="2" placeholder="Observação do item"></textarea>
                 <div class="edit-product-actions">
