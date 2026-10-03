@@ -201,6 +201,11 @@
             font-style: italic;
         }
 
+        .item-customization {
+            color: #536273;
+            font-size: 0.8rem;
+        }
+
         .item-price {
             color: #2c3e50;
             font-weight: 600;
@@ -367,14 +372,52 @@
 
                                     <ul class="order-items-list">
                                         @foreach ($order->items as $item)
+                                            @php
+                                                $itemPayload = json_decode($item->notes, true);
+                                                $itemObservation =
+                                                    is_array($itemPayload) && array_key_exists('notes', $itemPayload)
+                                                        ? $itemPayload['notes']
+                                                        : $item->notes;
+                                                $itemObservation = preg_replace(
+                                                    '/(^|\s*\|\s*)(Adicionados|Removidos):\s*[^|]*/',
+                                                    '',
+                                                    (string) $itemObservation,
+                                                );
+                                                $itemObservation = trim($itemObservation, " |\t\n\r\0\x0B");
+                                                $selectedIngredients = is_array($itemPayload)
+                                                    ? $itemPayload['selected_ingredients'] ?? []
+                                                    : [];
+                                            @endphp
                                             <li class="order-item">
                                                 <div class="item-info">
                                                     <span class="item-qty">{{ $item->quantity }}</span>
                                                     <div>
-                                                        <div class="item-name">{{ $item->product->name }}</div>
-                                                        @if ($item->notes)
-                                                            <div class="item-notes">{{ $item->notes }}</div>
+                                                        <div class="item-name">
+                                                            {{ $item->product?->name ?? 'Produto removido' }}</div>
+                                                        @if ($itemObservation !== '')
+                                                            <div class="item-notes"><i
+                                                                    class="fas fa-sticky-note me-1"></i>{{ $itemObservation }}
+                                                            </div>
                                                         @endif
+                                                        @foreach ($selectedIngredients as $selectedIngredient)
+                                                            @php
+                                                                $ingredient = $item->product?->additionalIngredients->firstWhere(
+                                                                    'id',
+                                                                    $selectedIngredient['id'] ?? null,
+                                                                );
+                                                                $difference = $ingredient
+                                                                    ? (int) ($selectedIngredient['selected_amount'] ??
+                                                                            0) - (int) $ingredient->amount_item
+                                                                    : 0;
+                                                            @endphp
+                                                            @if ($ingredient && $difference > 0)
+                                                                <div class="item-customization">Adicionado:
+                                                                    {{ $ingredient->name }} x{{ $difference }}</div>
+                                                            @elseif ($ingredient && $difference < 0)
+                                                                <div class="item-customization">Removido:
+                                                                    {{ $ingredient->name }} x{{ abs($difference) }}</div>
+                                                            @endif
+                                                        @endforeach
                                                     </div>
                                                 </div>
                                                 <span class="item-price">

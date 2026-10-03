@@ -37,6 +37,52 @@ class EmployeeController extends Controller
         return view('store.employees.index', compact('employees'));
     }
 
+    public function waiterServiceFees(Request $request, User $employee)
+    {
+        $store = auth()->user()->store;
+        abort_unless($store && $employee->store_id === $store->id && $employee->hasRole('waiter'), 403);
+
+        $validated = $request->validate([
+            'start_date' => ['nullable', 'required_with:end_date', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'required_with:start_date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+        ]);
+
+        if (!empty($validated['start_date'])) {
+            $periodStart = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['start_date'])->startOfDay();
+            $periodEnd = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['end_date'])->endOfDay();
+        } else {
+            $periodStart = now()->startOfMonth()->startOfDay();
+            $periodEnd = now()->endOfMonth()->endOfDay();
+        }
+
+        $payments = Payment::where('store_id', $store->id)
+            ->where('marked_by_user_id', $employee->id)
+            ->where('status', Payment::STATUS_SUCCEEDED)
+            ->where('service_fee_included', true)
+            ->whereBetween('created_at', [$periodStart, $periodEnd])
+            ->get(['order_ids', 'service_fee']);
+
+        $attendedOrderCount = $payments
+            ->flatMap(fn(Payment $payment) => $payment->order_ids ?? [])
+            ->unique()
+            ->count();
+        $serviceFeeTotal = $payments->sum(fn(Payment $payment) => (float) $payment->service_fee);
+        $startDate = $periodStart->toDateString();
+        $endDate = $periodEnd->toDateString();
+        $periodLabel = $periodStart->isSameDay($periodEnd)
+            ? $periodStart->format('d/m/Y')
+            : $periodStart->format('d/m/Y') . ' a ' . $periodEnd->format('d/m/Y');
+
+        return view('store.employees.service-fees', compact(
+            'employee',
+            'attendedOrderCount',
+            'serviceFeeTotal',
+            'startDate',
+            'endDate',
+            'periodLabel'
+        ));
+    }
+
     /**
      * Cadastrar novo funcionário
      */
@@ -380,6 +426,7 @@ class EmployeeController extends Controller
             if (!empty($activeParticipantIds)) {
                 $table->orders = Order::where('table_id', $table->id)
                     ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção', 'Finalizado'])
+                    ->when($table->occupied_at, fn($query) => $query->where('created_at', '>=', $table->occupied_at))
                     ->where(function ($query) use ($activeParticipantIds) {
                         $query->whereIn('participant_id', $activeParticipantIds)
                             ->orWhereNull('participant_id');
@@ -519,11 +566,12 @@ class EmployeeController extends Controller
         if (!empty($activeParticipantIds)) {
             $orders = Order::where('table_id', $table->id)
                 ->whereIn('status', ['Aguardando pagamento', 'Aguardando produção', 'Em produção', 'Finalizado'])
+                ->when($table->occupied_at, fn($query) => $query->where('created_at', '>=', $table->occupied_at))
                 ->where(function ($query) use ($activeParticipantIds) {
                     $query->whereIn('participant_id', $activeParticipantIds)
                         ->orWhereNull('participant_id');
                 })
-                ->with(['table', 'items.product', 'participant'])
+                ->with(['table', 'items.product.additionalIngredients', 'participant'])
                 ->orderBy('created_at', 'desc')
                 ->get();
         } else {
@@ -531,6 +579,97 @@ class EmployeeController extends Controller
         }
 
         return view('waiter.table-details', compact('table', 'orders', 'participants', 'store'));
+    }
+
+    public function previewTableServiceFee(Request $request, Table $table)
+    {
+        $validated = $request->validate(['include_service_fee' => ['required', 'boolean']]);
+        $this->ensureWaiterCanManageTable($table, $request->user());
+
+        $consumption = round($this->currentUnpaidOrders($table)->sum('total'), 2);
+        $serviceFee = round($consumption * 0.10, 2);
+
+        return response()->json([
+            'consumption' => $consumption,
+            'service_fee' => $serviceFee,
+            'total' => $consumption + ($validated['include_service_fee'] ? $serviceFee : 0),
+        ]);
+    }
+
+    public function markTableAsPaid(Request $request, Table $table)
+    {
+        $validated = $request->validate(['include_service_fee' => ['required', 'boolean']]);
+        $this->ensureWaiterCanManageTable($table, $request->user());
+
+        $payment = DB::transaction(function () use ($table, $request, $validated) {
+            $lockedTable = Table::whereKey($table->id)->lockForUpdate()->firstOrFail();
+            $this->ensureWaiterCanManageTable($lockedTable, $request->user());
+            $orders = $this->currentUnpaidOrders($lockedTable, true);
+
+            if ($orders->isEmpty()) {
+                abort(422, 'Nenhum pedido pendente de pagamento nesta mesa.');
+            }
+
+            $consumption = round($orders->sum('total'), 2);
+            $serviceFee = $validated['include_service_fee'] ? round($consumption * 0.10, 2) : 0;
+
+            $payment = Payment::create([
+                'store_id' => $lockedTable->store_id,
+                'table_id' => $lockedTable->id,
+                'payment_method' => Payment::METHOD_CASH,
+                'amount' => $consumption + $serviceFee,
+                'service_fee_included' => $validated['include_service_fee'],
+                'service_fee' => $serviceFee,
+                'service_fee_percentage' => $validated['include_service_fee'] ? 10 : 0,
+                'status' => Payment::STATUS_SUCCEEDED,
+                'order_ids' => $orders->modelKeys(),
+                'marked_by_user_id' => $request->user()->id,
+            ]);
+
+            foreach ($orders as $order) {
+                $order->update([
+                    'payment_status' => Order::PAYMENT_STATUS_PAID,
+                    'payment_method' => Payment::METHOD_CASH,
+                    'status' => 'Finalizado',
+                ]);
+                $order->load('store', 'items.product', 'participant');
+                event(new \App\Events\OrderPaid($order));
+            }
+
+            return $payment;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pagamento registrado com sucesso.',
+            'payment_id' => $payment->id,
+            'amount' => $payment->amount,
+            'service_fee' => $payment->service_fee,
+        ]);
+    }
+
+    private function currentUnpaidOrders(Table $table, bool $lock = false)
+    {
+        $participantIds = $table->participants()->pluck('id');
+        $query = Order::where('table_id', $table->id)
+            ->where('payment_status', Order::PAYMENT_STATUS_PENDING)
+            ->where(function ($query) use ($participantIds) {
+                if ($participantIds->isNotEmpty()) {
+                    $query->whereIn('participant_id', $participantIds);
+                }
+
+                $query->orWhereNull('participant_id');
+            });
+
+        if ($table->occupied_at) {
+            $query->where('created_at', '>=', $table->occupied_at);
+        }
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        return $query->get();
     }
 
     /**

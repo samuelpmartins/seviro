@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use App\Models\Store;
 use App\Models\User;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -100,30 +101,56 @@ class StoreController extends Controller
 
         // Dados financeiros
         $today = now()->startOfDay();
-        $selectedMonth = $request->input('financial_month', now()->format('Y-m'));
-        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $selectedMonth)) {
-            $selectedMonth = now()->format('Y-m');
+        $validatedPeriod = $request->validate([
+            'financial_start_date' => ['nullable', 'required_with:financial_end_date', 'date_format:Y-m-d'],
+            'financial_end_date' => ['nullable', 'required_with:financial_start_date', 'date_format:Y-m-d', 'after_or_equal:financial_start_date'],
+        ]);
+
+        if (!empty($validatedPeriod['financial_start_date'])) {
+            $periodStart = Carbon::createFromFormat('Y-m-d', $validatedPeriod['financial_start_date'])->startOfDay();
+            $periodEnd = Carbon::createFromFormat('Y-m-d', $validatedPeriod['financial_end_date'])->endOfDay();
+        } else {
+            // Mantém compatibilidade com URLs antigas que filtram pelo mês.
+            $selectedMonth = $request->input('financial_month', now()->format('Y-m'));
+            if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $selectedMonth)) {
+                $selectedMonth = now()->format('Y-m');
+            }
+
+            $periodStart = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth()->startOfDay();
+            $periodEnd = $periodStart->copy()->endOfMonth()->endOfDay();
         }
-        $selectedMonthStart = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth();
-        $selectedMonthEnd = $selectedMonthStart->copy()->endOfMonth();
-        $selectedMonthLabel = $selectedMonthStart->locale('pt_BR')->translatedFormat('F Y');
+
+        $selectedPeriodLabel = $periodStart->isSameDay($periodEnd)
+            ? $periodStart->format('d/m/Y')
+            : $periodStart->format('d/m/Y') . ' a ' . $periodEnd->format('d/m/Y');
+        $financialStartDate = $periodStart->toDateString();
+        $financialEndDate = $periodEnd->toDateString();
+
+        $serviceFees = Payment::where('store_id', $store->id)
+            ->where('status', Payment::STATUS_SUCCEEDED)
+            ->where('service_fee_included', true);
+        $todayServiceFees = (clone $serviceFees)->whereDate('created_at', $today)->sum('service_fee');
+        $periodServiceFees = (clone $serviceFees)
+            ->whereBetween('created_at', [$periodStart, $periodEnd])
+            ->sum('service_fee');
+        $totalServiceFees = (clone $serviceFees)->sum('service_fee');
 
         // Vendas de hoje
         $todaySales = $store->orders()
             ->where('payment_status', 'paid')
             ->whereDate('created_at', $today)
-            ->sum('total');
+            ->sum('total') + $todayServiceFees;
 
-        // Vendas do mês
-        $monthSales = $store->orders()
+        // Vendas do período selecionado
+        $periodSales = $store->orders()
             ->where('payment_status', 'paid')
-            ->whereBetween('created_at', [$selectedMonthStart, $selectedMonthEnd])
-            ->sum('total');
+            ->whereBetween('created_at', [$periodStart, $periodEnd])
+            ->sum('total') + $periodServiceFees;
 
         // Total de vendas (todos os tempos)
         $totalSales = $store->orders()
             ->where('payment_status', 'paid')
-            ->sum('total');
+            ->sum('total') + $totalServiceFees;
 
         // Pedidos pagos hoje
         $todayOrders = $store->orders()
@@ -131,10 +158,10 @@ class StoreController extends Controller
             ->whereDate('created_at', $today)
             ->count();
 
-        // Pedidos pagos no mês
-        $monthOrders = $store->orders()
+        // Pedidos pagos no período selecionado
+        $periodOrders = $store->orders()
             ->where('payment_status', 'paid')
-            ->whereBetween('created_at', [$selectedMonthStart, $selectedMonthEnd])
+            ->whereBetween('created_at', [$periodStart, $periodEnd])
             ->count();
 
         // Pedidos pendentes de pagamento
@@ -154,12 +181,13 @@ class StoreController extends Controller
             'occupiedTables',
             'pendingOrders',
             'todaySales',
-            'monthSales',
+            'periodSales',
             'totalSales',
             'todayOrders',
-            'monthOrders',
-            'selectedMonth',
-            'selectedMonthLabel',
+            'periodOrders',
+            'financialStartDate',
+            'financialEndDate',
+            'selectedPeriodLabel',
             'unpaidOrders',
             'unpaidTotal'
         ));

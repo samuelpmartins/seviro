@@ -538,16 +538,25 @@
                                 <i class="fas fa-chart-line me-2"></i>Painel Financeiro
                             </h5>
                             <form method="GET" action="{{ route('store.dashboard') }}"
-                                class="d-flex align-items-center gap-2 mt-3 mt-md-0">
-                                <label for="financial_month" class="text-muted small mb-0">Período:</label>
-                                <input type="month" id="financial_month" name="financial_month"
-                                    value="{{ $selectedMonth }}" class="form-control form-control-sm"
-                                    style="max-width: 170px;" onchange="this.form.submit()">
+                                class="d-flex flex-wrap align-items-end gap-2 mt-3">
+                                <div>
+                                    <label for="financial_start_date" class="text-muted small">De:</label>
+                                    <input type="date" id="financial_start_date" name="financial_start_date"
+                                        value="{{ $financialStartDate }}" class="form-control form-control-sm">
+                                </div>
+                                <div>
+                                    <label for="financial_end_date" class="text-muted small">Até:</label>
+                                    <input type="date" id="financial_end_date" name="financial_end_date"
+                                        value="{{ $financialEndDate }}" class="form-control form-control-sm">
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-filter me-1"></i>Filtrar
+                                </button>
                             </form>
                         </div>
                         <div class="card-body">
                             <p class="text-muted small mb-4">
-                                Indicadores de {{ $selectedMonthLabel }}. Vendas consideradas somente após o pagamento.
+                                Indicadores de {{ $selectedPeriodLabel }}. Vendas consideradas somente após o pagamento.
                             </p>
                             <div class="row g-4">
                                 <!-- Vendas de Hoje -->
@@ -567,7 +576,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Vendas do Mês -->
+                                <!-- Vendas do Período -->
                                 <div class="col-md-4">
                                     <div class="financial-card h-100">
                                         <div class="d-flex align-items-center mb-3">
@@ -575,10 +584,10 @@
                                                 <i class="fas fa-calendar-alt"></i>
                                             </div>
                                             <div>
-                                                <h6 class="text-muted mb-1">Vendas de {{ $selectedMonthLabel }}</h6>
+                                                <h6 class="text-muted mb-1">Vendas do período</h6>
                                                 <h3 class="mb-0 text-primary">R$
-                                                    {{ number_format($monthSales, 2, ',', '.') }}</h3>
-                                                <small class="text-muted">{{ $monthOrders }} pedido(s)</small>
+                                                    {{ number_format($periodSales, 2, ',', '.') }}</h3>
+                                                <small class="text-muted">{{ $periodOrders }} pedido(s)</small>
                                             </div>
                                         </div>
                                     </div>

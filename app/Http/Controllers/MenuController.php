@@ -33,6 +33,7 @@ class MenuController extends Controller
                 // Verifica se o usuário está autenticado na mesa via session
                 $sessionKey = 'table_' . $table->id . '_authenticated';
                 $participantIdKey = 'table_' . $table->id . '_participant_id';
+                $pinAuthenticatedParticipantId = $this->restorePinAuthenticatedParticipant($request, $table);
                 $isAuthenticated = $request->session()->get($sessionKey, false);
                 $participantId = $request->session()->get($participantIdKey);
 
@@ -51,6 +52,8 @@ class MenuController extends Controller
 
                 $hasParticipants = $table->participants()->exists();
                 $pinValid = false;
+                $isPinAuthenticatedParticipant = $pinAuthenticatedParticipantId
+                    && (int) $participantId === $pinAuthenticatedParticipantId;
 
                 if ($hasParticipants && !$table->password) {
                     $owner = TableParticipant::where('table_id', $table->id)->where('is_owner', true)->first();
@@ -65,7 +68,7 @@ class MenuController extends Controller
                         }
                     }
 
-                    if (!$pinValid) {
+                    if (!$pinValid && !$isPinAuthenticatedParticipant) {
                         $request->session()->forget($sessionKey);
                         $request->session()->forget($participantIdKey);
                         $isAuthenticated = false;
@@ -295,9 +298,13 @@ class MenuController extends Controller
         $request->validate([
             'qr_code' => 'required|string',
             'name' => 'required|string|max:255',
+            'use_existing' => 'sometimes|boolean',
         ]);
 
         $table = Table::where('qr_code', $request->qr_code)->firstOrFail();
+        $useExisting = $request->boolean('use_existing');
+        $duplicateConfirmationKey = 'table_' . $table->id . '_duplicate_confirmation_participant_id';
+        $pinAuthenticatedParticipantKey = 'table_' . $table->id . '_pin_authenticated_participant_id';
 
         // Verifica se a senha foi validada, apenas quando a mesa tem senha.
         $passwordValidatedKey = 'table_' . $table->id . '_password_validated';
@@ -317,11 +324,29 @@ class MenuController extends Controller
             ], 401);
         }
 
+        $pinWasValidated = !$table->password && $request->session()->get($pinValidatedKey, false);
+
         // Verifica se já existe um participante com o mesmo nome e sem DeletionDate (soft-deleted flag)
         $participant = TableParticipant::where('table_id', $table->id)
             ->where('name', $request->name)
             ->whereNull('DeletionDate')
             ->first();
+
+        if ($participant && !$useExisting) {
+            $request->session()->put($duplicateConfirmationKey, $participant->id);
+
+            return response()->json([
+                'success' => false,
+                'requires_name_confirmation' => true,
+            ], 409);
+        }
+
+        if ($useExisting && (!$participant || (int) $request->session()->get($duplicateConfirmationKey) !== $participant->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A confirmação expirou. Informe seu nome novamente.',
+            ], 409);
+        }
 
         // Se não existir, cria um novo participante
         if (!$participant) {
@@ -336,6 +361,12 @@ class MenuController extends Controller
         $sessionKey = 'table_' . $table->id . '_authenticated';
         $request->session()->put($sessionKey, true);
         $request->session()->put('table_' . $table->id . '_participant_id', $participant->id);
+        if ($pinWasValidated) {
+            $request->session()->put($pinAuthenticatedParticipantKey, $participant->id);
+        } else {
+            $request->session()->forget($pinAuthenticatedParticipantKey);
+        }
+        $request->session()->forget($duplicateConfirmationKey);
         $request->session()->forget($passwordValidatedKey);
         $request->session()->forget($pinValidatedKey);
 
@@ -371,6 +402,7 @@ class MenuController extends Controller
         $hasPassword = !empty($table->password);
         $sessionKey = 'table_' . $table->id . '_authenticated';
         $participantIdKey = 'table_' . $table->id . '_participant_id';
+        $this->restorePinAuthenticatedParticipant($request, $table);
         $isAuthenticated = $request->session()->get($sessionKey, false);
         $participantId = $request->session()->get($participantIdKey);
 
@@ -408,7 +440,7 @@ class MenuController extends Controller
         }
 
         $pinValidatedInSession = $request->session()->get('table_' . $table->id . '_pin_validated', false);
-        $requiresPinValidation = !$hasPassword && $hasParticipants && !$pinValid && !$pinValidatedInSession;
+        $requiresPinValidation = !$isAuthenticated && !$hasPassword && $hasParticipants && !$pinValid && !$pinValidatedInSession;
         $requiresParticipantName = $pinValidatedInSession && !$isAuthenticated;
 
         if ($isAuthenticated && $participantId) {
@@ -426,6 +458,30 @@ class MenuController extends Controller
             'requires_participant_name' => $requiresParticipantName,
             'participant_name' => $participantName,
         ]);
+    }
+
+    private function restorePinAuthenticatedParticipant(Request $request, Table $table): ?int
+    {
+        $participantKey = 'table_' . $table->id . '_pin_authenticated_participant_id';
+        $participantId = $request->session()->get($participantKey);
+
+        if (!$participantId) {
+            return null;
+        }
+
+        $participantExists = TableParticipant::where('id', $participantId)
+            ->where('table_id', $table->id)
+            ->exists();
+
+        if (!$participantExists) {
+            $request->session()->forget($participantKey);
+            return null;
+        }
+
+        $request->session()->put('table_' . $table->id . '_authenticated', true);
+        $request->session()->put('table_' . $table->id . '_participant_id', $participantId);
+
+        return (int) $participantId;
     }
 
     /**

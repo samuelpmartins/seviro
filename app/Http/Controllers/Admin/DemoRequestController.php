@@ -15,7 +15,7 @@ class DemoRequestController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth.admin');
+        $this->middleware('auth.admin')->except('createDemoRequest');
     }
 
     public function index()
@@ -38,9 +38,12 @@ class DemoRequestController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:demo_requests,email',
+            'email' => 'required|email:rfc,dns|unique:demo_requests,email',
             'phone' => 'nullable|string|max:20',
             'document' => 'required|string|max:20|unique:demo_requests,document',
+        ], [
+            'email.unique' => 'Este e-mail já está cadastrado. Informe outro endereço.',
+            'document.unique' => 'Este CNPJ já está cadastrado. Confira o número informado.',
         ]);
 
         try {
@@ -51,6 +54,13 @@ class DemoRequestController extends Controller
                 'document' => $request->document,
                 'status' => 'created',
             ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Solicitação de demonstração criada com sucesso.',
+                ]);
+            }
 
             return view('welcome', ['success' => true, 'message' => 'Solicitação de demonstração criada com sucesso.']);
         } catch (\Exception $e) {
@@ -64,7 +74,7 @@ class DemoRequestController extends Controller
     public function createUser(Request $request, DemoRequest $demoRequest)
     {
         if ($demoRequest->isCreated()) {
-            return redirect()->json([
+            return response()->json([
                 'success' => false,
                 'message' => 'Apenas solicitações com status "Em validação" podem ser convertidas em usuário.'
             ], 422, [], JSON_UNESCAPED_UNICODE);
@@ -73,10 +83,10 @@ class DemoRequestController extends Controller
         $user = $demoRequest->user()->first();
 
         if ($user) {
-            return redirect()->json([
+            return response()->json([
                 'success' => false,
                 'message' => 'Esta solicitação já está associada a um usuário.'
-            ]);
+            ], 409, [], JSON_UNESCAPED_UNICODE);
         }
 
         try {
@@ -109,15 +119,21 @@ class DemoRequestController extends Controller
 
             try {
                 event(new DemoRequestApproved($demoRequest, $tempPassword));
-            } catch (\Exception $error) {
+            } catch (\Throwable $error) {
+                report($error);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Usuário criado, mas ocorreu um erro ao enviar o e-mail: ' . $error->getMessage(),
+                    'user_created' => true,
+                    'email_sent' => false,
+                    'message' => 'Usuário criado, mas o e-mail não foi enviado. Use "Reenviar acesso" após verificar o SMTP.',
                 ], 200, [], JSON_UNESCAPED_UNICODE);
             }
 
             return response()->json([
                 'success' => true,
+                'user_created' => true,
+                'email_sent' => true,
                 'message' => 'Usuário criado e e-mail disparado com sucesso.',
             ], 200, [], JSON_UNESCAPED_UNICODE);
         } catch (\Exception $e) {

@@ -23,11 +23,28 @@
                             </thead>
                             <tbody>
                                 @forelse($requests as $request)
+                                    @php
+                                        $documentDigits = preg_replace('/\D/', '', $request->document);
+                                        $documentDisplay =
+                                            strlen($documentDigits) === 14
+                                                ? preg_replace(
+                                                    '/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/',
+                                                    '$1.$2.$3/$4-$5',
+                                                    $documentDigits,
+                                                )
+                                                : $request->document;
+                                        $phoneDigits = preg_replace('/\D/', '', $request->phone ?? '');
+                                        $phoneDisplay = match (strlen($phoneDigits)) {
+                                            11 => preg_replace('/^(\d{2})(\d{5})(\d{4})$/', '($1) $2-$3', $phoneDigits),
+                                            10 => preg_replace('/^(\d{2})(\d{4})(\d{4})$/', '($1) $2-$3', $phoneDigits),
+                                            default => $request->phone ?? '-',
+                                        };
+                                    @endphp
                                     <tr>
                                         <td>{{ $request->name }}</td>
-                                        <td>{{ $request->document }}</td>
+                                        <td>{{ $documentDisplay }}</td>
                                         <td>{{ $request->email }}</td>
-                                        <td>{{ $request->phone ?? '-' }}</td>
+                                        <td>{{ $phoneDisplay }}</td>
                                         <td>
                                             <span class="badge bg-{{ $request->isCreated() ? 'warning' : 'success' }}">
                                                 @if ($request->isCreated())
@@ -62,7 +79,6 @@
                                                 onclick="deleteRequest({{ $request->id }})">
                                                 Deletar
                                             </button>
-
                                         </td>
                                     </tr>
                                 @empty
@@ -91,6 +107,14 @@
                 })
                 .then(r => r.json())
                 .then(data => {
+
+                    if (data.user_created) {
+                        showToast(data.message, data.email_sent ? 'success' : 'error');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 800);
+                        return;
+                    }
 
                     if (data.success) {
                         showToast(data.message, 'success');

@@ -406,7 +406,7 @@ Route::middleware(['web', 'auth'])->group(function () {
             return response()->json(['success' => false, 'message' => 'Não autorizado'], 403);
         }
 
-        $orderData = $order->load(['items.product', 'table', 'participant' => function ($query) {
+        $orderData = $order->load(['items.product.additionalIngredients', 'table', 'participant' => function ($query) {
             $query->withTrashed();
         }, 'user']);
 
@@ -415,7 +415,20 @@ Route::middleware(['web', 'auth'])->group(function () {
             $payload = json_decode($item['notes'] ?? '', true);
             if (is_array($payload) && array_key_exists('notes', $payload)) {
                 $item['notes'] = $payload['notes'];
-                $item['selected_ingredients'] = $payload['selected_ingredients'] ?? [];
+                $item['selected_ingredients'] = collect($payload['selected_ingredients'] ?? [])
+                    ->map(function ($selected) use ($item) {
+                        $ingredient = collect($item['product']['additional_ingredients'] ?? [])
+                            ->firstWhere('id', $selected['id'] ?? null);
+                        $baseAmount = (int) ($ingredient['amount_item'] ?? 0);
+                        $selectedAmount = (int) ($selected['selected_amount'] ?? 0);
+
+                        return [
+                            'id' => $selected['id'] ?? null,
+                            'name' => $ingredient['name'] ?? 'Ingrediente',
+                            'selected_amount' => $selectedAmount,
+                            'difference' => $selectedAmount - $baseAmount,
+                        ];
+                    })->values()->all();
             } else {
                 $item['selected_ingredients'] = [];
             }

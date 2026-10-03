@@ -536,6 +536,21 @@
                                 </button>
                             </form>
                         </div>
+
+                        <div id="duplicateParticipantStep" class="d-none text-center">
+                            <p class="mb-4">Na mesa, já se encontra um participante com esse nome, deseja mencionar
+                                outro?</p>
+                            <div class="d-grid gap-2">
+                                <button type="button" id="chooseAnotherParticipantName" class="btn btn-outline-dark"
+                                    style="border-radius: 8px; padding: 0.75rem; font-weight: 600;">
+                                    Sim, informar outro nome
+                                </button>
+                                <button type="button" id="useExistingParticipant" class="btn"
+                                    style="background: #000; color: white; border-radius: 8px; padding: 0.75rem; font-weight: 600;">
+                                    Não, entrar com esse nome
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1408,11 +1423,10 @@
             });
 
             // Form: Digitar nome (após validar senha)
-            document.getElementById('enterNameForm')?.addEventListener('submit', function(e) {
-                e.preventDefault();
-
-                const name = document.getElementById('participantName').value;
-                const submitBtn = this.querySelector('button[type="submit"]');
+            function submitParticipantName(useExisting = false) {
+                const nameInput = document.getElementById('participantName');
+                const name = nameInput.value;
+                const submitBtn = document.querySelector('#enterNameForm button[type="submit"]');
 
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Entrando...';
@@ -1425,29 +1439,54 @@
                         },
                         body: JSON.stringify({
                             qr_code: qrCode,
-                            name: name
+                            name: name,
+                            use_existing: useExisting
                         })
                     })
                     .then(response => response.json())
                     .then(data => {
+                        if (data.requires_name_confirmation) {
+                            document.getElementById('enterNameStep')?.classList.add('d-none');
+                            document.getElementById('duplicateParticipantStep')?.classList.remove('d-none');
+                            return;
+                        }
+
                         if (data.success) {
                             showToast('Bem-vindo à mesa!', 'success');
-                            // Fechar modal e recarregar página
                             bootstrap.Modal.getInstance(document.getElementById('authModal')).hide();
                             setTimeout(() => location.reload(), 500);
-                        } else {
-                            showToast(data.message || 'Erro ao entrar na mesa', 'error');
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML =
-                                '<i class="fas fa-sign-in-alt me-2"></i>Entrar na Mesa';
+                            return;
                         }
+
+                        showToast(data.message || 'Erro ao entrar na mesa', 'error');
                     })
                     .catch(error => {
                         console.error('Erro:', error);
                         showToast('Erro ao entrar na mesa', 'error');
+                    })
+                    .finally(() => {
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Entrar na Mesa';
                     });
+            }
+
+            document.getElementById('enterNameForm')?.addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitParticipantName(false);
+            });
+
+            document.getElementById('chooseAnotherParticipantName')?.addEventListener('click', function() {
+                document.getElementById('duplicateParticipantStep')?.classList.add('d-none');
+                document.getElementById('enterNameStep')?.classList.remove('d-none');
+                const nameInput = document.getElementById('participantName');
+                nameInput.value = '';
+                nameInput.focus();
+            });
+
+            document.getElementById('useExistingParticipant')?.addEventListener('click', function() {
+                document.getElementById('duplicateParticipantStep')?.classList.add('d-none');
+                document.getElementById('enterNameStep')?.classList.remove('d-none');
+                submitParticipantName(true);
             });
 
             document.getElementById('tablePassword')?.addEventListener('input', function(e) {
@@ -2334,12 +2373,12 @@
                         return `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                                                                                                                                                                                        <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                                                                                                                                                                                                        ` : `
-                                                                                                                                                                                                                        <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                                                                                                                                                                        <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                        `}
+                                                                                                                                                                                                                            <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                                                                                                                                                                                                                            ` : `
+                                                                                                                                                                                                                            <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                                                                                                                                                                                            <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
+                                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                                            `}
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
@@ -2564,22 +2603,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                                                                                                                                                                                                <small class="text-muted">
-                                                                                                                                                                                                                                                <i class="fas fa-user me-1"></i>
-                                                                                                                                                                                                                                                <strong>${order.participant_name}</strong>
-                                                                                                                                                                                                                                                </small>
-                                                                                                                                                                                                                                                ` : ''}
+                                                                                                                                                                                                                                                    <small class="text-muted">
+                                                                                                                                                                                                                                                    <i class="fas fa-user me-1"></i>
+                                                                                                                                                                                                                                                    <strong>${order.participant_name}</strong>
+                                                                                                                                                                                                                                                    </small>
+                                                                                                                                                                                                                                                    ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                                                                                                                                                                                                <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                                                                                <i class="fas fa-check-circle me-1"></i>Pago
-                                                                                                                                                                                                                                                </span>
-                                                                                                                                                                                                                                                ` : `
-                                                                                                                                                                                                                                                <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                                                                                <i class="fas fa-clock me-1"></i>Pendente
-                                                                                                                                                                                                                                                </span>
-                                                                                                                                                                                                                                                `}
+                                                                                                                                                                                                                                                    <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                                    <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                                                                                                                                                                                    </span>
+                                                                                                                                                                                                                                                    ` : `
+                                                                                                                                                                                                                                                    <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                                    <i class="fas fa-clock me-1"></i>Pendente
+                                                                                                                                                                                                                                                    </span>
+                                                                                                                                                                                                                                                    `}
                                         <span class="badge" style="background: ${
                                             order.status === 'Finalizado' ? '#10b981' : 
                                             order.status === 'Em produção' ? '#f59e0b' : 
@@ -2592,11 +2631,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                                                                                                                                                                                            <div class="d-flex justify-content-between py-1">
-                                                                                                                                                                                                                                            <span>${item.quantity}x ${item.product_name}</span>
-                                                                                                                                                                                                                                            <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                            `).join('')}
+                                                                                                                                                                                                                                                <div class="d-flex justify-content-between py-1">
+                                                                                                                                                                                                                                                <span>${item.quantity}x ${item.product_name}</span>
+                                                                                                                                                                                                                                                <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
+                                                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                                                `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">

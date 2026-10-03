@@ -808,6 +808,58 @@
             color: #7f8c8d;
         }
 
+        .order-item-customizations {
+            margin-top: 4px;
+            color: #536273;
+        }
+
+        .service-fee-panel {
+            background: #f8f9fa;
+            color: #24364b;
+            padding: 14px;
+            border-radius: 12px;
+            text-align: left;
+        }
+
+        .service-fee-toggle,
+        .service-fee-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .service-fee-toggle {
+            padding-bottom: 12px;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+        }
+
+        .service-fee-toggle input {
+            width: 20px;
+            height: 20px;
+            accent-color: #3498db;
+        }
+
+        .service-fee-row {
+            justify-content: space-between;
+            padding-top: 10px;
+        }
+
+        .service-fee-total {
+            display: grid;
+            gap: 3px;
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .service-fee-total strong {
+            font-size: 1.5rem;
+        }
+
         .order-item-price {
             font-weight: 700;
             color: #27ae60;
@@ -1081,9 +1133,30 @@
                                 @endif
 
                                 @if ($table->unpaid_total > 0)
-                                    <div class="pending-total mt-3">
-                                        <div class="label">Total Pendente</div>
-                                        <div class="amount">R$ {{ number_format($table->unpaid_total, 2, ',', '.') }}</div>
+                                    @php($serviceFeePreview = round($table->unpaid_total * 0.1, 2))
+                                    <div class="pending-total mt-3 service-fee-panel"
+                                        data-service-fee-url="{{ route('waiter.table.service-fee', $table) }}"
+                                        data-payment-url="{{ route('waiter.table.mark-paid', $table) }}">
+                                        <label class="service-fee-toggle">
+                                            <input type="checkbox" class="service-fee-checkbox"
+                                                onchange="toggleTableServiceFee(this)">
+                                            <span>Incluir taxa de serviço (10%)</span>
+                                        </label>
+                                        <div class="service-fee-row">
+                                            <span>Consumo</span>
+                                            <strong data-consumption>R$
+                                                {{ number_format($table->unpaid_total, 2, ',', '.') }}</strong>
+                                        </div>
+                                        <div class="service-fee-row">
+                                            <span>Taxa de serviço (10%)</span>
+                                            <strong data-service-fee>R$
+                                                {{ number_format($serviceFeePreview, 2, ',', '.') }}</strong>
+                                        </div>
+                                        <div class="service-fee-total">
+                                            <span>Total Pendente</span>
+                                            <strong data-payable-total>R$
+                                                {{ number_format($table->unpaid_total, 2, ',', '.') }}</strong>
+                                        </div>
                                     </div>
                                 @endif
                             @else
@@ -1569,6 +1642,13 @@
             let itemsHtml = '';
             order.items.forEach(item => {
                 const itemTotal = item.quantity * item.price;
+                const addedIngredients = (item.selected_ingredients || [])
+                    .filter(ingredient => ingredient.difference > 0)
+                    .map(ingredient => `${escapeEditProductText(ingredient.name)} x${ingredient.difference}`);
+                const removedIngredients = (item.selected_ingredients || [])
+                    .filter(ingredient => ingredient.difference < 0)
+                    .map(ingredient =>
+                        `${escapeEditProductText(ingredient.name)} x${Math.abs(ingredient.difference)}`);
                 itemsHtml += `
                 <div class="order-item-card">
                     <div class="order-item-info">
@@ -1578,7 +1658,9 @@
                         </div>
                         <div class="order-item-details">
                             R$ ${parseFloat(item.price).toFixed(2).replace('.', ',')} cada
-                            ${item.notes ? `<br><i class="fas fa-sticky-note"></i> ${item.notes}` : ''}
+                            ${item.notes ? `<br><i class="fas fa-sticky-note"></i> ${escapeEditProductText(item.notes)}` : ''}
+                            ${addedIngredients.length ? `<div class="order-item-customizations"><strong>Adicionados:</strong> ${addedIngredients.join(', ')}</div>` : ''}
+                            ${removedIngredients.length ? `<div class="order-item-customizations"><strong>Removidos:</strong> ${removedIngredients.join(', ')}</div>` : ''}
                         </div>
                     </div>
                     <div class="order-item-price">
@@ -1595,7 +1677,7 @@
                 <div class="order-info-section">
                     <h4><i class="fas fa-sticky-note"></i> Observações</h4>
                     <div style="background: #fff3cd; padding: 15px; border-radius: 8px; color: #856404;">
-                        ${order.notes}
+                        ${escapeEditProductText(order.notes)}
                     </div>
                 </div>
             `;
@@ -1633,10 +1715,10 @@
             
             <div class="order-details-footer">
                 ${order.status === 'Aguardando produção' ? `
-                                                                                                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
-                                                                                                                        <i class="fas fa-edit me-2"></i>Editar Pedido
-                                                                                                                    </button>
-                                                                                                                ` : ''}
+                                                                                                                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
+                                                                                                                                        <i class="fas fa-edit me-2"></i>Editar Pedido
+                                                                                                                                    </button>
+                                                                                                                                ` : ''}
                 <button class="btn-close-modal" onclick="closeOrderDetails()">
                     <i class="fas fa-times me-2"></i>Fechar
                 </button>
@@ -1758,16 +1840,16 @@
                 <label class="form-label">Quantidade</label>
                 <input id="editProductQuantity" class="form-control" type="number" min="1" value="1">
                 ${ingredients.length ? `
-                                <label class="form-label mt-3">Personalize os ingredientes</label>
-                                <div class="edit-product-ingredients">
-                                    ${ingredients.map(ingredient => `
+                                                <label class="form-label mt-3">Personalize os ingredientes</label>
+                                                <div class="edit-product-ingredients">
+                                                    ${ingredients.map(ingredient => `
                             <div class="edit-product-ingredient">
                                 <span>${escapeEditProductText(ingredient.name)} (+R$ ${ingredient.additional_price.toFixed(2).replace('.', ',')} cada)</span>
                                 <input class="form-control form-control-sm edit-product-ingredient-quantity" type="number" min="0" value="${ingredient.amount_item}" data-ingredient-id="${ingredient.id}" data-base-amount="${ingredient.amount_item}">
                             </div>
                         `).join('')}
-                                </div>
-                            ` : '<p class="text-muted mt-3">Este produto não possui ingredientes personalizáveis.</p>'}
+                                                </div>
+                                            ` : '<p class="text-muted mt-3">Este produto não possui ingredientes personalizáveis.</p>'}
                 <label class="form-label mt-3">Observação</label>
                 <textarea id="editProductNotes" class="form-control" rows="2" placeholder="Observação do item"></textarea>
                 <div class="edit-product-actions">
@@ -1950,8 +2032,47 @@
         });
 
         // Função para marcar mesa como paga
+        async function toggleTableServiceFee(checkbox) {
+            const panel = checkbox.closest('.service-fee-panel');
+            const selected = checkbox.checked;
+            checkbox.disabled = true;
+
+            try {
+                const response = await fetch(panel.dataset.serviceFeeUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        include_service_fee: selected
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Não foi possível calcular a taxa.');
+
+                const currency = value => `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
+                panel.querySelector('[data-consumption]').textContent = currency(data.consumption);
+                panel.querySelector('[data-service-fee]').textContent = currency(data.service_fee);
+                panel.querySelector('[data-payable-total]').textContent = currency(data.total);
+            } catch (error) {
+                checkbox.checked = !selected;
+                alert(error.message);
+            } finally {
+                checkbox.disabled = false;
+            }
+        }
+
         function markTableAsPaid(button, tableId) {
-            if (!confirm('Confirma que todos os pedidos desta mesa foram pagos em DINHEIRO?')) {
+            const panel = button.closest('.table-card').querySelector('.service-fee-panel');
+            const includeServiceFee = panel?.querySelector('.service-fee-checkbox').checked ?? false;
+            const payableTotal = panel?.querySelector('[data-payable-total]').textContent ?? '';
+            const confirmation =
+                `Confirma o pagamento em dinheiro${includeServiceFee ? ` no valor de ${payableTotal}, incluindo a taxa de serviço` : ''}?`;
+
+            if (!confirm(confirmation)) {
                 return;
             }
 
@@ -1959,53 +2080,26 @@
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Marcando...';
 
-            // Obter todos os pedidos não pagos da mesa
-            fetch(`/api/tables/${tableId}/unpaid-orders`, {
-                    method: 'GET',
+            fetch(panel.dataset.paymentUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json'
-                    }
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        include_service_fee: includeServiceFee
+                    })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    const orders = data.orders || [];
-                    if (orders.length === 0) {
-                        alert('Nenhum pedido pendente de pagamento nesta mesa.');
-                        button.disabled = false;
-                        button.innerHTML = originalHtml;
-                        return;
-                    }
-
-                    // Marcar cada pedido como pago
-                    const promises = orders.map(order =>
-                        fetch(`/waiter/employee/${order.id}/mark-paid-cash`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                                    'content'),
-                                'Accept': 'application/json'
-                            },
-                            credentials: 'same-origin'
-                        })
-                    );
-
-                    Promise.all(promises)
-                        .then(() => {
-                            window.location.reload();
-                        })
-                        .catch(error => {
-                            console.error('Erro:', error);
-                            alert('Erro ao marcar pedidos como pagos. Tente novamente.');
-                            button.disabled = false;
-                            button.innerHTML = originalHtml;
-                        });
+                .then(async response => {
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.message || 'Erro ao registrar o pagamento.');
+                    window.location.reload();
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao buscar pedidos. Tente novamente.');
+                    alert(error.message);
                     button.disabled = false;
                     button.innerHTML = originalHtml;
                 });

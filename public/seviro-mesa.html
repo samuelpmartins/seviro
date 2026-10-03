@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Sevirô — Identificação da mesa</title>
+    <style>
+        * {
+            box-sizing: border-box
+        }
+
+        :root {
+            --lavanda: #a3acd7;
+            --tinta: #1d1e29;
+            --creme: #fffbed
+        }
+
+        body {
+            margin: 0;
+            background: #ececf2;
+            color: var(--tinta);
+            font-family: Arial, Helvetica, sans-serif;
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+            padding: 24px
+        }
+
+        .placa {
+            width: min(100%, 550px);
+            aspect-ratio: 1097/1434;
+            overflow: hidden;
+            background: var(--creme);
+            container-type: inline-size;
+            box-shadow: 0 12px 48px #25263b20
+        }
+
+        .painel {
+            height: 82.65%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: var(--lavanda);
+            overflow: hidden
+        }
+
+        .padrao {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none
+        }
+
+        .chamada {
+            position: relative;
+            margin: 4.9cqw 0 0;
+            width: 53.5%;
+            height: 12.8cqw;
+            border-radius: 4.5cqw;
+            background: var(--creme);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 4.25cqw;
+            font-weight: 700;
+            line-height: 1.15;
+            padding: 1cqw;
+            z-index: 1
+        }
+
+        .moldura {
+            position: relative;
+            margin-top: 5.8cqw;
+            width: 59.5%;
+            aspect-ratio: 1;
+            border: 1.05cqw solid white;
+            border-radius: 6cqw;
+            padding: 2.5cqw;
+            flex-shrink: 0
+        }
+
+        .qr-area {
+            width: 100%;
+            height: 100%;
+            background: var(--creme);
+            border-radius: 4.8cqw;
+            display: grid;
+            place-items: center;
+            padding: 3cqw;
+            overflow: hidden
+        }
+
+        .qr-area img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: white
+        }
+
+        .qr-area img[hidden] {
+            display: none
+        }
+
+        .mesa {
+            position: relative;
+            margin-top: 4cqw;
+            width: max-content;
+            max-width: 88%;
+            min-width: 38%;
+            height: 15cqw;
+            padding: 1cqw 4cqw;
+            background: var(--creme);
+            border-radius: 8cqw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 7.2cqw;
+            line-height: 1;
+            white-space: nowrap
+        }
+
+        .rodape {
+            height: 17.35%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #2c3e50;
+            border-top: 1cqw solid #3498db
+        }
+
+        .logo-oficial {
+            display: block;
+            width: 58%;
+            max-width: 220px;
+            max-height: 14cqw;
+            object-fit: contain
+        }
+
+        @page {
+            size: 100mm 130.72mm;
+            margin: 0
+        }
+
+        @media print {
+            body {
+                display: block;
+                background: white;
+                padding: 0;
+                margin: 0
+            }
+
+            .placa {
+                width: 100mm;
+                height: 130.72mm;
+                box-shadow: none;
+                break-inside: avoid
+            }
+
+            * {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="placa" aria-label="Placa de acesso ao cardápio da mesa">
+        <section class="painel">
+            <svg class="padrao" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                    <pattern id="marca-padrao" width="210" height="85" patternUnits="userSpaceOnUse"
+                        patternTransform="rotate(-42)"><text x="8" y="58" fill="#6874a5" fill-opacity=".45"
+                            font-family="Arial, sans-serif" font-size="35" font-weight="700"
+                            letter-spacing="2">SEVIRÔ</text></pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#marca-padrao)" />
+            </svg>
+            <div class="chamada">Aponte a câmera<br>para o QR para pedir</div>
+            <div class="moldura">
+                <div class="qr-area"><img id="qrCode" hidden alt="QR Code para acessar o cardápio da mesa"></div>
+            </div>
+            <div class="mesa" id="nomeMesa">Mesa 01</div>
+        </section>
+        <footer class="rodape">
+            <img class="logo-oficial" src="https://seviro.com.br/storage/img/logo.png" alt="Sevirô">
+        </footer>
+    </main>
+    <script>
+        function renderizarMesa({ nomeMesa = 'Mesa 01', qrCodeSrc = '' } = {}) {
+            const nome = document.getElementById('nomeMesa');
+            const qr = document.getElementById('qrCode');
+            nome.textContent = String(nomeMesa);
+            // Reduz a fonte em nomes longos para caber na identificação.
+            nome.style.fontSize = nome.textContent.length > 12 ? '4.5cqw' : nome.textContent.length > 8 ? '6cqw' : '7.2cqw';
+            if (qrCodeSrc) {
+                qr.src = String(qrCodeSrc);
+                qr.hidden = false;
+                qr.alt = 'QR Code do cardápio — ' + nome.textContent;
+            } else {
+                qr.removeAttribute('src');
+                qr.hidden = true;
+            }
+        }
+
+        window.renderizarMesa = renderizarMesa;
+        const parametros = new URLSearchParams(window.location.search);
+        renderizarMesa({
+            nomeMesa: parametros.get('mesa') || 'Mesa 01',
+            qrCodeSrc: parametros.get('qrCodeSrc') || ''
+        });
+
+        if (parametros.get('autoPrint') === '1') {
+            const imagens = [document.getElementById('qrCode'), document.querySelector('.logo-oficial')];
+            Promise.all(imagens.map(imagem => new Promise(resolve => {
+                if (imagem.complete) {
+                    resolve(imagem.naturalWidth > 0);
+                    return;
+                }
+                imagem.addEventListener('load', () => resolve(true), { once: true });
+                imagem.addEventListener('error', () => resolve(false), { once: true });
+            }))).then(carregadas => {
+                if (carregadas.every(Boolean)) {
+                    window.setTimeout(() => window.print(), 300);
+                } else {
+                    alert('Não foi possível carregar o QR Code ou o logo para impressão.');
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

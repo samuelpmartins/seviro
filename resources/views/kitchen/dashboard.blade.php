@@ -886,7 +886,7 @@
                 const oid = card.getAttribute('data-order-id');
                 const indicator = card.querySelector('.order-print-failed');
                 if (!indicator) return;
-                const retryBtn = indicator.querySelector('.order-retry-btn');
+                const retryBtn = card.querySelector('.order-retry-btn');
 
                 const isFailed = failed && failed.some(id => String(id) === String(oid));
                 if (isFailed) {
@@ -895,60 +895,33 @@
                     indicator.classList.add('d-none');
                 }
 
-                // disable retry button if user already clicked retry previously
-                if (retryBtn && window.notificationSystem && typeof window.notificationSystem.retryClicked ===
-                    'function') {
-                    try {
-                        if (window.notificationSystem.retryClicked(oid)) {
-                            retryBtn.disabled = true;
-                            retryBtn.textContent = 'Enviado';
-                        }
-                    } catch (e) {
-                        /* ignore */
-                    }
-                }
-
                 if (retryBtn) {
                     retryBtn.onclick = async () => {
-                        if (window.notificationSystem && typeof window.notificationSystem.retryClicked ===
-                            'function' &&
-                            window.notificationSystem.retryClicked(oid)) {
-                            retryBtn.disabled = true;
-                            retryBtn.textContent = 'Falha';
-                            return;
-                        }
-
-                        if (window.notificationSystem && typeof window.notificationSystem
-                            .markRetryClicked === 'function') {
-                            window.notificationSystem.markRetryClicked(oid);
-                        }
-
-                        // disable button after single click to avoid duplicates
                         retryBtn.disabled = true;
-                        const original = retryBtn.textContent;
-                        retryBtn.textContent = 'Enviando...';
+                        retryBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Imprimindo...';
                         try {
                             if (window.notificationSystem && typeof window.notificationSystem.printOrder ===
                                 'function') {
                                 const res = await window.notificationSystem.printOrder(oid);
 
                                 if (res && res.status === 200) {
-                                    retryBtn.textContent = 'Enviado';
                                     window.notificationSystem.removeFailedPrint(oid);
                                     window.notificationSystem.markOrderPrinted(oid);
                                     indicator.classList.add('d-none');
-                                    if (window.notificationSystem && typeof window.notificationSystem
-                                        .clearRetryClicked === 'function') {
-                                        window.notificationSystem.clearRetryClicked(oid);
-                                    }
                                 } else {
-                                    retryBtn.disabled = true;
-                                    retryBtn.textContent = 'Falha';
+                                    window.notificationSystem.addFailedPrint(oid);
+                                    indicator.classList.remove('d-none');
                                 }
+                            } else {
+                                throw new Error('Sistema de impressão indisponível.');
                             }
                         } catch (err) {
-                            console.error('Erro ao reenviar impressão do pedido', oid, err);
-                            retryBtn.textContent = 'Falha';
+                            console.error('Erro ao imprimir pedido', oid, err);
+                            window.notificationSystem?.addFailedPrint(oid);
+                            indicator.classList.remove('d-none');
+                        } finally {
+                            retryBtn.disabled = false;
+                            retryBtn.innerHTML = '<i class="fas fa-print me-1"></i>Reimprimir pedido';
                         }
                     };
                 }

@@ -297,6 +297,10 @@
                                         </td>
                                         <td>
                                             <div class="btn-group">
+                                                <a href="{{ route('store.tables.print', $table) }}"
+                                                    class="btn btn-sm btn-warning" target="_blank" rel="noopener">
+                                                    <i class="fas fa-file-pdf me-1"></i>Baixar PDF
+                                                </a>
                                                 <a href="{{ route('store.tables.edit', $table) }}"
                                                     class="btn btn-sm btn-primary">
                                                     Editar

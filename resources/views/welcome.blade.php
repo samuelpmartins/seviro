@@ -166,6 +166,20 @@
             box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
         }
 
+        .form-feedback {
+            margin-top: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .form-feedback.success {
+            color: #218838;
+        }
+
+        .form-feedback.error {
+            color: #c0392b;
+        }
+
         .radio-group {
             display: flex;
             gap: 20px;
@@ -612,6 +626,8 @@
                     </div>
 
                     <button type="submit" class="btn-primary">Solicitar Demonstração</button>
+                    <div id="demo-request-feedback" class="form-feedback" role="status" aria-live="polite" hidden>
+                    </div>
 
                     <div class="checkbox-group">
                         <input type="checkbox" id="terms" required>
@@ -713,13 +729,15 @@
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-text">
-                © 2025 SEVIRÔ. Todos os direitos reservados.
+                © <span id="current-year"></span> SEVIRÔ. Todos os direitos reservados.
             </div>
 
         </div>
     </footer>
 
     <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
         const documentInput = document.getElementById('document');
         const phoneInput = document.getElementById('phone');
 
@@ -807,18 +825,26 @@
 
         }
 
-        document.querySelector('form').addEventListener('submit', function(e) {
+        document.querySelector('form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const form = this;
+            const feedback = document.getElementById('demo-request-feedback');
             const data = new FormData(form);
             const url = form.action;
+
+            function showFeedback(message, type) {
+                feedback.textContent = message;
+                feedback.className = `form-feedback ${type}`;
+                feedback.hidden = false;
+            }
 
             try {
 
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
                     },
                     body: data
@@ -826,15 +852,20 @@
 
                 const result = await response.json();
 
-                if (result.success) {
-                    showToast(result.message, 'success');
-
-                    window.location.reload();
+                if (response.ok && result.success) {
+                    form.reset();
+                    showFeedback(result.message, 'success');
                 } else {
-                    showToast(result.message, 'error');
+                    showFeedback(
+                        'Não foi possível enviar a solicitação. Por favor, entre em contato com o suporte pelo e-mail oficial@seviro.com.br.',
+                        'error'
+                    );
                 }
             } catch (error) {
-                showToast('Ocorreu um erro ao enviar o formulário.', 'error');
+                showFeedback(
+                    'Não foi possível enviar a solicitação. Por favor, entre em contato com o suporte pelo e-mail oficial@seviro.com.br.',
+                    'error'
+                );
             }
         });
 

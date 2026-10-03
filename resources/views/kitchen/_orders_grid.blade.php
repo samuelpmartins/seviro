@@ -81,16 +81,15 @@
                         </div>
                     @endif
 
-                    <!-- Per-order print failure indicator + retry (populated client-side) -->
+                    <!-- Print failure feedback is conditional; manual reprint is always available. -->
                     <div class="order-print-failed alert alert-warning d-none mt-3"
                         data-order-id="{{ $order->id }}">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>Falha ao imprimir este pedido.</div>
-                            <div>
-                                <button type="button" class="btn btn-sm btn-outline-primary order-retry-btn">Reenviar
-                                    Impressão</button>
-                            </div>
-                        </div>
+                        Falha ao imprimir este pedido.
+                    </div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary order-retry-btn">
+                            <i class="fas fa-print me-1"></i>Reimprimir pedido
+                        </button>
                     </div>
                 </div>
 

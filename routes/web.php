@@ -64,6 +64,7 @@ Route::middleware(['auth'])->group(function () {
         // Gerenciamento de mesas
         Route::resource('tables', TableController::class);
         Route::get('tables/{table}/qrcode', [TableController::class, 'generateQrCode'])->name('tables.qrcode');
+        Route::get('tables/{table}/print', [TableController::class, 'printTablePlate'])->name('tables.print');
         Route::get('counter/qrcode', [TableController::class, 'generateCounterQrCode'])->name('counter.qrcode');
         Route::post('tables/{table}/clear', [TableController::class, 'clear'])->name('tables.clear');
         Route::get('/menu/preview', [MenuController::class, 'preview'])->name('menu.preview');
@@ -78,6 +79,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Gerenciamento de funcionários
         Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+        Route::get('/employees/{employee}/service-fees', [EmployeeController::class, 'waiterServiceFees'])->name('employees.service-fees');
         Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
         Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
         Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
@@ -168,6 +170,8 @@ Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->name('kitchen.')
 // Rotas do Garçom
 Route::middleware(['auth', 'role:waiter'])->prefix('waiter')->name('waiter.')->group(function () {
     Route::get('/dashboard', [EmployeeController::class, 'waiterDashboard'])->name('dashboard');
+    Route::post('/table/{table}/service-fee', [EmployeeController::class, 'previewTableServiceFee'])->name('table.service-fee');
+    Route::post('/table/{table}/mark-paid', [EmployeeController::class, 'markTableAsPaid'])->name('table.mark-paid');
     Route::post('/start-attending', [EmployeeController::class, 'startAttending'])->name('start-attending');
     Route::get('/attendance-status', [EmployeeController::class, 'attendanceStatus'])->name('attendance-status');
     Route::post('/stop-attending', [EmployeeController::class, 'stopAttending'])->name('stop-attending');

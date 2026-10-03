@@ -111,6 +111,23 @@ class TableController extends Controller
         return view('store.tables.qrcode', compact('table', 'qrCodeWithTableNumber', 'url'));
     }
 
+    public function printTablePlate(Table $table)
+    {
+        $this->authorize('view', $table);
+
+        $menuUrl = route('menu.show', $table->qr_code);
+        $qrCodeSvg = QrCode::format('svg')->size(500)->generate($menuUrl);
+        $qrCodeSrc = 'data:image/svg+xml;base64,' . base64_encode($qrCodeSvg);
+
+        $templateUrl = asset('seviro-mesa.html') . '?' . http_build_query([
+            'mesa' => 'Mesa ' . $table->number,
+            'qrCodeSrc' => $qrCodeSrc,
+            'autoPrint' => '1',
+        ], '', '&', PHP_QUERY_RFC3986);
+
+        return redirect()->away($templateUrl);
+    }
+
     /**
      * Gerar QR Code do balcão (sem mesa)
      */
