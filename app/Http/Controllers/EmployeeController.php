@@ -9,6 +9,8 @@ use App\Models\TableUser;
 use App\Models\Product;
 use App\Models\Payment;
 use App\Models\OrderAttendance;
+use App\Models\TableParticipant;
+use App\Models\TableParticipantPin;
 use App\Enums\TableAssignmentType;
 use App\Enums\TableServiceStatus;
 use Illuminate\Http\Request;
@@ -465,6 +467,243 @@ class EmployeeController extends Controller
             ->get(['id', 'name', 'price', 'ingredients']);
 
         return view('waiter.dashboard', compact('myTables', 'otherTables', 'availableTables', 'store', 'availableProducts'));
+    }
+
+    public function waiterOccupyTable(Request $request, Table $table)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+        $user = $request->user();
+        $store = $user->workplace;
+
+        if (!$store || $table->store_id !== $store->id) {
+            abort(403);
+        }
+
+        $pin = DB::transaction(function () use ($table, $user, $validated) {
+            $lockedTable = Table::whereKey($table->id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedTable->occupied || $lockedTable->participants()->exists()) {
+                abort(422, 'Esta mesa não está disponível para ocupação.');
+            }
+
+            $assignment = TableUser::where('table_id', $lockedTable->id)
+                ->where('service_status', TableServiceStatus::Active->value)
+                ->lockForUpdate()
+                ->first();
+
+            if ($assignment && $assignment->user_id !== $user->id) {
+                abort(403, 'Esta mesa está atribuída a outro garçom.');
+            }
+
+            $participant = TableParticipant::create([
+                'table_id' => $lockedTable->id,
+                'name' => $validated['name'],
+                'is_owner' => true,
+            ]);
+
+            $pin = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            TableParticipantPin::create([
+                'table_participant_id' => $participant->id,
+                'pin' => $pin,
+                'status' => 'active',
+                'next_validate' => now()->addSeconds(10),
+            ]);
+
+            if (!$assignment) {
+                TableUser::create([
+                    'store_id' => $lockedTable->store_id,
+                    'table_id' => $lockedTable->id,
+                    'user_id' => $user->id,
+                    'service_status' => TableServiceStatus::Active,
+                    'assignment_type' => TableAssignmentType::Manual,
+                ]);
+            }
+
+            $lockedTable->update([
+                'occupied' => true,
+                'occupied_at' => now(),
+            ]);
+
+            return $pin;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mesa ocupada e participante criado com sucesso.',
+            'pin' => $pin,
+        ]);
+    }
+
+    public function waiterTableParticipants(Request $request, Table $table)
+    {
+        $this->ensureWaiterCanManageTable($table, $request->user());
+
+        abort_unless($table->occupied, 422, 'Esta mesa não está ocupada.');
+
+        return response()->json([
+            'participants' => $table->participants()
+                ->orderBy('name')
+                ->get(['id', 'name', 'is_owner']),
+        ]);
+    }
+
+    public function waiterAddParticipant(Request $request, Table $table)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+        $user = $request->user();
+        $store = $user->workplace;
+
+        if (!$store || $table->store_id !== $store->id) {
+            abort(403);
+        }
+
+        $participant = DB::transaction(function () use ($table, $user, $validated) {
+            $lockedTable = Table::whereKey($table->id)->lockForUpdate()->firstOrFail();
+            $this->ensureWaiterCanManageTable($lockedTable, $user);
+
+            abort_unless($lockedTable->occupied, 422, 'Esta mesa não está ocupada.');
+
+            if ($lockedTable->participants()->where('name', $validated['name'])->exists()) {
+                abort(422, 'Já existe um participante com esse nome nesta mesa.');
+            }
+
+            return TableParticipant::create([
+                'table_id' => $lockedTable->id,
+                'name' => $validated['name'],
+                'is_owner' => false,
+            ]);
+        });
+
+        return response()->json([
+            'participant' => [
+                'id' => $participant->id,
+                'name' => $participant->name,
+                'is_owner' => $participant->is_owner,
+            ],
+        ], 201);
+    }
+
+    public function waiterCreateOrder(Request $request, Table $table)
+    {
+        $validated = $request->validate([
+            'participant_id' => ['required', 'integer', 'exists:table_participants,id'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.notes' => ['nullable', 'string'],
+            'items.*.selected_ingredients' => ['nullable', 'array'],
+            'items.*.selected_ingredients.*.id' => ['required_with:items.*.selected_ingredients', 'integer', 'exists:product_ingredients,id'],
+            'items.*.selected_ingredients.*.selected_amount' => ['required_with:items.*.selected_ingredients', 'integer', 'min:0'],
+            'notes' => ['nullable', 'string'],
+        ]);
+        $user = $request->user();
+        $store = $user->workplace;
+
+        if (!$store || $table->store_id !== $store->id) {
+            abort(403);
+        }
+
+        $order = DB::transaction(function () use ($table, $user, $store, $validated) {
+            $lockedTable = Table::whereKey($table->id)->lockForUpdate()->firstOrFail();
+            $this->ensureWaiterCanManageTable($lockedTable, $user);
+
+            abort_unless($lockedTable->occupied, 422, 'Esta mesa não está ocupada.');
+
+            $participant = TableParticipant::whereKey($validated['participant_id'])
+                ->where('table_id', $lockedTable->id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless($participant, 422, 'O participante selecionado não pertence a esta mesa.');
+
+            $products = Product::where('store_id', $store->id)
+                ->where('active', true)
+                ->whereIn('id', collect($validated['items'])->pluck('product_id')->unique())
+                ->with('additionalIngredients')
+                ->get()
+                ->keyBy('id');
+
+            $itemsToCreate = [];
+            $total = 0;
+            $onlyQuickItems = true;
+
+            foreach ($validated['items'] as $item) {
+                $product = $products->get($item['product_id']);
+                abort_unless($product, 422, 'Um ou mais produtos não estão disponíveis nesta loja.');
+
+                $unitPrice = (float) $product->price;
+                $selectedIngredients = [];
+
+                foreach ($item['selected_ingredients'] ?? [] as $selectedIngredient) {
+                    $ingredient = $product->additionalIngredients->firstWhere('id', $selectedIngredient['id']);
+                    abort_unless($ingredient, 422, 'Um ingrediente selecionado não pertence ao produto.');
+
+                    $baseAmount = (int) $ingredient->amount_item;
+                    $selectedAmount = (int) $selectedIngredient['selected_amount'];
+                    $difference = $selectedAmount - $baseAmount;
+                    if ($difference > 0) {
+                        $unitPrice += $difference * (float) $ingredient->additional_price;
+                    }
+
+                    $selectedIngredients[] = [
+                        'id' => $ingredient->id,
+                        'selected_amount' => $selectedAmount,
+                    ];
+                }
+
+                $total += $unitPrice * (int) $item['quantity'];
+                $itemsToCreate[] = [
+                    'product_id' => $product->id,
+                    'quantity' => (int) $item['quantity'],
+                    'price' => $unitPrice,
+                    'notes' => json_encode([
+                        'notes' => $item['notes'] ?? null,
+                        'selected_ingredients' => $selectedIngredients,
+                    ], JSON_UNESCAPED_UNICODE),
+                ];
+                $onlyQuickItems = $onlyQuickItems && (bool) $product->is_quick_item;
+            }
+
+            $hasWaiters = $store->hasWaiters();
+            $initialStatus = $onlyQuickItems
+                ? ($hasWaiters ? 'Aguardando produção' : 'Finalizado')
+                : ($hasWaiters ? 'Aguardando produção' : 'Aguardando pagamento');
+
+            return Order::createWithRetry([
+                'store_id' => $store->id,
+                'table_id' => $lockedTable->id,
+                'participant_id' => $participant->id,
+                'status' => $initialStatus,
+                'payment_status' => Order::PAYMENT_STATUS_PENDING,
+                'total' => $total,
+                'notes' => $validated['notes'] ?? null,
+            ], function (Order $order) use ($itemsToCreate, $user, $participant) {
+                foreach ($itemsToCreate as $item) {
+                    $order->items()->create($item);
+                }
+
+                OrderAttendance::create([
+                    'store_id' => $order->store_id,
+                    'order_id' => $order->id,
+                    'table_id' => $order->table_id,
+                    'participant_id' => $participant->id,
+                    'waiter_id' => $user->id,
+                ]);
+
+                $order->load('store');
+                event(new \App\Events\OrderCreated($order, true));
+            });
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pedido lançado e enviado para a cozinha.',
+            'order' => $order->load('items.product'),
+        ], 201);
     }
 
     public function startAttending(Request $request)

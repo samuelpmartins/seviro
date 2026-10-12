@@ -254,6 +254,16 @@
             margin: 0 0 6px !important;
         }
 
+        .table-card-footer .btn-launch-order {
+            grid-column: 1 / -1;
+            min-height: 56px;
+        }
+
+        .table-card-footer .btn-launch-order i {
+            display: inline-block;
+            margin: 0 6px 0 0 !important;
+        }
+
         .table-card-footer .btn-primary {
             background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
             color: white;
@@ -1169,6 +1179,14 @@
 
                         @if ($table->occupied)
                             <div class="table-card-footer {{ $table->unpaid_total > 0 ? 'has-payment' : '' }}">
+                                <button type="button" class="btn btn-primary btn-launch-order"
+                                    data-table-number="{{ $table->number }}"
+                                    data-participants-url="{{ route('waiter.table.participants', $table) }}"
+                                    data-add-participant-url="{{ route('waiter.table.participants.store', $table) }}"
+                                    data-order-url="{{ route('waiter.table.orders.store', $table) }}"
+                                    onclick="startWaiterOrder(this)">
+                                    <i class="fas fa-plus me-1"></i>Lançar pedido
+                                </button>
                                 <a href="{{ route('waiter.table-details', $table) }}" class="btn btn-primary">
                                     <i class="fas fa-eye me-2"></i>Ver Detalhes
                                 </a>
@@ -1189,6 +1207,14 @@
                                         <i class="fas fa-broom me-2"></i>Desocupar
                                     </button>
                                 </form>
+                            </div>
+                        @elseif ($table->participants->isEmpty())
+                            <div class="table-card-footer">
+                                <button type="button" class="btn btn-success" data-table-number="{{ $table->number }}"
+                                    data-occupy-url="{{ route('waiter.table.occupy', $table) }}"
+                                    onclick="openOccupyTableModal(this)">
+                                    <i class="fas fa-user-plus me-2"></i>Ocupar Mesa
+                                </button>
                             </div>
                         @endif
                     </div>
@@ -1247,11 +1273,54 @@
                                     </div>
                                 @endif
                             </div>
+                            @if (!$table->occupied && $table->participants->isEmpty() && !$table->activeTableUser)
+                                <div class="table-card-footer">
+                                    <button type="button" class="btn btn-success"
+                                        data-table-number="{{ $table->number }}"
+                                        data-occupy-url="{{ route('waiter.table.occupy', $table) }}"
+                                        onclick="openOccupyTableModal(this)">
+                                        <i class="fas fa-user-plus me-2"></i>Ocupar Mesa
+                                    </button>
+                                </div>
+                            @endif
                         </div>
                     @endforeach
                 </div>
             </section>
         @endif
+    </div>
+
+    <div id="occupyTableModal" class="attending-modal" role="dialog" aria-modal="true"
+        aria-labelledby="occupyTableModalTitle" onclick="closeOccupyTableModal(event)">
+        <div class="attending-modal-content" onclick="event.stopPropagation()">
+            <div class="attending-modal-header">
+                <h2 id="occupyTableModalTitle"><i class="fas fa-user-plus me-2"></i>Ocupar Mesa <span
+                        id="occupyTableNumber"></span></h2>
+            </div>
+            <form id="occupyTableForm" onsubmit="submitOccupyTable(event)">
+                <div class="attending-modal-body">
+                    <div id="occupyParticipantFields">
+                        <label for="occupyParticipantName" class="form-label">Nome do participante</label>
+                        <input id="occupyParticipantName" class="form-control" type="text" maxlength="255"
+                            autocomplete="off" required>
+                    </div>
+                    <div id="occupyTableError" class="text-danger small mt-3 d-none"></div>
+                    <div id="occupyTableSuccess" class="d-none mt-3">
+                        <p class="mb-2">Participante criado. Informe este PIN ao cliente:</p>
+                        <div class="table-access-pin"><i class="fas fa-key"></i> PIN: <strong
+                                id="occupyTablePin"></strong></div>
+                    </div>
+                </div>
+                <div class="attending-modal-actions">
+                    <button type="button" id="cancelOccupyTableButton" class="btn btn-outline-secondary"
+                        onclick="closeOccupyTableModal()">Cancelar</button>
+                    <button type="submit" id="submitOccupyTableButton" class="btn btn-primary">Criar
+                        participante</button>
+                    <button type="button" id="finishOccupyTableButton" class="btn btn-primary d-none"
+                        onclick="window.location.reload()">Concluir</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Modal de Detalhes do Pedido -->
@@ -1715,10 +1784,10 @@
             
             <div class="order-details-footer">
                 ${order.status === 'Aguardando produção' ? `
-                                                                                                                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
-                                                                                                                                        <i class="fas fa-edit me-2"></i>Editar Pedido
-                                                                                                                                    </button>
-                                                                                                                                ` : ''}
+                                                                                                                                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
+                                                                                                                                                        <i class="fas fa-edit me-2"></i>Editar Pedido
+                                                                                                                                                    </button>
+                                                                                                                                                ` : ''}
                 <button class="btn-close-modal" onclick="closeOrderDetails()">
                     <i class="fas fa-times me-2"></i>Fechar
                 </button>
@@ -1840,16 +1909,16 @@
                 <label class="form-label">Quantidade</label>
                 <input id="editProductQuantity" class="form-control" type="number" min="1" value="1">
                 ${ingredients.length ? `
-                                                <label class="form-label mt-3">Personalize os ingredientes</label>
-                                                <div class="edit-product-ingredients">
-                                                    ${ingredients.map(ingredient => `
+                                                                <label class="form-label mt-3">Personalize os ingredientes</label>
+                                                                <div class="edit-product-ingredients">
+                                                                    ${ingredients.map(ingredient => `
                             <div class="edit-product-ingredient">
                                 <span>${escapeEditProductText(ingredient.name)} (+R$ ${ingredient.additional_price.toFixed(2).replace('.', ',')} cada)</span>
                                 <input class="form-control form-control-sm edit-product-ingredient-quantity" type="number" min="0" value="${ingredient.amount_item}" data-ingredient-id="${ingredient.id}" data-base-amount="${ingredient.amount_item}">
                             </div>
                         `).join('')}
-                                                </div>
-                                            ` : '<p class="text-muted mt-3">Este produto não possui ingredientes personalizáveis.</p>'}
+                                                                </div>
+                                                            ` : '<p class="text-muted mt-3">Este produto não possui ingredientes personalizáveis.</p>'}
                 <label class="form-label mt-3">Observação</label>
                 <textarea id="editProductNotes" class="form-control" rows="2" placeholder="Observação do item"></textarea>
                 <div class="edit-product-actions">
@@ -1994,6 +2063,298 @@
             location.reload();
         }
 
+        let waiterOrderFlow = null;
+
+        async function startWaiterOrder(button) {
+            waiterOrderFlow = {
+                tableNumber: button.dataset.tableNumber,
+                participantsUrl: button.dataset.participantsUrl,
+                addParticipantUrl: button.dataset.addParticipantUrl,
+                orderUrl: button.dataset.orderUrl,
+                participantId: null,
+            };
+
+            const modal = document.querySelector('.order-details-content');
+            modal.innerHTML = '<div class="order-details-body">Carregando participantes...</div>';
+            document.getElementById('orderDetailsModal').classList.add('show');
+
+            try {
+                const response = await fetch(waiterOrderFlow.participantsUrl, {
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Não foi possível carregar os participantes.');
+                renderWaiterOrderParticipantStep(data.participants || []);
+            } catch (error) {
+                modal.innerHTML = `
+                    <div class="order-details-header"><h3>Lançar pedido</h3></div>
+                    <div class="order-details-body"><div class="alert alert-danger">${escapeEditProductText(error.message)}</div></div>
+                    <div class="order-details-footer"><button class="btn-close-modal" onclick="closeOrderDetails()">Fechar</button></div>
+                `;
+            }
+        }
+
+        function renderWaiterOrderParticipantStep(participants) {
+            const modal = document.querySelector('.order-details-content');
+            const options = participants.map(participant => `
+                <option value="${participant.id}">${escapeEditProductText(participant.name)}${participant.is_owner ? ' (responsável)' : ''}</option>
+            `).join('');
+
+            modal.innerHTML = `
+                <div class="order-details-header">
+                    <h3>Lançar pedido - Mesa ${escapeEditProductText(waiterOrderFlow.tableNumber)}</h3>
+                </div>
+                <div class="order-details-body">
+                    <div class="order-info-section">
+                        <label for="waiterOrderParticipant" class="form-label">Quem solicitou o pedido?</label>
+                        <select id="waiterOrderParticipant" class="form-select">
+                            <option value="">Selecione um participante</option>
+                            ${options}
+                        </select>
+                        ${participants.length ? '' : '<p class="text-muted mt-2">Ainda não há participantes nesta mesa.</p>'}
+                    </div>
+                    <div class="order-info-section">
+                        <button type="button" id="toggleWaiterParticipantForm" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-user-plus me-2"></i>Adicionar participante
+                        </button>
+                        <div id="waiterParticipantForm" class="d-none mt-3">
+                            <label for="waiterNewParticipantName" class="form-label">Nome do participante</label>
+                            <input id="waiterNewParticipantName" class="form-control" type="text" maxlength="255" autocomplete="off">
+                            <div id="waiterParticipantError" class="text-danger small mt-2 d-none"></div>
+                            <button type="button" id="createWaiterParticipant" class="btn btn-primary w-100 mt-2">
+                                <i class="fas fa-check me-2"></i>Criar e continuar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="order-details-footer">
+                    <button class="btn-close-modal" onclick="closeOrderDetails()">Cancelar</button>
+                    <button id="continueWaiterOrder" class="btn btn-primary" disabled onclick="continueWaiterOrder()">
+                        Continuar
+                    </button>
+                </div>
+            `;
+
+            const select = document.getElementById('waiterOrderParticipant');
+            select.addEventListener('change', () => {
+                document.getElementById('continueWaiterOrder').disabled = !select.value;
+            });
+            document.getElementById('toggleWaiterParticipantForm').addEventListener('click', () => {
+                const form = document.getElementById('waiterParticipantForm');
+                form.classList.toggle('d-none');
+                if (!form.classList.contains('d-none')) {
+                    document.getElementById('waiterNewParticipantName').focus();
+                }
+            });
+            document.getElementById('createWaiterParticipant').addEventListener('click', submitWaiterOrderParticipant);
+        }
+
+        function continueWaiterOrder() {
+            const participantId = document.getElementById('waiterOrderParticipant').value;
+            if (!participantId) return;
+
+            const participantName = document.getElementById('waiterOrderParticipant')
+                .selectedOptions[0].textContent.replace(/ \(responsável\)$/, '');
+            renderWaiterOrderForm(participantId, participantName);
+        }
+
+        async function submitWaiterOrderParticipant() {
+            const nameInput = document.getElementById('waiterNewParticipantName');
+            const error = document.getElementById('waiterParticipantError');
+            const button = document.getElementById('createWaiterParticipant');
+            const name = nameInput.value.trim();
+            error.classList.add('d-none');
+
+            if (!name) {
+                error.textContent = 'Informe o nome do participante.';
+                error.classList.remove('d-none');
+                return;
+            }
+
+            button.disabled = true;
+            try {
+                const response = await fetch(waiterOrderFlow.addParticipantUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        name
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Não foi possível adicionar o participante.');
+                renderWaiterOrderForm(data.participant.id, data.participant.name);
+            } catch (requestError) {
+                error.textContent = requestError.message;
+                error.classList.remove('d-none');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        function renderWaiterOrderForm(participantId, participantName) {
+            waiterOrderFlow.participantId = Number(participantId);
+            const modal = document.querySelector('.order-details-content');
+            modal.innerHTML = `
+                <div class="order-details-header">
+                    <h3>Novo pedido - Mesa ${escapeEditProductText(waiterOrderFlow.tableNumber)}</h3>
+                    <p class="mb-0">Participante: <strong>${escapeEditProductText(participantName)}</strong></p>
+                </div>
+                <div class="order-details-body">
+                    <div class="order-info-section">
+                        <h4><i class="fas fa-receipt"></i> Itens do pedido</h4>
+                        <div id="edit-order-items"></div>
+                        <button type="button" id="edit-add-item" class="btn btn-outline-primary w-100 mt-2">
+                            <i class="fas fa-plus me-2"></i>Selecionar itens
+                        </button>
+                    </div>
+                    <div class="order-info-section">
+                        <h4><i class="fas fa-sticky-note"></i> Observações do pedido</h4>
+                        <textarea id="edit-order-notes" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div id="waiterOrderError" class="text-danger small d-none"></div>
+                </div>
+                <div class="order-details-footer">
+                    <button class="btn-close-modal" onclick="closeOrderDetails()">Cancelar</button>
+                    <button id="submitWaiterOrder" class="btn btn-success" onclick="submitWaiterOrder()">
+                        <i class="fas fa-paper-plane me-2"></i>Lançar pedido
+                    </button>
+                </div>
+            `;
+            document.getElementById('edit-add-item').addEventListener('click', openEditProductMenu);
+        }
+
+        async function submitWaiterOrder() {
+            const rows = [...document.querySelectorAll('#edit-order-items .edit-order-item')];
+            const error = document.getElementById('waiterOrderError');
+            const button = document.getElementById('submitWaiterOrder');
+            error.classList.add('d-none');
+
+            if (!rows.length) {
+                error.textContent = 'Adicione pelo menos um item ao pedido.';
+                error.classList.remove('d-none');
+                return;
+            }
+
+            const items = rows.map(row => ({
+                product_id: Number(row.querySelector('.edit-item-product').value),
+                quantity: Number(row.querySelector('.edit-item-quantity').value),
+                notes: row.querySelector('.edit-item-notes').value || null,
+                selected_ingredients: getEditSelectedIngredients(row)
+            }));
+
+            button.disabled = true;
+            try {
+                const response = await fetch(waiterOrderFlow.orderUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        participant_id: waiterOrderFlow.participantId,
+                        items,
+                        notes: document.getElementById('edit-order-notes').value || null
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Não foi possível lançar o pedido.');
+
+                closeEditProductMenu();
+                closeOrderDetails();
+                alert(data.message || 'Pedido lançado e enviado para a cozinha.');
+                window.location.reload();
+            } catch (requestError) {
+                error.textContent = requestError.message;
+                error.classList.remove('d-none');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        function openOccupyTableModal(button) {
+            const modal = document.getElementById('occupyTableModal');
+            const form = document.getElementById('occupyTableForm');
+            form.dataset.url = button.dataset.occupyUrl;
+            document.getElementById('occupyTableNumber').textContent = button.dataset.tableNumber;
+            document.getElementById('occupyParticipantName').value = '';
+            document.getElementById('occupyParticipantFields').classList.remove('d-none');
+            document.getElementById('occupyTableError').classList.add('d-none');
+            document.getElementById('occupyTableSuccess').classList.add('d-none');
+            document.getElementById('submitOccupyTableButton').classList.remove('d-none');
+            document.getElementById('cancelOccupyTableButton').classList.remove('d-none');
+            document.getElementById('finishOccupyTableButton').classList.add('d-none');
+            modal.classList.add('show');
+            document.getElementById('occupyParticipantName').focus();
+        }
+
+        function closeOccupyTableModal(event) {
+            if (!event || event.target === event.currentTarget) {
+                document.getElementById('occupyTableModal').classList.remove('show');
+            }
+        }
+
+        async function submitOccupyTable(event) {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const submitButton = document.getElementById('submitOccupyTableButton');
+            const error = document.getElementById('occupyTableError');
+            const name = document.getElementById('occupyParticipantName').value.trim();
+
+            error.classList.add('d-none');
+            if (!name) {
+                error.textContent = 'Informe o nome do participante.';
+                error.classList.remove('d-none');
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Criando...';
+
+            try {
+                const response = await fetch(form.dataset.url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        name
+                    })
+                });
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    const nameError = data.errors?.name?.[0];
+                    throw new Error(nameError || data.message || 'Não foi possível ocupar esta mesa.');
+                }
+
+                document.getElementById('occupyParticipantFields').classList.add('d-none');
+                document.getElementById('occupyTablePin').textContent = data.pin;
+                document.getElementById('occupyTableSuccess').classList.remove('d-none');
+                submitButton.classList.add('d-none');
+                document.getElementById('cancelOccupyTableButton').classList.add('d-none');
+                document.getElementById('finishOccupyTableButton').classList.remove('d-none');
+            } catch (requestError) {
+                error.textContent = requestError.message;
+                error.classList.remove('d-none');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Criar participante';
+            }
+        }
+
         // Função para fechar o modal
         function closeOrderDetails(event) {
             if (!event || event.target === event.currentTarget) {
@@ -2028,6 +2389,7 @@
                 closeOrderDetails();
                 closeTransferModal();
                 closeEditProductMenu();
+                closeOccupyTableModal();
             }
         });
 

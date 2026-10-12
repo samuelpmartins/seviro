@@ -177,6 +177,10 @@ Route::middleware(['auth', 'role:waiter'])->prefix('waiter')->name('waiter.')->g
     Route::post('/stop-attending', [EmployeeController::class, 'stopAttending'])->name('stop-attending');
     Route::get('/history', [EmployeeController::class, 'waiterHistory'])->name('history');
     Route::get('/table/{table}', [EmployeeController::class, 'waiterTableDetails'])->name('table-details');
+    Route::post('/table/{table}/occupy', [EmployeeController::class, 'waiterOccupyTable'])->name('table.occupy');
+    Route::get('/table/{table}/participants', [EmployeeController::class, 'waiterTableParticipants'])->name('table.participants');
+    Route::post('/table/{table}/participants', [EmployeeController::class, 'waiterAddParticipant'])->name('table.participants.store');
+    Route::post('/table/{table}/orders', [EmployeeController::class, 'waiterCreateOrder'])->name('table.orders.store');
     Route::put('/orders/{order}', [EmployeeController::class, 'waiterUpdateOrder'])->name('orders.update');
     Route::post('/table/{table}/clear', [EmployeeController::class, 'waiterClearTable'])->name('table.clear');
     Route::post('/table/{table}/transfer', [EmployeeController::class, 'waiterTransferTable'])->name('table.transfer');

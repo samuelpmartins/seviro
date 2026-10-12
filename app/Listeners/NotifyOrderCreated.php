@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Events\OrderCreated;
 use App\Events\OrderPaid;
 use App\Models\User;
+use App\Models\Order;
 use App\Notifications\NewOrderForKitchen;
 use App\Notifications\QuickItemForWaiter;
 use Illuminate\Support\Facades\Log;
@@ -58,6 +59,10 @@ class NotifyOrderCreated
                 $this->notifySafely($waiters, new QuickItemForWaiter($order, $quickItems));
             }
 
+            if ($event instanceof \App\Events\OrderCreated && $event->notifyKitchen) {
+                $this->notifyKitchen($order);
+            }
+
             // Não notifica a cozinha
             return;
         }
@@ -80,16 +85,21 @@ class NotifyOrderCreated
         }
 
         if ($shouldNotifyKitchen) {
-            $kitchenStaff = User::where('store_id', $store->id)
-                ->whereHas('roles', function ($query) {
-                    $query->where('name', 'kitchen');
-                })
-                ->with('pushSubscriptions')
-                ->get();
+            $this->notifyKitchen($order);
+        }
+    }
 
-            if ($kitchenStaff->isNotEmpty()) {
-                $this->notifySafely($kitchenStaff, new NewOrderForKitchen($order));
-            }
+    private function notifyKitchen(Order $order): void
+    {
+        $kitchenStaff = User::where('store_id', $order->store_id)
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'kitchen');
+            })
+            ->with('pushSubscriptions')
+            ->get();
+
+        if ($kitchenStaff->isNotEmpty()) {
+            $this->notifySafely($kitchenStaff, new NewOrderForKitchen($order));
         }
     }
 

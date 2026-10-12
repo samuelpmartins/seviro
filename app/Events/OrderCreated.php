@@ -12,12 +12,14 @@ class OrderCreated
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public Order $order;
+    public bool $notifyKitchen;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(Order $order)
+    public function __construct(Order $order, bool $notifyKitchen = false)
     {
         $this->order = $order;
+        $this->notifyKitchen = $notifyKitchen;
     }
 }

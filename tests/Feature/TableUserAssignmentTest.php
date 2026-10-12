@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\TableServiceStatus;
+use App\Enums\TableAssignmentType;
 use App\Models\Store;
 use App\Models\Table;
 use App\Models\TableUser;
@@ -58,6 +59,48 @@ class TableUserAssignmentTest extends TestCase
 
         $this->assertDatabaseMissing('table_users', ['table_id' => $table->id]);
         $this->assertFalse($user->fresh()->is_attending);
+    }
+
+    public function test_waiter_can_occupy_a_table_and_the_participant_is_visible_from_its_qr_code(): void
+    {
+        $store = $this->createStore();
+        [$waiter] = $this->createAttendingUsers($store);
+        $table = $this->createTable($store, 'waiter-occupied');
+
+        $response = $this->actingAs($waiter)
+            ->postJson(route('waiter.table.occupy', $table), ['name' => 'Ana Cliente'])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertMatchesRegularExpression('/^[0-9]{4}$/', $response->json('pin'));
+        $this->assertDatabaseHas('table_participants', [
+            'table_id' => $table->id,
+            'name' => 'Ana Cliente',
+            'is_owner' => true,
+        ]);
+        $this->assertDatabaseHas('table_participant_pins', [
+            'pin' => $response->json('pin'),
+            'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('table_users', [
+            'table_id' => $table->id,
+            'user_id' => $waiter->id,
+            'service_status' => TableServiceStatus::Active->value,
+            'assignment_type' => TableAssignmentType::Manual->value,
+        ]);
+        $this->assertDatabaseHas('tables', [
+            'id' => $table->id,
+            'occupied' => true,
+        ]);
+
+        $this->travel(11)->seconds();
+        $this->get('/menu/' . $table->qr_code)->assertOk();
+        $this->getJson('/api/tables/' . $table->id . '/participants')
+            ->assertOk()
+            ->assertJsonFragment([
+                'name' => 'Ana Cliente',
+                'is_owner' => true,
+            ]);
     }
 
     private function createStore(): Store

@@ -14,7 +14,10 @@ use App\Models\Store;
 use App\Models\Table;
 use App\Models\TableUser;
 use App\Models\User;
+use App\Notifications\NewOrderForKitchen;
+use App\Notifications\QuickItemForWaiter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -118,6 +121,68 @@ class WaiterServiceFeeTest extends TestCase
             ->assertSee('Limão x2')
             ->assertSee('Servir sem canudo')
             ->assertDontSee('selected_ingredients');
+    }
+
+    public function test_waiter_can_add_a_participant_and_launch_an_order_with_kitchen_notification(): void
+    {
+        [$waiter, $table] = $this->createAssignedTableWithPendingOrder();
+        $ownerParticipant = TableParticipant::create([
+            'table_id' => $table->id,
+            'name' => 'Joao',
+            'is_owner' => true,
+        ]);
+        $kitchenUser = User::factory()->create(['store_id' => $table->store_id]);
+        $kitchenUser->assignRole(Role::firstOrCreate(['name' => 'kitchen', 'guard_name' => 'web']));
+        $category = Category::create([
+            'name' => 'Bebidas',
+            'store_id' => $table->store_id,
+        ]);
+        $product = Product::create([
+            'name' => 'Cafe',
+            'price' => 20,
+            'active' => true,
+            'is_quick_item' => true,
+            'category_id' => $category->id,
+            'store_id' => $table->store_id,
+        ]);
+        Notification::fake();
+
+        $this->actingAs($waiter)
+            ->getJson(route('waiter.table.participants', $table))
+            ->assertOk()
+            ->assertJsonFragment(['id' => $ownerParticipant->id, 'name' => 'Joao']);
+
+        $participantResponse = $this->postJson(route('waiter.table.participants.store', $table), [
+            'name' => 'Ana',
+        ])->assertCreated();
+        $participantId = $participantResponse->json('participant.id');
+
+        $orderResponse = $this->postJson(route('waiter.table.orders.store', $table), [
+            'participant_id' => $participantId,
+            'items' => [[
+                'product_id' => $product->id,
+                'quantity' => 2,
+            ]],
+        ])->assertCreated()
+            ->assertJsonPath('order.participant_id', $participantId)
+            ->assertJsonPath('order.status', 'Aguardando produção')
+            ->assertJsonPath('order.total', '40.00');
+
+        $orderId = $orderResponse->json('order.id');
+        $this->assertDatabaseHas('order_attendances', [
+            'order_id' => $orderId,
+            'participant_id' => $participantId,
+            'waiter_id' => $waiter->id,
+        ]);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'price' => 20,
+        ]);
+
+        Notification::assertSentTo($waiter, QuickItemForWaiter::class);
+        Notification::assertSentTo($kitchenUser, NewOrderForKitchen::class);
     }
 
     private function createAssignedTableWithPendingOrder(): array
