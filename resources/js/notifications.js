@@ -172,9 +172,44 @@ class NotificationSystem {
         return printResponse;
     }
 
+    // Impressão solicitada pelo garçom: usa a impressora configurada nesta tela da cozinha.
+    async handlePrintRequest(notification) {
+        const data = notification.data;
+        const printerConfig = this.getPrinterConfig();
+
+        if (!printerConfig.agentUrl) {
+            console.warn('Solicitação de impressão ignorada: Agent não conectado nesta tela.', notification.id);
+            return;
+        }
+
+        const requestKey = `request-${notification.id}`;
+        if (!this.acquirePrintLock(requestKey)) {
+            return;
+        }
+
+        try {
+            await this.sendPrint({
+                agent_url: printerConfig.agentUrl,
+                printRequest: {
+                    PrinterAddress: printerConfig.printerAddress,
+                    Copies: data.copies || 1,
+                    CutPaper: data.cut_paper !== false,
+                    Content: data.content
+                }
+            }, requestKey);
+            await this.markAsRead(notification.id);
+        } catch (error) {
+            console.warn('Falha ao imprimir solicitação do garçom:', notification.id, error);
+        }
+    }
+
     async processNewOrderNotifications(notifications) {
         for (const notification of notifications) {
             const data = notification.data;
+            if (data.type === 'print_request' && data.content) {
+                await this.handlePrintRequest(notification);
+                continue;
+            }
             if (data.type === 'new_order_kitchen' && data.order_id) {
                 try {
                     // Skip if already printed (local) to avoid duplicate prints

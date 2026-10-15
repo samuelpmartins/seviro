@@ -21,6 +21,17 @@ class ProductController extends Controller
         return str_replace(',', '.', $price);
     }
 
+    private function priceInput(Request $request)
+    {
+        return $request->boolean('price_to_negotiate') ? 0 : $this->formatPrice($request->price);
+    }
+
+    // Valor zero só é aceito quando o produto é "Valor a combinar".
+    private function priceRules(Request $request): string
+    {
+        return $request->boolean('price_to_negotiate') ? 'required|numeric|min:0' : 'required|numeric|min:0.01';
+    }
+
     private function parseIngredientPrice($price)
     {
         if (!$price) {
@@ -93,7 +104,7 @@ class ProductController extends Controller
     {
         // Tratar o preço antes da validação
         $request->merge([
-            'price' => $this->formatPrice($request->price)
+            'price' => $this->priceInput($request)
         ]);
 
         $request->validate([
@@ -104,7 +115,8 @@ class ProductController extends Controller
             'ingredients.*.name' => 'nullable|string|max:255',
             'ingredients.*.additional_price' => 'nullable|string|max:255',
             'ingredients.*.amount_item' => 'nullable|integer|min:0',
-            'price' => 'required|numeric|min:0',
+            'price' => $this->priceRules($request),
+            'price_to_negotiate' => 'nullable|boolean',
             'category_id' => ['required', Rule::exists('categories', 'id')->whereNull('DeletionDate')],
             'image' => 'nullable|image|max:2048',
         ]);
@@ -129,6 +141,7 @@ class ProductController extends Controller
             'ingredients' => null,
             'customizable' => $request->boolean('customizable'),
             'price' => $request->price,
+            'price_to_negotiate' => $request->boolean('price_to_negotiate'),
             'category_id' => $category->id,
             'image' => $imagePath,
             'order' => $lastOrder + 1,
@@ -169,7 +182,7 @@ class ProductController extends Controller
 
         // Tratar o preço antes da validação
         $request->merge([
-            'price' => $this->formatPrice($request->price)
+            'price' => $this->priceInput($request)
         ]);
 
         $request->validate([
@@ -180,7 +193,8 @@ class ProductController extends Controller
             'ingredients.*.name' => 'nullable|string|max:255',
             'ingredients.*.additional_price' => 'nullable|string|max:255',
             'ingredients.*.amount_item' => 'nullable|integer|min:0',
-            'price' => 'required|numeric|min:0',
+            'price' => $this->priceRules($request),
+            'price_to_negotiate' => 'nullable|boolean',
             'category_id' => ['required', Rule::exists('categories', 'id')->whereNull('DeletionDate')],
             'image' => 'nullable|image|max:2048',
             'active' => 'boolean'
@@ -204,6 +218,7 @@ class ProductController extends Controller
             'ingredients' => null,
             'customizable' => $request->boolean('customizable'),
             'price' => $request->price,
+            'price_to_negotiate' => $request->boolean('price_to_negotiate'),
             'category_id' => $category->id,
             'active' => $request->boolean('active'),
             'is_quick_item' => $request->boolean('is_quick_item')

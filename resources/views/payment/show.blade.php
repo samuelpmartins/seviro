@@ -42,8 +42,9 @@
 
             <!-- Métodos de Pagamento -->
             <div id="payment-methods" style="display: none;">
-                <!-- Payment Element (Stripe) -->
-                <div class="card" style="border-radius: 16px; border: 2px solid #f0f0f0; margin-top: 1.5rem;">
+                <!-- Payment Element (Stripe) - oculto enquanto CARD_PAYMENT_ENABLED=false -->
+                <div class="card {{ config('services.stripe.card_payment_enabled') ? '' : 'd-none' }}"
+                    style="border-radius: 16px; border: 2px solid #f0f0f0; margin-top: 1.5rem;">
                     <div class="card-body" style="padding: 1.5rem;">
                         <h5 class="mb-4" style="font-weight: 700; color: #000;">
                             <i class="fas fa-credit-card me-2"></i>
@@ -158,6 +159,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const qrCode = '{{ $qrCode }}';
             let stripe = null;
+            const cardPaymentEnabled = @json((bool) config('services.stripe.card_payment_enabled'));
             let elements = null;
             let paymentElement = null;
             let paymentElementReady = false;
@@ -249,6 +251,8 @@
             }
 
             function showPaymentElement() {
+                if (!cardPaymentEnabled) return;
+
                 if (totalAmount > 0) {
                     const amountInCents = Math.round(totalAmount * 100);
                     initializePaymentElement(amountInCents);
@@ -364,10 +368,10 @@
                                     </div>
                                     <div class="order-items">
                                         ${order.items.map(item => `
-                                                <div style="font-size: 0.875rem; color: #666;">
-                                                    ${item.quantity}x ${item.product_name}
-                                                </div>
-                                            `).join('')}
+                                                    <div style="font-size: 0.875rem; color: #666;">
+                                                        ${item.quantity}x ${item.product_name}
+                                                    </div>
+                                                `).join('')}
                                     </div>
                                 </div>
                             </div>

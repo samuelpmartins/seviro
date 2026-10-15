@@ -18,12 +18,21 @@ class OrderItem extends Model
         'product_id',
         'quantity',
         'price',
+        'negotiated_total',
         'notes'
     ];
 
     protected $casts = [
-        'price' => 'decimal:2'
+        'price' => 'decimal:2',
+        'negotiated_total' => 'decimal:2'
     ];
+
+    public function getLineTotalAttribute(): float
+    {
+        return $this->negotiated_total !== null
+            ? (float) $this->negotiated_total
+            : (float) $this->price * $this->quantity;
+    }
 
     public function order(): BelongsTo
     {

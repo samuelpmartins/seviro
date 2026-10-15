@@ -122,35 +122,22 @@ class NotificationController extends Controller
         // Garantir índices contíguos (0..n-1) antes de usar count()-1 para obter último índice.
         $items = array_values($items);
 
-        $orderOBS = [];
-        if (!empty($order->notes)) {
-            $note = $this->normalizeText($order->notes);
-
-            if (!empty($note)) {
-                $orderOBS = [
-                    "Title" => "Observações do pedido",
-                    "Description" => $note
-                ];
-            } else {
-                $orderOBS = [
-                    "Title" => "Observações do pedido",
-                    "Description" => "Sem observações"
-                ];
-            }
-        } else {
-            $orderOBS = [
-                "Title" => "Observações do pedido",
-                "Description" => "Sem observações"
-            ];
-        }
+        $note = $this->normalizeText((string) $order->notes);
 
         $printOrder = [
             'NameRestaurant' => $order->store?->name ?? 'Restaurante',
             'OrderNumber' => $orderLabel,
             'CreatedAt' => $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
             'Items' => $items,
-            'Observations' => $orderOBS,
         ];
+
+        // Sem observação, o campo não é enviado para o Agent não imprimir um bloco vazio.
+        if ($note !== '') {
+            $printOrder['Observations'] = [
+                'Title' => 'Observações do pedido',
+                'Description' => $note,
+            ];
+        }
 
         $printRequest = [
             'PrinterAddress' => $data['printer_address'],

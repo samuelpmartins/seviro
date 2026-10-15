@@ -112,6 +112,7 @@
                     @foreach ($category->products as $product)
                         <div class="product-item" data-product-id="{{ $product->id }}"
                             data-product-name="{{ $product->name }}" data-product-price="{{ $product->price }}"
+                            data-product-negotiable="{{ $product->price_to_negotiate ? '1' : '0' }}"
                             data-product-image="{{ $product->image ? asset('storage/' . $product->image) : '' }}"
                             style="border-bottom: 1px solid #f0f0f0; padding: 1.25rem; transition: background 0.2s ease; position: relative; display: grid; grid-template-columns: 80px 1fr auto; gap: 1.25rem; align-items: flex-start;">
 
@@ -162,7 +163,7 @@
                                             data-product-name="{{ $product->name }}"
                                             data-product-description="{{ $displayDescription }}"
                                             data-product-image="{{ $product->image ? asset('storage/' . $product->image) : '' }}"
-                                            data-product-price="R$ {{ number_format($product->price, 2, ',', '.') }}">
+                                            data-product-price="{{ $product->price_to_negotiate ? 'Valor a combinar' : 'R$ ' . number_format($product->price, 2, ',', '.') }}">
                                             Ver mais
                                         </button>
                                     @else
@@ -181,7 +182,7 @@
                                 @endif
 
                                 <div class="product-price" style="font-size: 1rem; font-weight: 700; color: #333;">
-                                    R$ {{ number_format($product->price, 2, ',', '.') }}
+                                    {{ $product->price_to_negotiate ? 'Valor a combinar' : 'R$ ' . number_format($product->price, 2, ',', '.') }}
                                 </div>
                             </div>
 
@@ -1741,6 +1742,7 @@
                         id: productId,
                         name: name,
                         price: price,
+                        negotiable: productElement.dataset.productNegotiable === '1',
                         image: image,
                         quantity: 1
                     });
@@ -1852,6 +1854,7 @@
                     id: currentProduct.id,
                     name: currentProduct.name,
                     price: unitPrice,
+                    negotiable: !!currentProduct.price_to_negotiate,
                     image: currentProduct.image,
                     quantity: quantity,
                     notes: finalNotes,
@@ -1919,7 +1922,9 @@
                         document.getElementById('panel-product-description').textContent = product
                             .description ||
                             'Não há descrição para este produto.';
-                        document.getElementById('panel-product-price').textContent =
+                        document.getElementById('panel-product-price').textContent = product
+                            .price_to_negotiate ?
+                            'Valor a combinar' :
                             `R$ ${parseFloat(product.price).toFixed(2).replace('.', ',')}`;
 
                         const panelImage = document.getElementById('panel-image-container');
@@ -2200,9 +2205,10 @@
                 const quantity = parseInt(quantityInput.value);
                 const unitPrice = calculateProductUnitPrice();
                 const total = unitPrice * quantity;
+                const toNegotiate = currentProduct.price_to_negotiate && unitPrice === 0;
 
                 document.getElementById('add-to-cart-total').textContent =
-                    `- R$ ${total.toFixed(2).replace('.', ',')}`;
+                    toNegotiate ? '' : `- R$ ${total.toFixed(2).replace('.', ',')}`;
             }
 
             // Atualizar display de preço no painel lateral
@@ -2211,15 +2217,17 @@
                 const unitPrice = calculateProductUnitPrice();
                 const quantity = parseInt(quantityInput.value) || 1;
                 const total = unitPrice * quantity;
+                const toNegotiate = currentProduct.price_to_negotiate && unitPrice === 0;
 
                 const priceEl = document.getElementById('panel-product-price');
                 if (priceEl) {
-                    priceEl.textContent = `R$ ${unitPrice.toFixed(2).replace('.', ',')}`;
+                    priceEl.textContent = toNegotiate ? 'Valor a combinar' :
+                        `R$ ${unitPrice.toFixed(2).replace('.', ',')}`;
                 }
 
                 const totalEl = document.getElementById('add-to-cart-total');
                 if (totalEl) {
-                    totalEl.textContent = `- R$ ${total.toFixed(2).replace('.', ',')}`;
+                    totalEl.textContent = toNegotiate ? '' : `- R$ ${total.toFixed(2).replace('.', ',')}`;
                 }
             }
 
@@ -2228,6 +2236,7 @@
                     id: item.id,
                     name: item.name,
                     price: item.price,
+                    negotiable: !!item.negotiable,
                     image: item.image,
                     quantity: item.quantity,
                     notes: '',
@@ -2373,12 +2382,12 @@
                         return `
                 <div class="cart-item d-flex gap-3">
                     ${item.image ? `
-                                                                                                                                                                                                                            <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
-                                                                                                                                                                                                                            ` : `
-                                                                                                                                                                                                                            <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                                                                                                                                                                            <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
-                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                            `}
+                                                                                                                                                                                                                                <img src="/storage/${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                                                                                                                                                                                                                                ` : `
+                                                                                                                                                                                                                                <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                                                                                                                                                                                                <i class="fas fa-utensils" style="color: #ccc; font-size: 1.2rem;"></i>
+                                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                                `}
                     <div style="flex: 1; min-width: 0;">
                         <h6 class="mb-1" style="font-size: 0.9rem; font-weight: 700; color: #000;">${item.name}</h6>
                         ${item.notes ? `<p class="mb-1 small text-muted">${item.notes}</p>` : ''}
@@ -2396,8 +2405,8 @@
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <div style="text-align:right; font-size:0.85rem;">
-                                    <div class="small text-muted">R$ ${(item.price).toFixed(2).replace('.', ',')} (unitário)</div>
-                                    <div style="font-weight: 600;">R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}</div>
+                                    <div class="small text-muted">${item.negotiable && item.price === 0 ? 'Valor a combinar' : `R$ ${(item.price).toFixed(2).replace('.', ',')} (unitário)`}</div>
+                                    <div style="font-weight: 600;">${item.negotiable && item.price === 0 ? 'A combinar' : `R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}`}</div>
                                 </div>
                                 <button class="btn btn-sm" onclick="removeFromCart(${index})" style="width: 28px; height: 28px; padding: 0; background: transparent; border: none; color: #ef4444;">
                                     <i class="fas fa-trash" style="font-size: 0.8rem;"></i>
@@ -2603,22 +2612,22 @@
                                         <h6 class="mb-1">Pedido #${order.order_number || order.id}</h6>
                                         <small class="text-muted d-block">${new Date(order.created_at).toLocaleString('pt-BR')}</small>
                                         ${order.participant_name ? `
-                                                                                                                                                                                                                                                    <small class="text-muted">
-                                                                                                                                                                                                                                                    <i class="fas fa-user me-1"></i>
-                                                                                                                                                                                                                                                    <strong>${order.participant_name}</strong>
-                                                                                                                                                                                                                                                    </small>
-                                                                                                                                                                                                                                                    ` : ''}
+                                                                                                                                                                                                                                                        <small class="text-muted">
+                                                                                                                                                                                                                                                        <i class="fas fa-user me-1"></i>
+                                                                                                                                                                                                                                                        <strong>${order.participant_name}</strong>
+                                                                                                                                                                                                                                                        </small>
+                                                                                                                                                                                                                                                        ` : ''}
                                     </div>
                                     <div class="d-flex gap-2">
                                         ${order.payment_status === 'paid' ? `
-                                                                                                                                                                                                                                                    <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                                                                                    <i class="fas fa-check-circle me-1"></i>Pago
-                                                                                                                                                                                                                                                    </span>
-                                                                                                                                                                                                                                                    ` : `
-                                                                                                                                                                                                                                                    <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
-                                                                                                                                                                                                                                                    <i class="fas fa-clock me-1"></i>Pendente
-                                                                                                                                                                                                                                                    </span>
-                                                                                                                                                                                                                                                    `}
+                                                                                                                                                                                                                                                        <span class="badge" style="background: #10b981; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                                        <i class="fas fa-check-circle me-1"></i>Pago
+                                                                                                                                                                                                                                                        </span>
+                                                                                                                                                                                                                                                        ` : `
+                                                                                                                                                                                                                                                        <span class="badge" style="background: #ef4444; font-size: 0.75rem; padding: 0.35rem 0.6rem;">
+                                                                                                                                                                                                                                                        <i class="fas fa-clock me-1"></i>Pendente
+                                                                                                                                                                                                                                                        </span>
+                                                                                                                                                                                                                                                        `}
                                         <span class="badge" style="background: ${
                                             order.status === 'Finalizado' ? '#10b981' : 
                                             order.status === 'Em produção' ? '#f59e0b' : 
@@ -2631,11 +2640,11 @@
                                 </div>
                                 <div class="order-items">
                                     ${order.items.map(item => `
-                                                                                                                                                                                                                                                <div class="d-flex justify-content-between py-1">
-                                                                                                                                                                                                                                                <span>${item.quantity}x ${item.product_name}</span>
-                                                                                                                                                                                                                                                <span>R$ ${parseFloat(item.price * item.quantity).toFixed(2).replace('.', ',')}</span>
-                                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                                                `).join('')}
+                                                                                                                                                                                                                                                    <div class="d-flex justify-content-between py-1">
+                                                                                                                                                                                                                                                    <span>${item.quantity}x ${item.product_name}</span>
+                                                                                                                                                                                                                                                    <span>${item.negotiable && !(item.line_total > 0) ? 'Valor a combinar' : 'R$ ' + parseFloat(item.line_total).toFixed(2).replace('.', ',')}</span>
+                                                                                                                                                                                                                                                    </div>
+                                                                                                                                                                                                                                                    `).join('')}
                                 </div>
                                 <hr>
                                 <div class="d-flex justify-content-between align-items-center">

@@ -276,8 +276,15 @@ class PaymentController extends Controller
     /**
      * Cria um PaymentIntent do Stripe com métodos de pagamento automáticos (Payment Element)
      */
+    private function ensureCardPaymentEnabled(): void
+    {
+        abort_unless(config('services.stripe.card_payment_enabled'), 403, 'Pagamento online indisponível.');
+    }
+
     public function createPaymentIntent(Request $request)
     {
+        $this->ensureCardPaymentEnabled();
+
         try {
             $request->validate([
                 'qr_code' => 'required|string',
@@ -381,6 +388,8 @@ class PaymentController extends Controller
      */
     public function getPixInfo(Request $request)
     {
+        $this->ensureCardPaymentEnabled();
+
         $request->validate([
             'payment_intent_id' => 'required|string',
         ]);
@@ -426,6 +435,8 @@ class PaymentController extends Controller
      */
     public function confirmPayment(Request $request)
     {
+        $this->ensureCardPaymentEnabled();
+
         $request->validate([
             'payment_intent_id' => 'required|string',
         ]);

@@ -268,7 +268,7 @@
                             <tbody>
                                 @foreach ($orders as $order)
                                     <tr>
-                                        <td><strong>{{ $order->order_number }}</strong></td>
+                                        <td><strong>{{ $order->display_name }}</strong></td>
                                         <td>Mesa {{ $order->table->number }}</td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-link" data-bs-toggle="modal"
@@ -296,8 +296,7 @@
                                         <div class="modal-dialog">
                                             <div class="modal-content">
                                                 <div class="modal-header">
-                                                    <h5 class="modal-title">Pedido {{ $order->order_number }} - Mesa
-                                                        {{ $order->table->number }}</h5>
+                                                    <h5 class="modal-title">{{ $order->display_name }}</h5>
                                                     <button type="button" class="btn-close"
                                                         data-bs-dismiss="modal"></button>
                                                 </div>
@@ -354,7 +353,7 @@
                                                                                 </div>
                                                                                 <span>
                                                                                     R$
-                                                                                    {{ number_format($item->price * $item->quantity, 2, ',', '.') }}
+                                                                                    {{ number_format($item->line_total, 2, ',', '.') }}
                                                                                 </span>
                                                                             </div>
                                                                         </div>

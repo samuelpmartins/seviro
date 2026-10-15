@@ -7,6 +7,7 @@ use App\Models\Store;
 use App\Models\User;
 use App\Models\Payment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
@@ -95,7 +96,7 @@ class StoreController extends Controller
 
         $pendingOrders = $store->orders()
             ->where('payment_status', 'pending')
-            ->with(['table', 'items.product'])
+            ->with(['table', 'participant', 'items.product'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -126,42 +127,42 @@ class StoreController extends Controller
         $financialStartDate = $periodStart->toDateString();
         $financialEndDate = $periodEnd->toDateString();
 
+        $todayEnd = $today->copy()->endOfDay();
+
         $serviceFees = Payment::where('store_id', $store->id)
             ->where('status', Payment::STATUS_SUCCEEDED)
             ->where('service_fee_included', true);
-        $todayServiceFees = (clone $serviceFees)->whereDate('created_at', $today)->sum('service_fee');
+        $todayServiceFees = (clone $serviceFees)->whereBetween('created_at', [$today, $todayEnd])->sum('service_fee');
         $periodServiceFees = (clone $serviceFees)
             ->whereBetween('created_at', [$periodStart, $periodEnd])
             ->sum('service_fee');
         $totalServiceFees = (clone $serviceFees)->sum('service_fee');
 
+        // Pedidos legados sem paid_at usam updated_at como data do pagamento.
+        $paidOrders = fn() => $store->orders()->where('payment_status', 'paid');
+        $paidAt = DB::raw('COALESCE(paid_at, updated_at)');
+
         // Vendas de hoje
-        $todaySales = $store->orders()
-            ->where('payment_status', 'paid')
-            ->whereDate('created_at', $today)
+        $todaySales = $paidOrders()
+            ->whereBetween($paidAt, [$today, $todayEnd])
             ->sum('total') + $todayServiceFees;
 
         // Vendas do período selecionado
-        $periodSales = $store->orders()
-            ->where('payment_status', 'paid')
-            ->whereBetween('created_at', [$periodStart, $periodEnd])
+        $periodSales = $paidOrders()
+            ->whereBetween($paidAt, [$periodStart, $periodEnd])
             ->sum('total') + $periodServiceFees;
 
         // Total de vendas (todos os tempos)
-        $totalSales = $store->orders()
-            ->where('payment_status', 'paid')
-            ->sum('total') + $totalServiceFees;
+        $totalSales = $paidOrders()->sum('total') + $totalServiceFees;
 
         // Pedidos pagos hoje
-        $todayOrders = $store->orders()
-            ->where('payment_status', 'paid')
-            ->whereDate('created_at', $today)
+        $todayOrders = $paidOrders()
+            ->whereBetween($paidAt, [$today, $todayEnd])
             ->count();
 
         // Pedidos pagos no período selecionado
-        $periodOrders = $store->orders()
-            ->where('payment_status', 'paid')
-            ->whereBetween('created_at', [$periodStart, $periodEnd])
+        $periodOrders = $paidOrders()
+            ->whereBetween($paidAt, [$periodStart, $periodEnd])
             ->count();
 
         // Pedidos pendentes de pagamento
@@ -266,7 +267,7 @@ class StoreController extends Controller
         $tables = $store->tables()->get();
 
         $orders = $store->orders()
-            ->with(['table', 'items.product'])
+            ->with(['table', 'participant', 'items.product'])
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Enums\TableServiceStatus;
 use App\Events\OrderCreated;
 use App\Events\OrderStatusChanged;
+use App\Services\TablePaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -159,6 +160,75 @@ class OrderController extends Controller
             ->with('success', 'Status do pedido atualizado com sucesso!');
     }
 
+    public function setOrderItemValue(Request $request, \App\Models\OrderItem $item)
+    {
+        $validated = $request->validate(['amount' => ['required', 'numeric', 'min:0.01', 'max:9999999']]);
+        $this->authorize('update', Order::findOrFail($item->order_id));
+
+        app(\App\Services\NegotiatedValueService::class)
+            ->setValue($item, (float) $validated['amount'], $request->user());
+
+        return response()->json(['success' => true, 'message' => 'Valor lançado com sucesso.']);
+    }
+
+    public function tablePaymentPreview(Request $request, Table $table)
+    {
+        $payments = app(TablePaymentService::class);
+        $validated = $request->validate($payments->rules());
+        $this->ensureStoreOwnsTable($table);
+
+        return response()->json($payments->preview($table, $validated, false));
+    }
+
+    public function markTableAsPaid(Request $request, Table $table)
+    {
+        $payments = app(TablePaymentService::class);
+        $validated = $request->validate($payments->rules());
+        $this->ensureStoreOwnsTable($table);
+
+        $payment = $payments->pay(
+            $table,
+            $request->user(),
+            $validated,
+            false,
+            fn(Table $locked) => $this->ensureStoreOwnsTable($locked)
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pagamento registrado com sucesso.',
+            'payment_id' => $payment->id,
+            'amount' => $payment->amount,
+            'service_fee' => $payment->service_fee,
+        ]);
+    }
+
+    public function cancelMany(Request $request)
+    {
+        $validated = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['integer'],
+        ]);
+
+        $orders = Order::whereIn('id', $validated['order_ids'])
+            ->where('payment_status', Order::PAYMENT_STATUS_PENDING)
+            ->get();
+
+        foreach ($orders as $order) {
+            $this->authorize('delete', $order);
+        }
+
+        DB::transaction(fn() => $orders->each->delete());
+
+        return redirect()->route('store.dashboard')
+            ->with('success', $orders->count() . ' pedido(s) cancelado(s) com sucesso!');
+    }
+
+    private function ensureStoreOwnsTable(Table $table): void
+    {
+        abort_unless(optional(auth()->user()->store)->id === $table->store_id, 403);
+    }
+
     public function cancel(Order $order)
     {
         $this->authorize('delete', $order);
@@ -186,7 +256,7 @@ class OrderController extends Controller
 
         $orders = $store->orders()
             ->where('status', 'Em produção')
-            ->with(['table', 'items.product'])
+            ->with(['table', 'participant', 'items.product'])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -274,9 +344,13 @@ class OrderController extends Controller
         $this->authorize('update', $order);
 
         // Atualizar o pedido
+        app(\App\Services\NegotiatedValueService::class)
+            ->assertOrdersHaveValues(new \Illuminate\Database\Eloquent\Collection([$order]));
+
         $order->update([
             'payment_status' => Order::PAYMENT_STATUS_PAID,
-            'payment_method' => 'cash'
+            'payment_method' => 'cash',
+            'paid_at' => now(),
         ]);
 
         // Atualiza o status direto para finalizado

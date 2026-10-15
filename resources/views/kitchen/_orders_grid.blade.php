@@ -5,7 +5,7 @@
                 data-order-id="{{ $order->id }}" data-order-status="{{ $order->status }}">
                 <div class="order-card-header">
                     <div>
-                        <div class="order-number">#{{ $order->order_number }}</div>
+                        <div class="order-number">{{ $order->display_name }}</div>
                         <div class="order-time {{ $order->created_at->diffInMinutes(now()) > 15 ? 'urgent' : '' }}">
                             <i class="fas fa-clock me-1"></i>
                             {{ $order->created_at->diffForHumans() }}

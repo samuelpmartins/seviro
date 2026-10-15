@@ -870,6 +870,198 @@
             font-size: 1.5rem;
         }
 
+        .pay-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(15, 18, 35, 0.75);
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .pay-overlay.open {
+            display: flex;
+        }
+
+        .pay-modal {
+            background: #fff;
+            color: #24364b;
+            width: 100%;
+            max-width: 440px;
+            max-height: 94vh;
+            overflow-y: auto;
+            border-radius: 16px;
+            padding: 22px;
+        }
+
+        .pay-modal h4 {
+            margin: 0;
+            font-weight: 800;
+            color: #111a33;
+        }
+
+        .pay-sub {
+            color: #7f8c9d;
+            margin-bottom: 14px;
+        }
+
+        .pay-close {
+            background: none;
+            border: 0;
+            font-size: 1.4rem;
+            color: #5b6b82;
+        }
+
+        .pay-box {
+            background: #f4f6f9;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .pay-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pay-summary strong.big {
+            font-size: 1.5rem;
+            color: #111a33;
+        }
+
+        .pay-seg {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border: 1px solid #dfe4ea;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .pay-seg button {
+            border: 0;
+            padding: 10px;
+            background: #fff;
+            font-weight: 700;
+        }
+
+        .pay-seg button.active {
+            background: linear-gradient(135deg, #f9a11b, #e67e22);
+            color: #fff;
+        }
+
+        .pay-adjust-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .pay-adjust-row input {
+            flex: 1;
+            border: 1px solid #dfe4ea;
+            border-radius: 10px;
+            padding: 10px;
+            font-weight: 700;
+        }
+
+        .pay-apply {
+            border: 1px solid #f39c12;
+            color: #e67e22;
+            background: #fff;
+            border-radius: 10px;
+            padding: 0 18px;
+            font-weight: 700;
+        }
+
+        .pay-fee-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .pay-fee-toggle input {
+            width: 20px;
+            height: 20px;
+            accent-color: #e67e22;
+        }
+
+        .pay-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+
+        .pay-line.sep {
+            border-top: 1px solid #e3e7ec;
+            margin-top: 6px;
+            padding-top: 10px;
+        }
+
+        .pay-total {
+            background: linear-gradient(135deg, #f9a11b, #e67e22);
+            color: #fff;
+            border-radius: 12px;
+            text-align: center;
+            padding: 14px;
+            margin: 12px 0;
+        }
+
+        .pay-total strong {
+            display: block;
+            font-size: 1.9rem;
+        }
+
+        .pay-actions {
+            display: grid;
+            grid-template-columns: 1fr 1.4fr;
+            gap: 10px;
+        }
+
+        .pay-actions .btn-confirm {
+            background: linear-gradient(135deg, #f9a11b, #e67e22);
+            color: #fff;
+            border: 0;
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 700;
+        }
+
+        .pay-actions .btn-back {
+            background: #fff;
+            border: 1px solid #c9d1dc;
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 700;
+            color: #111a33;
+        }
+
+        .pay-error {
+            color: #c0392b;
+            font-size: 0.9rem;
+            margin-top: 6px;
+        }
+
+        .pay-print {
+            width: 100%;
+            background: #fff;
+            border: 1px solid #c9d1dc;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-weight: 700;
+            color: #111a33;
+        }
+
+        .pay-info {
+            color: #1e8449;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
         .order-item-price {
             font-weight: 700;
             color: #27ae60;
@@ -1143,29 +1335,10 @@
                                 @endif
 
                                 @if ($table->unpaid_total > 0)
-                                    @php($serviceFeePreview = round($table->unpaid_total * 0.1, 2))
-                                    <div class="pending-total mt-3 service-fee-panel"
-                                        data-service-fee-url="{{ route('waiter.table.service-fee', $table) }}"
-                                        data-payment-url="{{ route('waiter.table.mark-paid', $table) }}">
-                                        <label class="service-fee-toggle">
-                                            <input type="checkbox" class="service-fee-checkbox"
-                                                onchange="toggleTableServiceFee(this)">
-                                            <span>Incluir taxa de serviço (10%)</span>
-                                        </label>
-                                        <div class="service-fee-row">
-                                            <span>Consumo</span>
-                                            <strong data-consumption>R$
-                                                {{ number_format($table->unpaid_total, 2, ',', '.') }}</strong>
-                                        </div>
-                                        <div class="service-fee-row">
-                                            <span>Taxa de serviço (10%)</span>
-                                            <strong data-service-fee>R$
-                                                {{ number_format($serviceFeePreview, 2, ',', '.') }}</strong>
-                                        </div>
+                                    <div class="pending-total mt-3">
                                         <div class="service-fee-total">
                                             <span>Total Pendente</span>
-                                            <strong data-payable-total>R$
-                                                {{ number_format($table->unpaid_total, 2, ',', '.') }}</strong>
+                                            <strong>R$ {{ number_format($table->unpaid_total, 2, ',', '.') }}</strong>
                                         </div>
                                     </div>
                                 @endif
@@ -1192,7 +1365,10 @@
                                 </a>
                                 @if ($table->unpaid_total > 0)
                                     <button type="button" class="btn btn-success"
-                                        onclick="markTableAsPaid(this, {{ $table->id }})">
+                                        data-service-fee-url="{{ route('waiter.table.service-fee', $table) }}"
+                                        data-payment-url="{{ route('waiter.table.mark-paid', $table) }}"
+                                        data-print-url="{{ route('waiter.table.print-bill', $table) }}"
+                                        onclick="openPaymentModal(this)">
                                         <i class="fas fa-dollar-sign me-1"></i>Marcar Pago
                                     </button>
                                 @endif
@@ -1408,6 +1584,78 @@
             <div class="attending-modal-actions">
                 <button type="button" id="cancelStopAttendingButton" class="btn btn-outline-secondary">Cancelar</button>
                 <button type="button" id="confirmStopAttendingButton" class="btn btn-primary">Sim</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="paymentModal" class="pay-overlay" role="dialog" aria-modal="true">
+        <div class="pay-modal">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h4>Resumo da mesa</h4>
+                    <div class="pay-sub" id="payTableLabel"></div>
+                </div>
+                <button type="button" class="pay-close" onclick="closePaymentModal()"
+                    aria-label="Fechar">&times;</button>
+            </div>
+
+            <div class="pay-box pay-summary">
+                <div>
+                    <div><strong id="payCounts"></strong></div>
+                    <small class="text-muted">Consumo total</small>
+                </div>
+                <strong class="big" id="payConsumptionHead"></strong>
+            </div>
+
+            <div class="pay-box">
+                <strong>Desconto</strong>
+                <div class="pay-sub mb-0">Ajuste o valor do pedido</div>
+                <div class="pay-seg">
+                    <button type="button" class="active" data-type="discount"
+                        onclick="setPaymentAdjustType('discount')">Descontar</button>
+                    <button type="button" data-type="surcharge"
+                        onclick="setPaymentAdjustType('surcharge')">Acrescentar</button>
+                </div>
+                <label class="pay-sub mb-1" for="payAdjustInput">Valor do ajuste</label>
+                <div class="pay-adjust-row">
+                    <input type="text" id="payAdjustInput" inputmode="decimal" placeholder="R$ 0,00">
+                    <button type="button" class="pay-apply" onclick="applyPaymentAdjust()">Aplicar</button>
+                </div>
+                <div class="pay-error" id="payError"></div>
+            </div>
+
+            <div class="pay-box">
+                <label class="pay-fee-toggle">
+                    <input type="checkbox" id="payFeeCheckbox" onchange="refreshPaymentSummary()">
+                    <span>
+                        <strong>Incluir taxa de serviço (10%)</strong><br>
+                        <small class="text-muted">Calculada sobre o valor após o ajuste</small>
+                    </span>
+                </label>
+            </div>
+
+            <div>
+                <div class="pay-line"><span>Consumo (todos os pedidos)</span><strong id="payConsumption"></strong></div>
+                <div class="pay-line"><span id="payAdjustLabel">Ajuste aplicado</span><strong id="payAdjust"></strong>
+                </div>
+                <div class="pay-line sep"><span>Subtotal</span><strong id="paySubtotal"></strong></div>
+                <div class="pay-line"><span>Taxa de serviço (10%)</span><strong id="payFee"></strong></div>
+            </div>
+
+            <div class="pay-total">
+                <span>Total do pedido</span>
+                <strong id="payTotal"></strong>
+            </div>
+
+            <div class="pay-info" id="payInfo"></div>
+            <button type="button" class="pay-print" id="payPrintButton" onclick="printTableBill()">
+                <i class="fas fa-print me-1"></i>Imprimir conta
+            </button>
+
+            <div class="pay-actions">
+                <button type="button" class="btn-back" onclick="closePaymentModal()">Voltar</button>
+                <button type="button" class="btn-confirm" id="payConfirmButton" onclick="confirmPayment()">Confirmar
+                    pedido</button>
             </div>
         </div>
     </div>
@@ -1628,10 +1876,9 @@
         // Atualiza a cada 30 segundos, mas preserva o modal aberto para não interromper a edição.
         function scheduleDashboardRefresh() {
             setTimeout(function() {
-                const orderModal = document.getElementById('orderDetailsModal');
-                const modalIsOpen = orderModal?.classList.contains('show') || attendingModal.classList.contains(
-                        'show') || stopAttendingModal.classList.contains('show') || transferModal.classList
-                    .contains('show');
+                const modalIsOpen = document.querySelector(
+                    '.pay-overlay.open, .attending-modal.show, .order-details-modal.show, .edit-product-modal.show, .transfer-modal.show'
+                );
 
                 if (modalIsOpen) {
                     scheduleDashboardRefresh();
@@ -1754,7 +2001,7 @@
 
             modal.innerHTML = `
             <div class="order-details-header">
-                <h3>Pedido #${order.order_number}</h3>
+                <h3>${escapeEditProductText([...new Set(order.items.map(item => item.product?.name).filter(Boolean))].join(', '))}</h3>
                 <div class="order-meta">
                     <span><i class="fas fa-table"></i> ${tableInfo}</span>
                     <span>${clientInfo}</span>
@@ -1784,10 +2031,10 @@
             
             <div class="order-details-footer">
                 ${order.status === 'Aguardando produção' ? `
-                                                                                                                                                    <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
-                                                                                                                                                        <i class="fas fa-edit me-2"></i>Editar Pedido
-                                                                                                                                                    </button>
-                                                                                                                                                ` : ''}
+                                                                                                                                                                                <button class="btn btn-primary" onclick="renderOrderEditForm(${order.id})">
+                                                                                                                                                                                    <i class="fas fa-edit me-2"></i>Editar Pedido
+                                                                                                                                                                                </button>
+                                                                                                                                                                            ` : ''}
                 <button class="btn-close-modal" onclick="closeOrderDetails()">
                     <i class="fas fa-times me-2"></i>Fechar
                 </button>
@@ -1909,16 +2156,16 @@
                 <label class="form-label">Quantidade</label>
                 <input id="editProductQuantity" class="form-control" type="number" min="1" value="1">
                 ${ingredients.length ? `
-                                                                <label class="form-label mt-3">Personalize os ingredientes</label>
-                                                                <div class="edit-product-ingredients">
-                                                                    ${ingredients.map(ingredient => `
+                                                                                            <label class="form-label mt-3">Personalize os ingredientes</label>
+                                                                                            <div class="edit-product-ingredients">
+                                                                                                ${ingredients.map(ingredient => `
                             <div class="edit-product-ingredient">
                                 <span>${escapeEditProductText(ingredient.name)} (+R$ ${ingredient.additional_price.toFixed(2).replace('.', ',')} cada)</span>
                                 <input class="form-control form-control-sm edit-product-ingredient-quantity" type="number" min="0" value="${ingredient.amount_item}" data-ingredient-id="${ingredient.id}" data-base-amount="${ingredient.amount_item}">
                             </div>
                         `).join('')}
-                                                                </div>
-                                                            ` : '<p class="text-muted mt-3">Este produto não possui ingredientes personalizáveis.</p>'}
+                                                                                            </div>
+                                                                                        ` : '<p class="text-muted mt-3">Este produto não possui ingredientes personalizáveis.</p>'}
                 <label class="form-label mt-3">Observação</label>
                 <textarea id="editProductNotes" class="form-control" rows="2" placeholder="Observação do item"></textarea>
                 <div class="edit-product-actions">
@@ -1986,7 +2233,7 @@
 
                     modal.innerHTML = `
                         <div class="order-details-header">
-                            <h3>Editar Pedido #${order.order_number}</h3>
+                            <h3>Editar Pedido • ${escapeEditProductText([...new Set(order.items.map(item => item.product?.name).filter(Boolean))].join(', '))}</h3>
                             <p style="margin:0;">Disponível somente enquanto estiver aguardando produção.</p>
                         </div>
                         <div class="order-details-body">
@@ -2390,69 +2637,141 @@
                 closeTransferModal();
                 closeEditProductMenu();
                 closeOccupyTableModal();
+                closePaymentModal();
             }
         });
 
-        // Função para marcar mesa como paga
-        async function toggleTableServiceFee(checkbox) {
-            const panel = checkbox.closest('.service-fee-panel');
-            const selected = checkbox.checked;
-            checkbox.disabled = true;
+        // Modal de pagamento da mesa (desconto/acréscimo + taxa de serviço)
+        const paymentState = {
+            feeUrl: null,
+            payUrl: null,
+            printUrl: null,
+            type: 'discount',
+            amount: 0
+        };
+        const payCurrency = value => `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
+        const payHeaders = () => ({
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        });
+
+        function parsePayAmount(text) {
+            let value = String(text).replace(/[^\d,.]/g, '');
+            if (value.includes(',')) value = value.replace(/\./g, '').replace(',', '.');
+            const number = parseFloat(value);
+            return Number.isFinite(number) && number > 0 ? Math.round(number * 100) / 100 : 0;
+        }
+
+        function paymentPayload() {
+            return {
+                include_service_fee: document.getElementById('payFeeCheckbox').checked,
+                adjustment_type: paymentState.amount > 0 ? paymentState.type : null,
+                adjustment_amount: paymentState.amount > 0 ? paymentState.amount : null
+            };
+        }
+
+        function openPaymentModal(button) {
+            paymentState.feeUrl = button.dataset.serviceFeeUrl;
+            paymentState.payUrl = button.dataset.paymentUrl;
+            paymentState.printUrl = button.dataset.printUrl;
+            document.getElementById('payInfo').textContent = '';
+            paymentState.type = 'discount';
+            paymentState.amount = 0;
+            document.getElementById('payAdjustInput').value = '';
+            document.getElementById('payFeeCheckbox').checked = false;
+            document.getElementById('payError').textContent = '';
+            setPaymentAdjustType('discount', false);
+            document.getElementById('paymentModal').classList.add('open');
+            refreshPaymentSummary();
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.remove('open');
+        }
+
+        function setPaymentAdjustType(type, refresh = true) {
+            paymentState.type = type;
+            document.querySelectorAll('.pay-seg button').forEach(btn =>
+                btn.classList.toggle('active', btn.dataset.type === type));
+            if (refresh && paymentState.amount > 0) refreshPaymentSummary();
+        }
+
+        function applyPaymentAdjust() {
+            paymentState.amount = parsePayAmount(document.getElementById('payAdjustInput').value);
+            refreshPaymentSummary();
+        }
+
+        async function refreshPaymentSummary() {
+            const errorBox = document.getElementById('payError');
+            errorBox.textContent = '';
 
             try {
-                const response = await fetch(panel.dataset.serviceFeeUrl, {
+                const response = await fetch(paymentState.feeUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
+                    headers: payHeaders(),
                     credentials: 'same-origin',
-                    body: JSON.stringify({
-                        include_service_fee: selected
-                    })
+                    body: JSON.stringify(paymentPayload())
                 });
                 const data = await response.json();
-                if (!response.ok) throw new Error(data.message || 'Não foi possível calcular a taxa.');
+                if (!response.ok) throw new Error(data.message || 'Não foi possível calcular o total.');
 
-                const currency = value => `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
-                panel.querySelector('[data-consumption]').textContent = currency(data.consumption);
-                panel.querySelector('[data-service-fee]').textContent = currency(data.service_fee);
-                panel.querySelector('[data-payable-total]').textContent = currency(data.total);
+                const names = (data.participants || []).join(', ');
+                document.getElementById('payTableLabel').textContent =
+                    `Mesa ${data.table_number}${names ? ' • ' + names : ''}`;
+                document.getElementById('payCounts').textContent =
+                    `${data.orders_count} pedido${data.orders_count === 1 ? '' : 's'} • ${data.items_count} iten${data.items_count === 1 ? '' : 's'}`;
+                document.getElementById('payConsumptionHead').textContent = payCurrency(data.consumption);
+                document.getElementById('payConsumption').textContent = payCurrency(data.consumption);
+                document.getElementById('payAdjustLabel').textContent =
+                    data.adjustment_type === 'surcharge' ? 'Acréscimo aplicado' : 'Desconto aplicado';
+                document.getElementById('payAdjust').textContent =
+                    `${data.adjustment < 0 ? '− ' : data.adjustment > 0 ? '+ ' : ''}${payCurrency(Math.abs(data.adjustment))}`;
+                document.getElementById('paySubtotal').textContent = payCurrency(data.subtotal);
+                document.getElementById('payFee').textContent = `+ ${payCurrency(data.service_fee_applied)}`;
+                document.getElementById('payTotal').textContent = payCurrency(data.total);
             } catch (error) {
-                checkbox.checked = !selected;
-                alert(error.message);
-            } finally {
-                checkbox.disabled = false;
+                paymentState.amount = 0;
+                errorBox.textContent = error.message;
             }
         }
 
-        function markTableAsPaid(button, tableId) {
-            const panel = button.closest('.table-card').querySelector('.service-fee-panel');
-            const includeServiceFee = panel?.querySelector('.service-fee-checkbox').checked ?? false;
-            const payableTotal = panel?.querySelector('[data-payable-total]').textContent ?? '';
-            const confirmation =
-                `Confirma o pagamento em dinheiro${includeServiceFee ? ` no valor de ${payableTotal}, incluindo a taxa de serviço` : ''}?`;
-
-            if (!confirm(confirmation)) {
-                return;
-            }
-
-            const originalHtml = button.innerHTML;
+        async function printTableBill() {
+            const button = document.getElementById('payPrintButton');
+            const errorBox = document.getElementById('payError');
+            const infoBox = document.getElementById('payInfo');
+            errorBox.textContent = '';
+            infoBox.textContent = '';
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Marcando...';
 
-            fetch(panel.dataset.paymentUrl, {
+            try {
+                const response = await fetch(paymentState.printUrl, {
+                    method: 'POST',
+                    headers: payHeaders(),
+                    credentials: 'same-origin',
+                    body: JSON.stringify(paymentPayload())
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Não foi possível enviar a impressão.');
+                infoBox.textContent = data.message;
+            } catch (error) {
+                errorBox.textContent = error.message;
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        function confirmPayment() {
+            const button = document.getElementById('payConfirmButton');
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = 'Registrando...';
+
+            fetch(paymentState.payUrl, {
                     method: 'POST',
                     credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: JSON.stringify({
-                        include_service_fee: includeServiceFee
-                    })
+                    headers: payHeaders(),
+                    body: JSON.stringify(paymentPayload())
                 })
                 .then(async response => {
                     const data = await response.json();
@@ -2460,10 +2779,9 @@
                     window.location.reload();
                 })
                 .catch(error => {
-                    console.error('Erro:', error);
-                    alert(error.message);
+                    document.getElementById('payError').textContent = error.message;
                     button.disabled = false;
-                    button.innerHTML = originalHtml;
+                    button.textContent = originalText;
                 });
         }
     </script>

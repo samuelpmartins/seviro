@@ -297,6 +297,8 @@ Route::middleware(['web'])->group(function () {
                             'product_name' => $item->product->name,
                             'quantity' => $item->quantity,
                             'price' => $item->price,
+                            'negotiable' => (bool) $item->product->price_to_negotiate,
+                            'line_total' => $item->line_total,
                             'notes' => $decodedNotes,
                             'selected_ingredients' => $selected,
                         ];
@@ -355,6 +357,8 @@ Route::middleware(['web'])->group(function () {
                             'product_name' => $item->product->name,
                             'quantity' => $item->quantity,
                             'price' => $item->price,
+                            'negotiable' => (bool) $item->product->price_to_negotiate,
+                            'line_total' => $item->line_total,
                             'notes' => $decodedNotes,
                             'selected_ingredients' => $selected,
                         ];

@@ -357,11 +357,21 @@
                                     <span class="input-group-text">R$</span>
                                     <input type="text" class="form-control @error('price') is-invalid @enderror"
                                         id="price" name="price"
-                                        value="{{ old('price', number_format($product->price, 2, ',', '.')) }}" required>
+                                        value="{{ old('price', number_format($product->price, 2, ',', '.')) }}" required
+                                        {{ old('price_to_negotiate', $product->price_to_negotiate) ? 'disabled' : '' }}>
                                 </div>
                                 @error('price')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                                <div class="form-check mt-2">
+                                    <input type="checkbox" class="form-check-input" id="price_to_negotiate"
+                                        name="price_to_negotiate" value="1"
+                                        {{ old('price_to_negotiate', $product->price_to_negotiate) ? 'checked' : '' }}
+                                        onchange="(p => { p.required = !this.checked; p.disabled = this.checked; if (this.checked) p.value = ''; })(this.closest('form').querySelector('[name=price]'))">
+                                    <label class="form-check-label" for="price_to_negotiate">Valor a combinar</label>
+                                    <small class="d-block text-muted">O valor é lançado pelo garçom no momento da
+                                        venda.</small>
+                                </div>
                             </div>
 
                             <div class="form-group mb-3">

@@ -154,6 +154,10 @@ Route::middleware(['auth', 'role:store'])->group(function () {
     Route::put('/store/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('store.orders.update-status');
     Route::post('/store/orders/{order}/mark-paid-cash', [OrderController::class, 'markAsPaidCash'])->name('store.orders.mark-paid-cash');
     Route::delete('/store/orders/{order}', [OrderController::class, 'cancel'])->name('store.orders.cancel');
+    Route::post('/store/orders/cancel-many', [OrderController::class, 'cancelMany'])->name('store.orders.cancel-many');
+    Route::post('/store/order-items/{item}/value', [OrderController::class, 'setOrderItemValue'])->name('store.order-items.value');
+    Route::post('/store/table-payment/{table}/preview', [OrderController::class, 'tablePaymentPreview'])->name('store.table-payment.preview');
+    Route::post('/store/table-payment/{table}/pay', [OrderController::class, 'markTableAsPaid'])->name('store.table-payment.pay');
     Route::get('/store/orders/production', [OrderController::class, 'production'])->name('store.orders.production');
     Route::get('/store/orders/history', [OrderController::class, 'history'])->name('store.orders.history');
 });
@@ -172,6 +176,8 @@ Route::middleware(['auth', 'role:waiter'])->prefix('waiter')->name('waiter.')->g
     Route::get('/dashboard', [EmployeeController::class, 'waiterDashboard'])->name('dashboard');
     Route::post('/table/{table}/service-fee', [EmployeeController::class, 'previewTableServiceFee'])->name('table.service-fee');
     Route::post('/table/{table}/mark-paid', [EmployeeController::class, 'markTableAsPaid'])->name('table.mark-paid');
+    Route::post('/table/{table}/print-bill', [EmployeeController::class, 'printTableBill'])->name('table.print-bill');
+    Route::post('/order-items/{item}/value', [EmployeeController::class, 'setOrderItemValue'])->name('order-items.value');
     Route::post('/start-attending', [EmployeeController::class, 'startAttending'])->name('start-attending');
     Route::get('/attendance-status', [EmployeeController::class, 'attendanceStatus'])->name('attendance-status');
     Route::post('/stop-attending', [EmployeeController::class, 'stopAttending'])->name('stop-attending');

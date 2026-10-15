@@ -641,34 +641,219 @@
                             <h5 class="card-title mb-0">Pedidos Pendentes</h5>
                         </div>
                         <div class="card-body">
+                            @php
+                                $pendingGroups = $pendingOrders->groupBy(fn($o) => $o->table_id ?? 'counter');
+                            @endphp
                             <div class="table-responsive">
                                 <table class="table table-striped table-hover">
                                     <thead>
                                         <tr>
-                                            <th>Pedido</th>
-                                            <th>Mesa</th>
-                                            <th>Itens</th>
-                                            <th>Total</th>
-                                            <th>Status</th>
+                                            <th>Nome da mesa</th>
+                                            <th>Quantidade de itens</th>
+                                            <th>Valor total</th>
                                             <th>Pagamento</th>
                                             <th>Data</th>
-                                            <th style="min-width: 150px;">Ações</th>
+                                            <th style="min-width: 260px;">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @forelse($pendingOrders as $order)
+                                        @forelse($pendingGroups as $groupKey => $groupOrders)
+                                            @php
+                                                $groupTable = $groupOrders->first()->table;
+                                                $groupItems = $groupOrders->sum(fn($o) => $o->items->sum('quantity'));
+                                            @endphp
                                             <tr>
-                                                <td><strong>{{ $order->order_number }}</strong></td>
-                                                <td>{{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}</td>
-                                                <td>
-                                                    <button type="button" class="btn btn-sm btn-link"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#orderModal{{ $order->id }}">
-                                                        Ver Itens ({{ $order->items->count() }})
-                                                    </button>
+                                                <td><strong>{{ $groupTable ? 'Mesa ' . $groupTable->number : 'Balcão' }}</strong>
                                                 </td>
-                                                <td>R$ {{ number_format($order->total, 2, ',', '.') }}</td>
+                                                <td>{{ $groupItems }} {{ $groupItems === 1 ? 'item' : 'itens' }}</td>
+                                                <td>R$ {{ number_format($groupOrders->sum('total'), 2, ',', '.') }}</td>
                                                 <td>
+                                                    <span class="badge bg-warning">
+                                                        <i class="fas fa-clock me-1"></i>Pendente
+                                                    </span>
+                                                </td>
+                                                <td>{{ $groupOrders->max('created_at')->format('d/m/Y H:i') }}</td>
+                                                <td>
+                                                    <div class="action-buttons">
+                                                        <button type="button" class="btn btn-sm btn-primary"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#tableOrdersModal{{ $groupKey }}">
+                                                            <i class="fas fa-eye me-1"></i>Ver pedidos
+                                                        </button>
+
+                                                        @if ($groupTable)
+                                                            <button type="button" class="btn btn-sm btn-success ms-1"
+                                                                data-service-fee-url="{{ route('store.table-payment.preview', $groupTable) }}"
+                                                                data-payment-url="{{ route('store.table-payment.pay', $groupTable) }}"
+                                                                onclick="openPaymentModal(this)">
+                                                                <i class="fas fa-dollar-sign me-1"></i>Marcar Pago
+                                                            </button>
+                                                        @endif
+
+                                                        <button type="button" class="btn btn-sm btn-danger ms-1"
+                                                            onclick="cancelAllTableOrders('{{ $groupKey }}')">
+                                                            Cancelar
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="6" class="text-center">Nenhum pedido pendente</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            @foreach ($pendingGroups as $groupKey => $groupOrders)
+                                @php($groupTable = $groupOrders->first()->table)
+                                <form id="cancelAllForm{{ $groupKey }}" method="POST"
+                                    action="{{ route('store.orders.cancel-many') }}" class="d-none">
+                                    @csrf
+                                    @foreach ($groupOrders as $order)
+                                        <input type="hidden" name="order_ids[]" value="{{ $order->id }}">
+                                    @endforeach
+                                </form>
+
+                                <!-- Modal de Pedidos da Mesa -->
+                                <div class="modal fade" id="tableOrdersModal{{ $groupKey }}" tabindex="-1">
+                                    <div class="modal-dialog modal-xl modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <form method="POST" action="{{ route('store.orders.cancel-many') }}"
+                                                onsubmit="return confirmCancelSelected(this)">
+                                                @csrf
+                                                <div class="modal-header">
+                                                    <div>
+                                                        <h5 class="modal-title">Pedidos •
+                                                            {{ $groupTable ? 'Mesa ' . $groupTable->number : 'Balcão' }}
+                                                        </h5>
+                                                        <small class="text-muted">
+                                                            {{ $groupOrders->count() }} pedidos •
+                                                            {{ $groupOrders->sum(fn($o) => $o->items->sum('quantity')) }}
+                                                            itens • Total R$
+                                                            {{ number_format($groupOrders->sum('total'), 2, ',', '.') }}
+                                                        </small>
+                                                    </div>
+                                                    <button type="button" class="btn-close"
+                                                        data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table align-middle">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th style="width: 40px;">
+                                                                        <input type="checkbox" class="form-check-input"
+                                                                            title="Selecionar todos"
+                                                                            onchange="this.closest('table').querySelectorAll('.order-select').forEach(c => c.checked = this.checked)">
+                                                                    </th>
+                                                                    <th>Pedido</th>
+                                                                    <th>Itens</th>
+                                                                    <th>Total</th>
+                                                                    <th>Status</th>
+                                                                    <th>Data</th>
+                                                                    <th>Ações</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach ($groupOrders as $order)
+                                                                    <tr>
+                                                                        <td><input type="checkbox"
+                                                                                class="form-check-input order-select"
+                                                                                name="order_ids[]"
+                                                                                value="{{ $order->id }}"></td>
+                                                                        <td><strong>{{ $order->display_name }}</strong>
+                                                                        </td>
+                                                                        <td>
+                                                                            <button type="button"
+                                                                                class="btn btn-sm btn-link"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#orderModal{{ $order->id }}">
+                                                                                Ver itens ({{ $order->items->count() }})
+                                                                            </button>
+                                                                        </td>
+                                                                        <td>R$
+                                                                            {{ number_format($order->total, 2, ',', '.') }}
+                                                                        </td>
+                                                                        <td>
+                                                                            <span
+                                                                                class="badge bg-{{ $order->status === 'Aguardando pagamento' ? 'warning' : ($order->status === 'Em produção' ? 'info' : ($order->status === 'Finalizado' ? 'success' : ($order->status === 'Cancelado' ? 'danger' : 'primary'))) }}">
+                                                                                {{ $order->status }}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td>{{ $order->created_at->format('d/m/Y H:i') }}
+                                                                        </td>
+                                                                        <td>
+                                                                            <div class="action-buttons">
+                                                                                <button type="button"
+                                                                                    class="btn btn-sm btn-primary"
+                                                                                    data-bs-toggle="modal"
+                                                                                    data-bs-target="#statusModal{{ $order->id }}">
+                                                                                    Mudar Status
+                                                                                </button>
+                                                                                @foreach ($order->items as $negotiableItem)
+                                                                                    @if ($negotiableItem->product?->price_to_negotiate)
+                                                                                        <button type="button"
+                                                                                            class="btn btn-sm btn-warning ms-1"
+                                                                                            data-url="{{ route('store.order-items.value', $negotiableItem) }}"
+                                                                                            data-order="{{ $order->display_name }}"
+                                                                                            data-table="{{ $groupTable ? 'Mesa ' . $groupTable->number : 'Balcão' }}"
+                                                                                            data-quantity="{{ $negotiableItem->quantity }}"
+                                                                                            data-name="{{ $negotiableItem->product->name }}"
+                                                                                            data-description="{{ $negotiableItem->product->description }}"
+                                                                                            data-current="{{ $negotiableItem->line_total }}"
+                                                                                            onclick="openOrderValueModal(this)">
+                                                                                            <i
+                                                                                                class="fas fa-edit me-1"></i>Editar
+                                                                                            valor
+                                                                                        </button>
+                                                                                    @endif
+                                                                                @endforeach
+                                                                                @unless ($groupTable)
+                                                                                    <button type="button"
+                                                                                        class="btn btn-sm btn-success ms-1"
+                                                                                        onclick="markAsPaid({{ $order->id }})">
+                                                                                        <i
+                                                                                            class="fas fa-dollar-sign me-1"></i>Marcar
+                                                                                        Pago
+                                                                                    </button>
+                                                                                @endunless
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="submit" class="btn btn-outline-danger me-auto">
+                                                        Cancelar selecionados
+                                                    </button>
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-bs-dismiss="modal">Fechar</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+
+                            @foreach ($pendingOrders as $order)
+                                <!-- Modal de Detalhes do Pedido -->
+                                <div class="modal fade" id="orderModal{{ $order->id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">{{ $order->display_name }}
+                                                </h5>
+                                                <button type="button" class="btn-close"
+                                                    data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <strong>Status:</strong>
                                                     <span
                                                         class="badge bg-{{ $order->status === 'Aguardando pagamento'
                                                             ? 'warning'
@@ -681,190 +866,101 @@
                                                                         : 'primary'))) }}">
                                                         {{ $order->status }}
                                                     </span>
-                                                </td>
-                                                <td>
-                                                    @if ($order->payment_status === 'paid')
-                                                        <span class="badge bg-success mb-1">
-                                                            <i class="fas fa-check-circle me-1"></i>Pago
-                                                        </span>
-                                                        <br>
-                                                        <small class="text-muted">
-                                                            @if ($order->payment_method === 'card')
-                                                                <i class="fas fa-credit-card me-1"></i>Crédito/Débito
-                                                            @elseif($order->payment_method === 'pix')
-                                                                <i class="fas fa-qrcode me-1"></i>PIX
-                                                            @elseif($order->payment_method === 'cash')
-                                                                <i class="fas fa-money-bill-wave me-1"></i>Dinheiro
-                                                            @endif
-                                                        </small>
-                                                    @else
-                                                        <span class="badge bg-warning">
-                                                            <i class="fas fa-clock me-1"></i>Pendente
-                                                        </span>
-                                                    @endif
-                                                </td>
-                                                <td>{{ $order->created_at->format('d/m/Y H:i') }}</td>
-                                                <td>
-                                                    <div class="action-buttons">
-                                                        <button type="button" class="btn btn-sm btn-primary"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#statusModal{{ $order->id }}">
-                                                            Mudar Status
+                                                </div>
+                                                <div class="mb-3">
+                                                    <strong>Data:</strong>
+                                                    {{ $order->created_at->format('d/m/Y H:i') }}
+                                                </div>
+                                                @if ($order->notes)
+                                                    <div class="mb-3">
+                                                        <strong>Observações do Pedido:</strong>
+                                                        <p class="mb-0">{{ $order->notes }}</p>
+                                                    </div>
+                                                @endif
+                                                <div class="mb-3">
+                                                    <strong>Itens:</strong>
+                                                    <ul class="list-group">
+                                                        @foreach ($order->items as $item)
+                                                            @include('components.order-item-details', [
+                                                                'item' => $item,
+                                                            ])
+                                                        @endforeach
+                                                    </ul>
+                                                </div>
+                                                <div class="text-end">
+                                                    <strong>Total: R$
+                                                        {{ number_format($order->total, 2, ',', '.') }}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Modal de Seleção de Status -->
+                                <div class="modal fade" id="statusModal{{ $order->id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-sm">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Alterar Status</h5>
+                                                <button type="button" class="btn-close"
+                                                    data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="list-group">
+                                                    <form method="POST"
+                                                        action="{{ route('store.orders.update-status', $order->id) }}"
+                                                        class="mb-2">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <input type="hidden" name="status"
+                                                            value="Aguardando pagamento">
+                                                        <button type="submit"
+                                                            class="list-group-item list-group-item-action {{ $order->status === 'Aguardando pagamento' ? 'active' : '' }}">
+                                                            Aguardando pagamento
                                                         </button>
+                                                    </form>
 
-                                                        @if ($order->payment_status !== 'paid')
-                                                            <button type="button" class="btn btn-sm btn-success ms-1"
-                                                                onclick="markAsPaid({{ $order->id }})">
-                                                                <i class="fas fa-dollar-sign me-1"></i>Marcar Pago
-                                                            </button>
-                                                        @endif
+                                                    <form method="POST"
+                                                        action="{{ route('store.orders.update-status', $order->id) }}"
+                                                        class="mb-2">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <input type="hidden" name="status" value="Em produção">
+                                                        <button type="submit"
+                                                            class="list-group-item list-group-item-action {{ $order->status === 'Em produção' ? 'active' : '' }}">
+                                                            Em produção
+                                                        </button>
+                                                    </form>
 
-                                                        <form method="POST"
-                                                            action="{{ route('store.orders.cancel', $order->id) }}"
-                                                            class="d-inline">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="btn btn-sm btn-danger ms-1"
-                                                                onclick="return confirm('Tem certeza que deseja cancelar este pedido?')">
-                                                                Cancelar
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                                    <form method="POST"
+                                                        action="{{ route('store.orders.update-status', $order->id) }}"
+                                                        class="mb-2">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <input type="hidden" name="status" value="Finalizado">
+                                                        <button type="submit"
+                                                            class="list-group-item list-group-item-action {{ $order->status === 'Finalizado' ? 'active' : '' }}">
+                                                            Finalizado
+                                                        </button>
+                                                    </form>
 
-                                            <!-- Modal de Detalhes do Pedido -->
-                                            <div class="modal fade" id="orderModal{{ $order->id }}" tabindex="-1">
-                                                <div class="modal-dialog modal-dialog-centered">
-                                                    <div class="modal-content">
-                                                        <div class="modal-header">
-                                                            <h5 class="modal-title">Pedido {{ $order->order_number }} -
-                                                                {{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}
-                                                            </h5>
-                                                            <button type="button" class="btn-close"
-                                                                data-bs-dismiss="modal"></button>
-                                                        </div>
-                                                        <div class="modal-body">
-                                                            <div class="mb-3">
-                                                                <strong>Status:</strong>
-                                                                <span
-                                                                    class="badge bg-{{ $order->status === 'Aguardando pagamento'
-                                                                        ? 'warning'
-                                                                        : ($order->status === 'Em produção'
-                                                                            ? 'info'
-                                                                            : ($order->status === 'Finalizado'
-                                                                                ? 'success'
-                                                                                : ($order->status === 'Cancelado'
-                                                                                    ? 'danger'
-                                                                                    : 'primary'))) }}">
-                                                                    {{ $order->status }}
-                                                                </span>
-                                                            </div>
-                                                            <div class="mb-3">
-                                                                <strong>Data:</strong>
-                                                                {{ $order->created_at->format('d/m/Y H:i') }}
-                                                            </div>
-                                                            @if ($order->notes)
-                                                                <div class="mb-3">
-                                                                    <strong>Observações do Pedido:</strong>
-                                                                    <p class="mb-0">{{ $order->notes }}</p>
-                                                                </div>
-                                                            @endif
-                                                            <div class="mb-3">
-                                                                <strong>Itens:</strong>
-                                                                <ul class="list-group">
-                                                                    @foreach ($order->items as $item)
-                                                                        @include(
-                                                                            'components.order-item-details',
-                                                                            ['item' => $item]
-                                                                        )
-                                                                    @endforeach
-                                                                </ul>
-                                                            </div>
-                                                            <div class="text-end">
-                                                                <strong>Total: R$
-                                                                    {{ number_format($order->total, 2, ',', '.') }}</strong>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    <form method="POST"
+                                                        action="{{ route('store.orders.update-status', $order->id) }}"
+                                                        class="mb-2">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <input type="hidden" name="status" value="Cancelado">
+                                                        <button type="submit"
+                                                            class="list-group-item list-group-item-action {{ $order->status === 'Cancelado' ? 'active' : '' }}">
+                                                            Cancelado
+                                                        </button>
+                                                    </form>
                                                 </div>
                                             </div>
-
-                                            <!-- Modal de Seleção de Status -->
-                                            <div class="modal fade" id="statusModal{{ $order->id }}" tabindex="-1">
-                                                <div class="modal-dialog modal-sm">
-                                                    <div class="modal-content">
-                                                        <div class="modal-header">
-                                                            <h5 class="modal-title">Alterar Status</h5>
-                                                            <button type="button" class="btn-close"
-                                                                data-bs-dismiss="modal"></button>
-                                                        </div>
-                                                        <div class="modal-body">
-                                                            <div class="list-group">
-                                                                <form method="POST"
-                                                                    action="{{ route('store.orders.update-status', $order->id) }}"
-                                                                    class="mb-2">
-                                                                    @csrf
-                                                                    @method('PUT')
-                                                                    <input type="hidden" name="status"
-                                                                        value="Aguardando pagamento">
-                                                                    <button type="submit"
-                                                                        class="list-group-item list-group-item-action {{ $order->status === 'Aguardando pagamento' ? 'active' : '' }}">
-                                                                        Aguardando pagamento
-                                                                    </button>
-                                                                </form>
-
-                                                                <form method="POST"
-                                                                    action="{{ route('store.orders.update-status', $order->id) }}"
-                                                                    class="mb-2">
-                                                                    @csrf
-                                                                    @method('PUT')
-                                                                    <input type="hidden" name="status"
-                                                                        value="Em produção">
-                                                                    <button type="submit"
-                                                                        class="list-group-item list-group-item-action {{ $order->status === 'Em produção' ? 'active' : '' }}">
-                                                                        Em produção
-                                                                    </button>
-                                                                </form>
-
-                                                                <form method="POST"
-                                                                    action="{{ route('store.orders.update-status', $order->id) }}"
-                                                                    class="mb-2">
-                                                                    @csrf
-                                                                    @method('PUT')
-                                                                    <input type="hidden" name="status"
-                                                                        value="Finalizado">
-                                                                    <button type="submit"
-                                                                        class="list-group-item list-group-item-action {{ $order->status === 'Finalizado' ? 'active' : '' }}">
-                                                                        Finalizado
-                                                                    </button>
-                                                                </form>
-
-                                                                <form method="POST"
-                                                                    action="{{ route('store.orders.update-status', $order->id) }}"
-                                                                    class="mb-2">
-                                                                    @csrf
-                                                                    @method('PUT')
-                                                                    <input type="hidden" name="status"
-                                                                        value="Cancelado">
-                                                                    <button type="submit"
-                                                                        class="list-group-item list-group-item-action {{ $order->status === 'Cancelado' ? 'active' : '' }}">
-                                                                        Cancelado
-                                                                    </button>
-                                                                </form>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @empty
-                                            <tr>
-                                                <td colspan="6" class="text-center">Nenhum pedido pendente</td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 </div>
@@ -983,6 +1079,14 @@
                                 <span class="input-group-text">R$</span>
                                 <input type="text" class="form-control" id="product_price" name="price" required>
                             </div>
+                            <div class="form-check mt-2">
+                                <input type="checkbox" class="form-check-input" id="product_price_to_negotiate"
+                                    name="price_to_negotiate" value="1"
+                                    onchange="(p => { p.required = !this.checked; p.disabled = this.checked; if (this.checked) p.value = ''; })(this.closest('form').querySelector('[name=price]'))">
+                                <label class="form-check-label" for="product_price_to_negotiate">Valor a combinar</label>
+                                <small class="d-block text-muted">O valor é lançado pelo garçom no momento da
+                                    venda.</small>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="product_description" class="form-label">Descrição</label>
@@ -1043,6 +1147,27 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="cancelAllConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cancelar pedidos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Certeza que deseja cancelar todos os pedidos da mesa?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Não</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmCancelAll()">Sim</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @include('partials.table-payment-modal')
+    @include('partials.order-item-value-modal')
 
     @push('styles')
         <style>
@@ -1161,6 +1286,37 @@
                     });
                 });
             });
+            // Reabilita o preço ao limpar o formulário (checkbox "Valor a combinar" o desabilita).
+            document.addEventListener('reset', function(e) {
+                e.target.querySelectorAll('[name=price]').forEach(function(p) {
+                    p.disabled = false;
+                    p.required = true;
+                });
+            }, true);
+
+            let cancelAllGroupKey = null;
+
+            function cancelAllTableOrders(groupKey) {
+                cancelAllGroupKey = groupKey;
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('cancelAllConfirmModal')).show();
+            }
+
+            function confirmCancelAll() {
+                if (cancelAllGroupKey) {
+                    document.getElementById('cancelAllForm' + cancelAllGroupKey).submit();
+                }
+            }
+
+            function confirmCancelSelected(form) {
+                const selected = form.querySelectorAll('.order-select:checked').length;
+                if (!selected) {
+                    alert('Selecione ao menos um pedido para cancelar.');
+                    return false;
+                }
+                return confirm(`Cancelar ${selected} pedido(s) selecionado(s)?`);
+            }
+
+            // 
 
             // Função para marcar pedido como pago em dinheiro
             function markAsPaid(orderId) {
@@ -1181,16 +1337,22 @@
                             'Accept': 'application/json'
                         }
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.message) {
-                            // Recarregar a página para atualizar a tabela
-                            location.reload();
+                    .then(response => response.json().then(data => ({
+                        ok: response.ok,
+                        data
+                    })))
+                    .then(({
+                        ok,
+                        data
+                    }) => {
+                        if (!ok) {
+                            throw new Error(data.message || 'Erro ao marcar pedido como pago.');
                         }
+                        location.reload();
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        alert('Erro ao marcar pedido como pago. Tente novamente.');
+                        alert(error.message || 'Erro ao marcar pedido como pago. Tente novamente.');
                         button.disabled = false;
                         button.innerHTML = originalHtml;
                     });

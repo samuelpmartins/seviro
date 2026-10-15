@@ -551,7 +551,7 @@
                             <tbody>
                                 @foreach ($orders as $order)
                                     <tr>
-                                        <td><strong>{{ $order->order_number }}</strong></td>
+                                        <td><strong>{{ $order->display_name }}</strong></td>
                                         <td>Mesa {{ $order->table->number }}</td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-link" data-bs-toggle="modal"
@@ -600,7 +600,7 @@
                                         <div class="modal-dialog modal-dialog-centered">
                                             <div class="modal-content">
                                                 <div class="modal-header">
-                                                    <h5 class="modal-title">Pedido {{ $order->order_number }}</h5>
+                                                    <h5 class="modal-title">{{ $order->display_name }}</h5>
                                                     <button type="button" class="btn-close"
                                                         data-bs-dismiss="modal"></button>
                                                 </div>
@@ -744,7 +744,7 @@
             }
 
             /* While a modal is open, prevent hover effects and pointer events
-                                                                               on underlying page elements to avoid layout shifts/repaints. */
+                                                                                       on underlying page elements to avoid layout shifts/repaints. */
             body.modal-open .history-card,
             body.modal-open .table tbody tr,
             body.modal-open .history-container,

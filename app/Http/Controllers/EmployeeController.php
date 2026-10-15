@@ -8,6 +8,7 @@ use App\Models\Table;
 use App\Models\TableUser;
 use App\Models\Product;
 use App\Models\Payment;
+use App\Services\TablePaymentService;
 use App\Models\OrderAttendance;
 use App\Models\TableParticipant;
 use App\Models\TableParticipantPin;
@@ -325,6 +326,9 @@ class EmployeeController extends Controller
         DB::transaction(function () use ($order, $validated, $products) {
             $total = 0;
 
+            // Itens de valor a combinar mantêm o valor lançado se produto e quantidade não mudaram.
+            $negotiated = $order->items()->whereNotNull('negotiated_total')->get()->groupBy('product_id');
+
             $order->items()->get()->each->delete();
             foreach ($validated['items'] as $item) {
                 $product = $products->get($item['product_id']);
@@ -353,7 +357,17 @@ class EmployeeController extends Controller
                     ];
                 }
 
-                $total += $unitPrice * $item['quantity'];
+                $negotiatedItem = $product->price_to_negotiate
+                    ? $negotiated->get($product->id)?->firstWhere('quantity', (int) $item['quantity'])
+                    : null;
+
+                if ($negotiatedItem) {
+                    $negotiated->put($product->id, $negotiated->get($product->id)->reject(fn($old) => $old->id === $negotiatedItem->id));
+                    $unitPrice = (float) $negotiatedItem->price;
+                    $total += (float) $negotiatedItem->negotiated_total;
+                } else {
+                    $total += $unitPrice * $item['quantity'];
+                }
 
                 $itemNotes = $item['notes'] ?? null;
                 if ($selectedIngredients) {
@@ -372,6 +386,7 @@ class EmployeeController extends Controller
                     'product_id' => $product->id,
                     'quantity' => $item['quantity'],
                     'price' => $unitPrice,
+                    'negotiated_total' => $negotiatedItem?->negotiated_total,
                     'notes' => json_encode([
                         'notes' => $itemNotes,
                         'selected_ingredients' => collect($selectedIngredients)->map(fn($ingredient) => [
@@ -820,63 +835,69 @@ class EmployeeController extends Controller
         return view('waiter.table-details', compact('table', 'orders', 'participants', 'store'));
     }
 
+    public function setOrderItemValue(Request $request, \App\Models\OrderItem $item)
+    {
+        $validated = $request->validate(['amount' => ['required', 'numeric', 'min:0.01', 'max:9999999']]);
+        $order = Order::findOrFail($item->order_id);
+        $store = $request->user()->workplace;
+
+        abort_unless($store && $order->store_id === $store->id, 403);
+
+        if ($order->table_id) {
+            $this->ensureWaiterCanManageTable(Table::findOrFail($order->table_id), $request->user());
+        }
+
+        app(\App\Services\NegotiatedValueService::class)
+            ->setValue($item, (float) $validated['amount'], $request->user());
+
+        return response()->json(['success' => true, 'message' => 'Valor lançado com sucesso.']);
+    }
+
     public function previewTableServiceFee(Request $request, Table $table)
     {
-        $validated = $request->validate(['include_service_fee' => ['required', 'boolean']]);
+        $payments = app(TablePaymentService::class);
+        $validated = $request->validate($payments->rules());
         $this->ensureWaiterCanManageTable($table, $request->user());
 
-        $consumption = round($this->currentUnpaidOrders($table)->sum('total'), 2);
-        $serviceFee = round($consumption * 0.10, 2);
+        return response()->json($payments->preview($table, $validated, true));
+    }
 
-        return response()->json([
-            'consumption' => $consumption,
-            'service_fee' => $serviceFee,
-            'total' => $consumption + ($validated['include_service_fee'] ? $serviceFee : 0),
-        ]);
+    public function printTableBill(Request $request, Table $table)
+    {
+        $payments = app(TablePaymentService::class);
+        $validated = $request->validate($payments->rules());
+        $this->ensureWaiterCanManageTable($table, $request->user());
+
+        $kitchenStaff = User::where('store_id', $table->store_id)
+            ->whereHas('roles', fn($query) => $query->where('name', 'kitchen'))
+            ->get();
+
+        if ($kitchenStaff->isEmpty()) {
+            abort(422, 'Nenhuma cozinha cadastrada para esta loja.');
+        }
+
+        $printOrder = $payments->receiptPrintOrder($table, $validated, true);
+        \Illuminate\Support\Facades\Notification::send(
+            $kitchenStaff,
+            new \App\Notifications\PrintRequested($printOrder, $request->user()->name)
+        );
+
+        return response()->json(['success' => true, 'message' => 'Conta enviada para impressão na cozinha.']);
     }
 
     public function markTableAsPaid(Request $request, Table $table)
     {
-        $validated = $request->validate(['include_service_fee' => ['required', 'boolean']]);
+        $payments = app(TablePaymentService::class);
+        $validated = $request->validate($payments->rules());
         $this->ensureWaiterCanManageTable($table, $request->user());
 
-        $payment = DB::transaction(function () use ($table, $request, $validated) {
-            $lockedTable = Table::whereKey($table->id)->lockForUpdate()->firstOrFail();
-            $this->ensureWaiterCanManageTable($lockedTable, $request->user());
-            $orders = $this->currentUnpaidOrders($lockedTable, true);
-
-            if ($orders->isEmpty()) {
-                abort(422, 'Nenhum pedido pendente de pagamento nesta mesa.');
-            }
-
-            $consumption = round($orders->sum('total'), 2);
-            $serviceFee = $validated['include_service_fee'] ? round($consumption * 0.10, 2) : 0;
-
-            $payment = Payment::create([
-                'store_id' => $lockedTable->store_id,
-                'table_id' => $lockedTable->id,
-                'payment_method' => Payment::METHOD_CASH,
-                'amount' => $consumption + $serviceFee,
-                'service_fee_included' => $validated['include_service_fee'],
-                'service_fee' => $serviceFee,
-                'service_fee_percentage' => $validated['include_service_fee'] ? 10 : 0,
-                'status' => Payment::STATUS_SUCCEEDED,
-                'order_ids' => $orders->modelKeys(),
-                'marked_by_user_id' => $request->user()->id,
-            ]);
-
-            foreach ($orders as $order) {
-                $order->update([
-                    'payment_status' => Order::PAYMENT_STATUS_PAID,
-                    'payment_method' => Payment::METHOD_CASH,
-                    'status' => 'Finalizado',
-                ]);
-                $order->load('store', 'items.product', 'participant');
-                event(new \App\Events\OrderPaid($order));
-            }
-
-            return $payment;
-        });
+        $payment = $payments->pay(
+            $table,
+            $request->user(),
+            $validated,
+            true,
+            fn(Table $locked) => $this->ensureWaiterCanManageTable($locked, $request->user())
+        );
 
         return response()->json([
             'success' => true,
@@ -885,30 +906,6 @@ class EmployeeController extends Controller
             'amount' => $payment->amount,
             'service_fee' => $payment->service_fee,
         ]);
-    }
-
-    private function currentUnpaidOrders(Table $table, bool $lock = false)
-    {
-        $participantIds = $table->participants()->pluck('id');
-        $query = Order::where('table_id', $table->id)
-            ->where('payment_status', Order::PAYMENT_STATUS_PENDING)
-            ->where(function ($query) use ($participantIds) {
-                if ($participantIds->isNotEmpty()) {
-                    $query->whereIn('participant_id', $participantIds);
-                }
-
-                $query->orWhereNull('participant_id');
-            });
-
-        if ($table->occupied_at) {
-            $query->where('created_at', '>=', $table->occupied_at);
-        }
-
-        if ($lock) {
-            $query->lockForUpdate();
-        }
-
-        return $query->get();
     }
 
     /**
@@ -1043,9 +1040,13 @@ class EmployeeController extends Controller
         }
 
         // Atualizar o pedido
+        app(\App\Services\NegotiatedValueService::class)
+            ->assertOrdersHaveValues(new \Illuminate\Database\Eloquent\Collection([$order]));
+
         $order->update([
             'payment_status' => Order::PAYMENT_STATUS_PAID,
-            'payment_method' => 'cash'
+            'payment_method' => 'cash',
+            'paid_at' => now(),
         ]);
 
         // Atualiza o status direto para finalizado

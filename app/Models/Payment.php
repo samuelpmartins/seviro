@@ -63,6 +63,11 @@ class Payment extends Model
     const METHOD_PIX = 'pix';
     const METHOD_CASH = 'cash';
 
+    public function adjustments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PaymentAdjustment::class);
+    }
+
     public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
@@ -135,6 +140,7 @@ class Payment extends Model
             $updateData = [
                 'payment_status' => Order::PAYMENT_STATUS_PAID,
                 'payment_method' => $this->payment_method,
+                'paid_at' => now(),
             ];
 
             // O pagamento não inicia a produção; a cozinha fará isso manualmente.

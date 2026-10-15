@@ -23,6 +23,7 @@ class Product extends Model
         'active',
         'is_quick_item',
         'customizable',
+        'price_to_negotiate',
         'category_id',
         'store_id',
         'order'
@@ -33,6 +34,7 @@ class Product extends Model
         'active' => 'boolean',
         'is_quick_item' => 'boolean',
         'customizable' => 'boolean',
+        'price_to_negotiate' => 'boolean',
     ];
 
     public function category(): BelongsTo

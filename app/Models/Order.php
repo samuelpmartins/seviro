@@ -27,11 +27,13 @@ class Order extends Model
         'payment_status',
         'payment_method',
         'total',
-        'notes'
+        'notes',
+        'paid_at'
     ];
 
     protected $casts = [
-        'total' => 'decimal:2'
+        'total' => 'decimal:2',
+        'paid_at' => 'datetime'
     ];
 
     /**
@@ -136,6 +138,18 @@ class Order extends Model
     public function isCounterOrder(): bool
     {
         return $this->table_id === null;
+    }
+
+    /**
+     * Nome exibido do pedido: nomes dos produtos do pedido (exige `items.product` carregado).
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->items
+            ->map(fn($item) => $item->product?->name)
+            ->filter()
+            ->unique()
+            ->implode(', ') ?: 'Pedido sem itens';
     }
 
     /**

@@ -420,8 +420,26 @@
                                                         @endforeach
                                                     </div>
                                                 </div>
-                                                <span class="item-price">
-                                                    R$ {{ number_format($item->price * $item->quantity, 2, ',', '.') }}
+                                                <span class="item-price text-end">
+                                                    @if ($item->product?->price_to_negotiate && $item->line_total <= 0)
+                                                        <span class="text-warning">Valor a combinar</span>
+                                                    @else
+                                                        R$ {{ number_format($item->line_total, 2, ',', '.') }}
+                                                    @endif
+                                                    @if ($item->product?->price_to_negotiate && $order->payment_status === 'pending')
+                                                        <button type="button" class="btn btn-sm btn-outline-primary ms-2"
+                                                            data-url="{{ route('waiter.order-items.value', $item) }}"
+                                                            data-order="{{ $order->display_name }}"
+                                                            data-table="Mesa {{ $table->number }}"
+                                                            data-quantity="{{ $item->quantity }}"
+                                                            data-name="{{ $item->product->name }}"
+                                                            data-description="{{ $item->product->description }}"
+                                                            data-notes="{{ $itemObservation }}"
+                                                            data-current="{{ $item->line_total }}"
+                                                            onclick="openOrderValueModal(this)">
+                                                            <i class="fas fa-edit me-1"></i>Editar valor
+                                                        </button>
+                                                    @endif
                                                 </span>
                                             </li>
                                         @endforeach
@@ -451,4 +469,6 @@
             </div>
         </div>
     </div>
+
+    @include('partials.order-item-value-modal')
 @endsection

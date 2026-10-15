@@ -32,6 +32,7 @@ return [
     ],
 
     'stripe' => [
+        'card_payment_enabled' => env('CARD_PAYMENT_ENABLED', false),
         'key' => env('STRIPE_KEY'),
         'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),

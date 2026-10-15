@@ -33,7 +33,13 @@
         <div class="flex-grow-1">
             <div class="order-summary-top">
                 <strong>{{ $item->quantity }}x {{ $item->product?->name ?? 'Produto removido' }}</strong>
-                <span>R$ {{ number_format($item->price * $item->quantity, 2, ',', '.') }}</span>
+                <span>
+                    @if ($item->product?->price_to_negotiate && $item->line_total <= 0)
+                        Valor a combinar
+                    @else
+                        R$ {{ number_format($item->line_total, 2, ',', '.') }}
+                    @endif
+                </span>
             </div>
 
             @if ($item->product?->description)

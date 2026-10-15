@@ -699,6 +699,7 @@ $productIngredients = $product->additionalIngredients->map(function ($ingredient
                                                                 data-product-ingredients="{{ $productIngredients->toJson() }}"
                                                                 data-product-active="{{ $product->active ? 'true' : 'false' }}"
                                                                 data-product-is-quick-item="{{ $product->is_quick_item ? 'true' : 'false' }}"
+                                                                data-product-price-to-negotiate="{{ $product->price_to_negotiate ? 'true' : 'false' }}"
                                                                 onclick="openEditProductModal(this)">
                                                                 <i class="fas fa-edit"></i>
                                                             </button>
@@ -810,8 +811,7 @@ $productIngredients = $product->additionalIngredients->map(function ($ingredient
                                             style="cursor: pointer;">
                                             <div class="order-header">
                                                 <span class="order-table-number">
-                                                    <i class="fas fa-receipt me-1"></i> {{ $order->order_number }} -
-                                                    {{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}
+                                                    <i class="fas fa-receipt me-1"></i> {{ $order->display_name }}
                                                 </span>
                                                 <span class="order-total">R$
                                                     {{ number_format($order->total, 2, ',', '.') }}</span>
@@ -838,9 +838,7 @@ $productIngredients = $product->additionalIngredients->map(function ($ingredient
                                                 <div class="modal-content" style="border-radius: 15px; border: none;">
                                                     <div class="modal-header" style="border-bottom: 2px solid #ecf0f1;">
                                                         <h5 class="modal-title" style="color: #2c3e50; font-weight: 700;">
-                                                            <i class="fas fa-receipt me-2"></i> Pedido
-                                                            {{ $order->order_number }} -
-                                                            {{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}
+                                                            <i class="fas fa-receipt me-2"></i> {{ $order->display_name }}
                                                         </h5>
                                                         <button type="button" class="btn-close"
                                                             data-bs-dismiss="modal"></button>
@@ -900,7 +898,7 @@ $productIngredients = $product->additionalIngredients->map(function ($ingredient
                                                                         </div>
                                                                         <span style="font-weight: 700; color: #27ae60;">
                                                                             R$
-                                                                            {{ number_format($item->price * $item->quantity, 2, ',', '.') }}
+                                                                            {{ number_format($item->line_total, 2, ',', '.') }}
                                                                         </span>
                                                                     </div>
                                                                 @endforeach
@@ -1008,6 +1006,14 @@ $productIngredients = $product->additionalIngredients->map(function ($ingredient
                             <div class="input-group">
                                 <span class="input-group-text">R$</span>
                                 <input type="text" class="form-control" id="product_price" name="price" required>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input type="checkbox" class="form-check-input" id="product_price_to_negotiate"
+                                    name="price_to_negotiate" value="1"
+                                    onchange="(p => { p.required = !this.checked; p.disabled = this.checked; if (this.checked) p.value = ''; })(this.closest('form').querySelector('[name=price]'))">
+                                <label class="form-check-label" for="product_price_to_negotiate">Valor a combinar</label>
+                                <small class="d-block text-muted">O valor é lançado pelo garçom no momento da
+                                    venda.</small>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -1193,6 +1199,15 @@ $productIngredients = $product->additionalIngredients->map(function ($ingredient
                                 <span class="input-group-text">R$</span>
                                 <input type="text" class="form-control" id="edit_product_price" name="price"
                                     required>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input type="checkbox" class="form-check-input" id="edit_product_price_to_negotiate"
+                                    name="price_to_negotiate" value="1"
+                                    onchange="(p => { p.required = !this.checked; p.disabled = this.checked; if (this.checked) p.value = ''; })(this.closest('form').querySelector('[name=price]'))">
+                                <label class="form-check-label" for="edit_product_price_to_negotiate">Valor a
+                                    combinar</label>
+                                <small class="d-block text-muted">O valor é lançado pelo garçom no momento da
+                                    venda.</small>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -1641,6 +1656,14 @@ $productIngredients = $product->additionalIngredients->map(function ($ingredient
                 }
             });
 
+            // Reabilita o preço ao limpar o formulário (checkbox "Valor a combinar" o desabilita).
+            document.addEventListener('reset', function(e) {
+                e.target.querySelectorAll('[name=price]').forEach(function(p) {
+                    p.disabled = false;
+                    p.required = true;
+                });
+            }, true);
+
             // Função para abrir modal de edição de produto
             function openEditProductModal(button) {
                 const id = button.getAttribute('data-product-id');
@@ -1657,6 +1680,11 @@ $productIngredients = $product->additionalIngredients->map(function ($ingredient
                 document.getElementById('edit_product_category_id').value = categoryId;
                 document.getElementById('edit_product_name').value = name;
                 document.getElementById('edit_product_price').value = price;
+                document.getElementById('edit_product_price').disabled = false;
+                document.getElementById('edit_product_price').required = true;
+                const negotiateCheckbox = document.getElementById('edit_product_price_to_negotiate');
+                negotiateCheckbox.checked = button.getAttribute('data-product-price-to-negotiate') === 'true';
+                negotiateCheckbox.dispatchEvent(new Event('change'));
                 document.getElementById('edit_product_description').value = description || '';
                 document.getElementById('edit_product_active').checked = active;
                 document.getElementById('edit_product_is_quick_item').checked = isQuickItem;
