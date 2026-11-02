@@ -16,6 +16,7 @@ use App\Models\TableUser;
 use App\Models\User;
 use App\Notifications\NewOrderForKitchen;
 use App\Notifications\QuickItemForWaiter;
+use App\Services\TablePaymentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
@@ -24,6 +25,54 @@ use Tests\TestCase;
 class WaiterServiceFeeTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_waiter_bill_print_includes_item_values_and_separate_summary_lines(): void
+    {
+        [, $table, $order] = $this->createAssignedTableWithPendingOrder();
+        $category = Category::create([
+            'name' => 'Bebidas',
+            'store_id' => $table->store_id,
+        ]);
+        $negotiatedProduct = Product::create([
+            'name' => 'Limonada',
+            'price' => 10,
+            'category_id' => $category->id,
+            'store_id' => $table->store_id,
+        ]);
+        $regularProduct = Product::create([
+            'name' => 'Suco',
+            'price' => 45,
+            'category_id' => $category->id,
+            'store_id' => $table->store_id,
+        ]);
+        $order->items()->create([
+            'product_id' => $negotiatedProduct->id,
+            'quantity' => 2,
+            'price' => 10,
+            'negotiated_total' => 30,
+        ]);
+        $order->items()->create([
+            'product_id' => $regularProduct->id,
+            'quantity' => 1,
+            'price' => 45,
+        ]);
+        $order->update(['total' => 75]);
+
+        $printOrder = app(TablePaymentService::class)->receiptPrintOrder(
+            $table,
+            ['include_service_fee' => false],
+            true
+        );
+
+        $this->assertSame([
+            ['Quantity' => 2, 'Description' => 'Limonada - R$ 30,00'],
+            ['Quantity' => 1, 'Description' => 'Suco - R$ 45,00'],
+        ], $printOrder['Items']);
+        $this->assertStringContainsString(
+            "Consumo: R$ 75,00\r\nTOTAL: R$ 75,00",
+            $printOrder['Observations']['Description']
+        );
+    }
 
     public function test_service_fee_preview_is_not_persisted_until_payment_is_marked_paid(): void
     {

@@ -5,7 +5,7 @@
                 data-order-id="{{ $order->id }}" data-order-status="{{ $order->status }}">
                 <div class="order-card-header">
                     <div>
-                        <div class="order-number">{{ $order->display_name }}</div>
+                        <div class="order-number">{{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}</div>
                         <div class="order-time {{ $order->created_at->diffInMinutes(now()) > 15 ? 'urgent' : '' }}">
                             <i class="fas fa-clock me-1"></i>
                             {{ $order->created_at->diffForHumans() }}
@@ -15,11 +15,7 @@
                         </div>
                     </div>
                     <div class="text-end">
-                        <span class="order-table">
-                            <i
-                                class="fas fa-{{ $order->table ? 'chair' : 'store' }} me-1"></i>{{ $order->table ? 'Mesa ' . $order->table->number : 'Balcão' }}
-                        </span>
-                        <div class="mt-2">
+                        <div>
                             <span
                                 class="status-badge {{ in_array($order->status, ['Aguardando pagamento', 'Aguardando produção']) ? 'waiting' : 'in-production' }}">
                                 {{ $order->status }}

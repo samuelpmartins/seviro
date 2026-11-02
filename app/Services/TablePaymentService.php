@@ -115,10 +115,14 @@ class TablePaymentService
 
         $items = $orders->flatMap->items
             ->groupBy(fn($item) => $item->product->name ?? 'Item sem descricao')
-            ->map(fn($group, $name) => [
-                'Quantity' => (int) $group->sum('quantity'),
-                'Description' => Str::ascii($name),
-            ])
+            ->map(function ($group, $name) use ($money) {
+                return [
+                    'Quantity' => (int) $group->sum('quantity'),
+                    'Description' => Str::ascii(
+                        $name . ' - ' . $money((float) $group->sum(fn($item) => $item->line_total))
+                    ),
+                ];
+            })
             ->values()
             ->all();
 
@@ -139,7 +143,7 @@ class TablePaymentService
             'Items' => $items,
             'Observations' => [
                 'Title' => 'Resumo da conta',
-                'Description' => implode("\n", $lines),
+                'Description' => implode("\r\n", $lines),
             ],
         ];
     }
